@@ -895,7 +895,7 @@ function MeetingNotesModal({
       return 'medium'
     }
     
-    // Extract clean title (remove date part)
+    // Extract clean, concise title with proper title case
     const extractTitle = (text: string): string => {
       let title = text
         .replace(/^[-•*]\s*/, '') // Remove bullet points
@@ -903,15 +903,51 @@ function MeetingNotesModal({
         .replace(/\s*;\s*(?:event day\s+)?~?(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).*$/i, '') // Remove secondary date
         .replace(/\s*[–-]\s*(?:ongoing|from\s+).*$/i, '') // Remove ongoing suffix
         .replace(/\s*[–-]\s*(?:between|per\s+).*$/i, '') // Remove date ranges
+        .replace(/\s*\([^)]*\)\s*/g, ' ') // Remove parenthetical asides
+        .replace(/\s+/g, ' ') // Normalize whitespace
         .trim()
       
-      title = title.charAt(0).toUpperCase() + title.slice(1)
+      // Make more concise - remove filler phrases
+      title = title
+        .replace(/^(Lead overall on|Lead on|Take over and drive|Work with \w+ to)\s+/i, '')
+        .replace(/^(Begin early|Start high-level|Define and write down)\s+/i, '')
+        .replace(/\s+so that\s+.*$/i, '')
+        .replace(/\s+so\s+\w+\s+(can|are|is|will).*$/i, '')
+        .replace(/\s+and be present as.*$/i, '')
+        .replace(/\s+ensuring\s+.*$/i, '')
+        .replace(/\s+once the\s+.*$/i, '')
+        .trim()
       
-      if (title.length > 80) {
-        title = title.slice(0, 77) + '...'
+      // Truncate if still too long (cut at word boundary)
+      if (title.length > 55) {
+        title = title.slice(0, 52).replace(/\s+\S*$/, '') + '...'
       }
       
-      return title
+      // Words that should stay lowercase (unless first word)
+      const lowercaseWords = new Set([
+        'a', 'an', 'the', // articles
+        'and', 'but', 'or', 'nor', 'for', 'yet', 'so', // conjunctions
+        'to', 'at', 'by', 'for', 'in', 'of', 'on', 'up', 'as', 'if', // short prepositions
+        'with', 'from', 'into', 'onto', 'upon', 'about', 'after', 'before', // longer prepositions
+        'over', 'under', 'between', 'through', 'during', 'without',
+      ])
+      
+      // Apply title case
+      const words = title.toLowerCase().split(' ')
+      const titleCased = words.map((word, index) => {
+        // Always capitalize first word
+        if (index === 0) {
+          return word.charAt(0).toUpperCase() + word.slice(1)
+        }
+        // Keep lowercase words lowercase
+        if (lowercaseWords.has(word)) {
+          return word
+        }
+        // Capitalize other words
+        return word.charAt(0).toUpperCase() + word.slice(1)
+      })
+      
+      return titleCased.join(' ')
     }
     
     // Check if line is a person header (e.g., "- Adi" or "- You (Favour)")
