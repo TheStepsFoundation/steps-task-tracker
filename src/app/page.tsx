@@ -1925,25 +1925,36 @@ export default function Home() {
 
       {/* Global Workflow Filter */}
       <div className="mb-6 flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-medium text-gray-600">Showing:</span>
+        {/* Left side - Add Task */}
         <button
-          onClick={() => setShowNewWorkflowModal(true)}
-          className="px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition flex items-center gap-1"
+          onClick={() => {
+            const newTask: Task = {
+              id: Date.now(),
+              title: '',
+              description: '',
+              assignee: 0,
+              collaborators: [],
+              subtasks: [],
+              priority: 'medium',
+              status: 'todo',
+              dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              createdAt: new Date().toISOString().split('T')[0],
+              workflow: globalWorkflow !== 'all' ? globalWorkflow : null,
+              subWorkflow: null,
+            }
+            setTasks(prev => [...prev, newTask])
+            setEditingTask(newTask)
+          }}
+          className="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition flex items-center gap-1"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          New Workflow
+          Add Task
         </button>
-        <button
-          onClick={() => setShowMeetingNotesModal(true)}
-          className="px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition flex items-center gap-1"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Parse Notes
-        </button>
+        
+        <span className="text-sm font-medium text-gray-600">|</span>
+        <span className="text-sm font-medium text-gray-600">Showing:</span>
         <select
           value={globalWorkflow}
           onChange={(e) => setGlobalWorkflow(e.target.value)}
@@ -1991,9 +2002,31 @@ export default function Home() {
             </button>
           </>
         )}
-        <span className="ml-auto text-sm text-gray-400">
-          {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
-        </span>
+        
+        {/* Right side - New Workflow & Parse Notes */}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-sm text-gray-400 mr-2">
+            {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+          </span>
+          <button
+            onClick={() => setShowMeetingNotesModal(true)}
+            className="px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Parse Notes
+          </button>
+          <button
+            onClick={() => setShowNewWorkflowModal(true)}
+            className="px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Workflow
+          </button>
+        </div>
       </div>
 
       <DndContext
