@@ -27,14 +27,14 @@ const TEAM_MEMBERS = [
 
 // Workflows / Categories
 const WORKFLOWS = [
-  { id: 'event-4', name: '#4 The Great Lock-In', color: 'bg-purple-500' },
-  { id: 'event-3', name: '#3 Degree Apprenticeship', color: 'bg-blue-500' },
-  { id: 'event-2', name: '#2 Oxbridge Workshop', color: 'bg-indigo-500' },
-  { id: 'event-1', name: '#1 Starting Point', color: 'bg-violet-500' },
-  { id: 'schools', name: 'Schools', color: 'bg-green-500' },
-  { id: 'partnerships', name: 'Partnerships', color: 'bg-amber-500' },
-  { id: 'steps-scholars', name: 'Steps Scholars', color: 'bg-rose-500' },
-  { id: 'student-engagement', name: 'Student Engagement', color: 'bg-cyan-500' },
+  { id: 'event-4', name: '#4 The Great Lock-In', short: '#4', color: 'bg-purple-500' },
+  { id: 'event-3', name: '#3 Degree Apprenticeship', short: '#3', color: 'bg-blue-500' },
+  { id: 'event-2', name: '#2 Oxbridge Workshop', short: '#2', color: 'bg-indigo-500' },
+  { id: 'event-1', name: '#1 Starting Point', short: '#1', color: 'bg-violet-500' },
+  { id: 'schools', name: 'Schools', short: 'SCH', color: 'bg-green-500' },
+  { id: 'partnerships', name: 'Partnerships', short: 'PTN', color: 'bg-amber-500' },
+  { id: 'steps-scholars', name: 'Steps Scholars', short: 'SS', color: 'bg-rose-500' },
+  { id: 'student-engagement', name: 'Student Engagement', short: 'ENG', color: 'bg-cyan-500' },
 ]
 
 type Priority = 'low' | 'medium' | 'high' | 'urgent'
@@ -257,15 +257,15 @@ function DraggableTaskCard({
 
       {/* Workflow badges */}
       {workflow && (
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full text-white ${workflow.color}`}>
-            {workflow.name}
+        <div className="flex items-center gap-1 mb-2 flex-wrap">
+          <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${workflow.color}`}>
+            {workflow.short}
           </span>
           {subWorkflow && (
             <>
-              <span className="text-gray-400 text-xs">→</span>
-              <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full text-white ${subWorkflow.color}`}>
-                {subWorkflow.name}
+              <span className="text-gray-400 text-xs">›</span>
+              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${subWorkflow.color}`}>
+                {subWorkflow.short}
               </span>
             </>
           )}
@@ -551,6 +551,13 @@ export default function Home() {
   const [view, setView] = useState<'board' | 'team' | 'list' | 'workload'>('board')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  
+  // List view filters & sorting
+  const [filterWorkflow, setFilterWorkflow] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterAssignee, setFilterAssignee] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status' | 'workflow'>('dueDate')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -577,6 +584,45 @@ export default function Home() {
       urgent: memberTasks.filter(t => t.priority === 'urgent').length,
       high: memberTasks.filter(t => t.priority === 'high').length,
     }
+  }
+
+  // Filtered and sorted tasks for list view
+  const getFilteredSortedTasks = () => {
+    let filtered = [...tasks]
+    
+    if (filterWorkflow !== 'all') {
+      filtered = filtered.filter(t => t.workflow === filterWorkflow || t.subWorkflow === filterWorkflow)
+    }
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(t => t.status === filterStatus)
+    }
+    if (filterAssignee !== 'all') {
+      filtered = filtered.filter(t => t.assignee === parseInt(filterAssignee))
+    }
+    
+    const priorityOrder: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
+    const statusOrder: Record<Status, number> = { 'todo': 0, 'in-progress': 1, 'review': 2, 'done': 3 }
+    
+    filtered.sort((a, b) => {
+      let comparison = 0
+      switch (sortBy) {
+        case 'dueDate':
+          comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+          break
+        case 'priority':
+          comparison = priorityOrder[a.priority] - priorityOrder[b.priority]
+          break
+        case 'status':
+          comparison = statusOrder[a.status] - statusOrder[b.status]
+          break
+        case 'workflow':
+          comparison = (a.workflow || '').localeCompare(b.workflow || '')
+          break
+      }
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+    
+    return filtered
   }
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -814,77 +860,154 @@ export default function Home() {
 
       {/* List View */}
       {view === 'list' && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left p-4 font-medium text-gray-600">Task</th>
-                <th className="text-left p-4 font-medium text-gray-600">Workflow</th>
-                <th className="text-left p-4 font-medium text-gray-600">Assignee</th>
-                <th className="text-left p-4 font-medium text-gray-600">Priority</th>
-                <th className="text-left p-4 font-medium text-gray-600">Status</th>
-                <th className="text-left p-4 font-medium text-gray-600">Due</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map(task => {
-                const member = TEAM_MEMBERS.find(m => m.id === task.assignee)
-                const workflow = WORKFLOWS.find(w => w.id === task.workflow)
-                const subWorkflow = WORKFLOWS.find(w => w.id === task.subWorkflow)
-                return (
-                  <tr 
-                    key={task.id} 
-                    className="border-b hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setEditingTask(task)}
+        <div className="space-y-4">
+          {/* Filters & Sorting */}
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="flex flex-wrap gap-4 items-end">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Workflow</label>
+                <select
+                  value={filterWorkflow}
+                  onChange={(e) => setFilterWorkflow(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                >
+                  <option value="all">All Workflows</option>
+                  {WORKFLOWS.map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="todo">To Do</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="review">Review</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Assignee</label>
+                <select
+                  value={filterAssignee}
+                  onChange={(e) => setFilterAssignee(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                >
+                  <option value="all">Everyone</option>
+                  {TEAM_MEMBERS.map(m => (
+                    <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="border-l border-gray-200 pl-4">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Sort By</label>
+                <div className="flex gap-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
                   >
-                    <td className="p-4">
-                      <div className="font-medium text-gray-900">{task.title}</div>
-                      <div className="text-sm text-gray-500 line-clamp-1">{task.description}</div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex flex-col gap-1">
-                        {workflow && (
-                          <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full text-white w-fit ${workflow.color}`}>
-                            {workflow.name}
-                          </span>
-                        )}
-                        {subWorkflow && (
-                          <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full text-white w-fit ${subWorkflow.color}`}>
-                            ↳ {subWorkflow.name}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        {member && (
-                          <>
-                            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-sm font-medium">
-                              {member.avatar}
-                            </div>
-                            <span className="text-gray-700">{member.name.split(' ')[0]}</span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${priorityColors[task.priority]}`}>
-                        {task.priority}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${statusColors[task.status]}`}>
-                        {statusLabels[task.status]}
-                      </span>
-                    </td>
-                    <td className="p-4 text-gray-600 whitespace-nowrap">
-                      {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    <option value="dueDate">Due Date</option>
+                    <option value="priority">Priority</option>
+                    <option value="status">Status</option>
+                    <option value="workflow">Workflow</option>
+                  </select>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:bg-gray-50"
+                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                  >
+                    {sortOrder === 'asc' ? '↑' : '↓'}
+                  </button>
+                </div>
+              </div>
+              <div className="ml-auto text-sm text-gray-500">
+                {getFilteredSortedTasks().length} tasks
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left p-4 font-medium text-gray-600">Task</th>
+                  <th className="text-left p-4 font-medium text-gray-600">Workflow</th>
+                  <th className="text-left p-4 font-medium text-gray-600">Assignee</th>
+                  <th className="text-left p-4 font-medium text-gray-600">Priority</th>
+                  <th className="text-left p-4 font-medium text-gray-600">Status</th>
+                  <th className="text-left p-4 font-medium text-gray-600">Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getFilteredSortedTasks().map(task => {
+                  const member = TEAM_MEMBERS.find(m => m.id === task.assignee)
+                  const workflow = WORKFLOWS.find(w => w.id === task.workflow)
+                  const subWorkflow = WORKFLOWS.find(w => w.id === task.subWorkflow)
+                  return (
+                    <tr 
+                      key={task.id} 
+                      className="border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setEditingTask(task)}
+                    >
+                      <td className="p-4">
+                        <div className="font-medium text-gray-900">{task.title}</div>
+                        <div className="text-sm text-gray-500 line-clamp-1">{task.description}</div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1">
+                          {workflow && (
+                            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${workflow.color}`}>
+                              {workflow.short}
+                            </span>
+                          )}
+                          {subWorkflow && (
+                            <>
+                              <span className="text-gray-400 text-xs">›</span>
+                              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${subWorkflow.color}`}>
+                                {subWorkflow.short}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          {member && (
+                            <>
+                              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-sm font-medium">
+                                {member.avatar}
+                              </div>
+                              <span className="text-gray-700">{member.name.split(' ')[0]}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${priorityColors[task.priority]}`}>
+                          {task.priority}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${statusColors[task.status]}`}>
+                          {statusLabels[task.status]}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-600 whitespace-nowrap">
+                        {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
