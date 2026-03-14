@@ -816,96 +816,153 @@ function MeetingNotesModal({
     if (!notes.trim()) return
     setIsAnalyzing(true)
     
-    // Parse meeting notes to extract tasks
-    // This uses heuristics - can be upgraded to AI API later
-    const lines = notes.split('\n').filter(l => l.trim())
+    // Parse meeting notes to extract tasks - SELECTIVE approach
+    // Only extract clear, actionable items with explicit ownership
+    const fullText = notes
+    const sentences = notes.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 15)
     const tasks: SuggestedTask[] = []
     
-    // Keywords that indicate action items
-    const actionKeywords = ['will', 'should', 'needs to', 'to do', 'action', 'task', 'responsible', 'owns', 'handle', 'create', 'prepare', 'send', 'follow up', 'complete', 'finish', 'draft', 'review', 'coordinate', 'organize', 'contact', 'reach out', 'book', 'schedule', 'confirm', 'finalize']
+    // Strong assignment patterns - must have name + action verb
+    const assignmentPatterns = [
+      /(\w+)\s+(?:will|is going to|shall)\s+(.+)/i,
+      /(\w+)\s+(?:needs? to|has to|must)\s+(.+)/i,
+      /(\w+)\s+(?:should|could)\s+(.+)/i,
+      /(\w+)\s+to\s+(handle|create|prepare|send|draft|review|coordinate|organize|contact|book|schedule|confirm|finalize|follow up|complete|finish|reach out|set up|write|design|build)\s+(.+)/i,
+      /(?:action|task|todo)(?:\s*[-:])?\s*(\w+)\s+(.+)/i,
+      /(\w+)\s+(?:is responsible for|owns|will take care of|will handle)\s+(.+)/i,
+    ]
     
-    // Try to match team member names
-    const findMember = (text: string): number => {
-      const lower = text.toLowerCase()
-      for (const member of TEAM_MEMBERS) {
-        const firstName = member.name.split(' ')[0].toLowerCase()
-        const fullName = member.name.toLowerCase()
-        if (lower.includes(fullName) || lower.includes(firstName)) {
-          return member.id
-        }
-      }
-      return 0 // unassigned
+    // Get first names of team members for matching
+    const memberNames = TEAM_MEMBERS.map(m => ({
+      id: m.id,
+      firstName: m.name.split(' ')[0].toLowerCase(),
+      fullName: m.name.toLowerCase(),
+    }))
+    
+    // Find team member by name
+    const findMember = (name: string): number => {
+      const lower = name.toLowerCase().trim()
+      const match = memberNames.find(m => m.firstName === lower || m.fullName.startsWith(lower))
+      return match?.id || 0
     }
     
-    // Estimate intensity based on keywords
+    // Check if a name is a team member
+    const isTeamMember = (name: string): boolean => findMember(name) !== 0
+    
+    // Get surrounding context (2-3 sentences before and after)
+    const getContext = (targetSentence: string): string => {
+      const idx = sentences.findIndex(s => s === targetSentence)
+      if (idx === -1) return targetSentence
+      const start = Math.max(0, idx - 2)
+      const end = Math.min(sentences.length, idx + 3)
+      return sentences.slice(start, end).join('. ') + '.'
+    }
+    
+    // Estimate intensity from context
     const estimateIntensity = (text: string): Intensity => {
       const lower = text.toLowerCase()
-      if (lower.includes('quick') || lower.includes('simple') || lower.includes('small') || lower.includes('minor')) return 'quick'
-      if (lower.includes('big') || lower.includes('major') || lower.includes('full') || lower.includes('complete') || lower.includes('entire')) return 'huge'
-      if (lower.includes('large') || lower.includes('significant')) return 'large'
-      if (lower.includes('medium') || lower.includes('moderate')) return 'medium'
+      if (/quick|simple|small|minor|brief|short/.test(lower)) return 'quick'
+      if (/big|major|full|complete|entire|comprehensive|large project/.test(lower)) return 'huge'
+      if (/significant|substantial|large/.test(lower)) return 'large'
+      if (/medium|moderate|standard/.test(lower)) return 'medium'
       return 'small'
     }
     
-    // Estimate priority
+    // Estimate priority from context
     const estimatePriority = (text: string): Priority => {
       const lower = text.toLowerCase()
-      if (lower.includes('urgent') || lower.includes('asap') || lower.includes('immediately') || lower.includes('critical')) return 'urgent'
-      if (lower.includes('important') || lower.includes('priority') || lower.includes('soon')) return 'high'
-      if (lower.includes('eventually') || lower.includes('low priority') || lower.includes('when possible')) return 'low'
+      if (/urgent|asap|immediately|critical|emergency|right away|today/.test(lower)) return 'urgent'
+      if (/important|priority|soon|this week|by friday|by monday/.test(lower)) return 'high'
+      if (/eventually|low priority|when possible|no rush|whenever/.test(lower)) return 'low'
       return 'medium'
     }
     
-    // Process each line
-    for (const line of lines) {
-      const hasAction = actionKeywords.some(kw => line.toLowerCase().includes(kw))
-      if (hasAction && line.length > 10) {
-        const assignee = findMember(line)
-        const intensity = estimateIntensity(line)
-        const priority = estimatePriority(line)
-        
-        // Find potential collaborators (other names mentioned)
-        const collaborators: number[] = []
-        for (const member of TEAM_MEMBERS) {
-          if (member.id !== assignee) {
-            const firstName = member.name.split(' ')[0].toLowerCase()
-            if (line.toLowerCase().includes(firstName)) {
-              collaborators.push(member.id)
+    // Extract title from action (clean up and shorten)
+    const extractTitle = (action: string): string => {
+      // Remove filler words and clean up
+      let title = action
+        .replace(/^(the|a|an|to|that|this)\s+/i, '')
+        .replace(/\s+(the|a|an)\s+/gi, ' ')
+        .trim()
+      
+      // Capitalize first letter
+      title = title.charAt(0).toUpperCase() + title.slice(1)
+      
+      // Truncate if too long
+      if (title.length > 60) {
+        title = title.slice(0, 57) + '...'
+      }
+      
+      return title
+    }
+    
+    // Process sentences looking for clear assignments
+    const processedAssignees = new Set<string>() // Avoid duplicate tasks
+    
+    for (const sentence of sentences) {
+      // Try each pattern
+      for (const pattern of assignmentPatterns) {
+        const match = sentence.match(pattern)
+        if (match) {
+          const potentialName = match[1]
+          const actionPart = match[2] || match[3] || ''
+          
+          // Only proceed if the name matches a team member
+          const assigneeId = findMember(potentialName)
+          if (assigneeId === 0) continue
+          
+          // Create a unique key to avoid duplicates
+          const taskKey = `${assigneeId}-${actionPart.slice(0, 30).toLowerCase()}`
+          if (processedAssignees.has(taskKey)) continue
+          processedAssignees.add(taskKey)
+          
+          // Get extended context
+          const context = getContext(sentence)
+          
+          // Find collaborators mentioned in context
+          const collaborators: number[] = []
+          for (const m of memberNames) {
+            if (m.id !== assigneeId && context.toLowerCase().includes(m.firstName)) {
+              collaborators.push(m.id)
             }
           }
-        }
-        
-        // Create task
-        const task: SuggestedTask = {
-          id: Date.now() + tasks.length,
-          title: line.slice(0, 60) + (line.length > 60 ? '...' : ''),
-          description: line,
-          assignee,
-          collaborators,
-          subtasks: assignee ? [{
-            id: Date.now() + tasks.length + 1000,
-            personId: assignee,
-            description: '',
-            intensity,
-          }] : [],
-          priority,
-          status: 'todo',
-          workflow: selectedWorkflow,
-          selected: true,
-        }
-        
-        // Add collaborator subtasks
-        collaborators.forEach((collabId, i) => {
-          task.subtasks.push({
-            id: Date.now() + tasks.length + 2000 + i,
-            personId: collabId,
-            description: '',
-            intensity: 'small',
+          
+          // Create task
+          const task: SuggestedTask = {
+            id: Date.now() + tasks.length,
+            title: extractTitle(actionPart),
+            description: context,
+            assignee: assigneeId,
+            collaborators,
+            subtasks: [{
+              id: Date.now() + tasks.length + 1000,
+              personId: assigneeId,
+              description: '',
+              intensity: estimateIntensity(context),
+            }],
+            priority: estimatePriority(context),
+            status: 'todo',
+            workflow: selectedWorkflow,
+            selected: true,
+          }
+          
+          // Add collaborator subtasks
+          collaborators.forEach((collabId, i) => {
+            task.subtasks.push({
+              id: Date.now() + tasks.length + 2000 + i,
+              personId: collabId,
+              description: '',
+              intensity: 'small',
+            })
           })
-        })
-        
-        tasks.push(task)
+          
+          tasks.push(task)
+          break // Only match first pattern per sentence
+        }
       }
+      
+      // Limit to max 20 tasks
+      if (tasks.length >= 20) break
     }
     
     // Simulate brief analysis time
@@ -1590,6 +1647,18 @@ export default function Home() {
   const [showMeetingNotesModal, setShowMeetingNotesModal] = useState(false)
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
   
+  // Workload week view state
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    // Default to current week (Monday start)
+    const today = new Date()
+    const day = today.getDay()
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1) // Monday
+    const monday = new Date(today.setDate(diff))
+    return monday.toISOString().split('T')[0]
+  })
+  const [weekCapacities, setWeekCapacities] = useState<Record<string, Record<number, number>>>({})
+  // weekCapacities format: { "2026-03-16": { 1: 8, 2: 6, 3: 10 } } (weekStart -> memberId -> hours)
+  
   // Global workflow filter (applies to all views)
   const [globalWorkflow, setGlobalWorkflow] = useState<string>('all')
   
@@ -1626,9 +1695,21 @@ export default function Home() {
   const getUnassignedTasks = () => filteredTasks.filter(t => !t.assignee && t.status !== 'done')
   const getUnassignedArchivedTasks = () => filteredTasks.filter(t => !t.assignee && t.status === 'done')
   
-  const getWorkload = (memberId: number) => {
+  const getWorkload = (memberId: number, weekStart?: string) => {
     // Calculate workload from subtasks assigned to this person (in non-done tasks)
-    const activeTasks = filteredTasks.filter(t => t.status !== 'done')
+    let activeTasks = filteredTasks.filter(t => t.status !== 'done')
+    
+    // Filter by week if provided
+    if (weekStart) {
+      const weekStartDate = new Date(weekStart)
+      const weekEndDate = new Date(weekStart)
+      weekEndDate.setDate(weekEndDate.getDate() + 7)
+      
+      activeTasks = activeTasks.filter(t => {
+        const dueDate = new Date(t.dueDate)
+        return dueDate >= weekStartDate && dueDate < weekEndDate
+      })
+    }
     
     let totalHours = 0
     let subtaskCount = 0
@@ -1655,21 +1736,42 @@ export default function Home() {
     // Assume medium intensity for unspecified work
     totalHours += assignedWithNoSubtask * 3
     
-    const urgentTasks = activeTasks.filter(t => 
-      t.priority === 'urgent' && (t.assignee === memberId || t.subtasks.some(st => st.personId === memberId))
-    ).length
-    const highTasks = activeTasks.filter(t => 
-      t.priority === 'high' && (t.assignee === memberId || t.subtasks.some(st => st.personId === memberId))
-    ).length
-    
     return {
       hours: totalHours,
       subtasks: subtaskCount,
       unspecified: assignedWithNoSubtask,
-      urgent: urgentTasks,
-      high: highTasks,
       byIntensity: intensityCounts,
     }
+  }
+  
+  // Get capacity for a member for a specific week
+  const getMemberCapacity = (memberId: number, weekStart: string): number => {
+    return weekCapacities[weekStart]?.[memberId] ?? 16 // Default 16h (2 days)
+  }
+  
+  // Set capacity for a member for a specific week
+  const setMemberCapacity = (memberId: number, weekStart: string, hours: number) => {
+    setWeekCapacities(prev => ({
+      ...prev,
+      [weekStart]: {
+        ...prev[weekStart],
+        [memberId]: Math.max(0, Math.min(40, hours)) // Clamp 0-40h
+      }
+    }))
+  }
+  
+  // Get week navigation helpers
+  const getWeekLabel = (weekStart: string) => {
+    const start = new Date(weekStart)
+    const end = new Date(weekStart)
+    end.setDate(end.getDate() + 6)
+    return `${start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  }
+  
+  const navigateWeek = (direction: number) => {
+    const current = new Date(selectedWeek)
+    current.setDate(current.getDate() + (direction * 7))
+    setSelectedWeek(current.toISOString().split('T')[0])
   }
 
   // Filtered and sorted tasks for list view
@@ -2052,75 +2154,145 @@ export default function Home() {
 
       {/* Workload View */}
       {view === 'workload' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {TEAM_MEMBERS.map(member => {
-            const workload = getWorkload(member.id)
-            const maxHours = 16 // ~2 days of work
-            const loadPercent = Math.min((workload.hours / maxHours) * 100, 100)
-            
-            return (
-              <div key={member.id} className="bg-white rounded-xl p-5 shadow-sm border">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold">
-                    {member.avatar}
+        <div className="space-y-6">
+          {/* Week Navigator */}
+          <div className="flex items-center justify-center gap-4 bg-white rounded-xl p-4 shadow-sm border">
+            <button
+              onClick={() => navigateWeek(-1)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Week of</p>
+              <p className="font-semibold text-gray-900">{getWeekLabel(selectedWeek)}</p>
+            </div>
+            <button
+              onClick={() => navigateWeek(1)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <input
+              type="date"
+              value={selectedWeek}
+              onChange={e => setSelectedWeek(e.target.value)}
+              className="ml-4 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {TEAM_MEMBERS.map(member => {
+              const workload = getWorkload(member.id, selectedWeek)
+              const capacity = getMemberCapacity(member.id, selectedWeek)
+              const loadPercent = capacity > 0 ? Math.min((workload.hours / capacity) * 100, 100) : 0
+              const isOverCapacity = workload.hours > capacity
+              
+              return (
+                <div key={member.id} className={`bg-white rounded-xl p-5 shadow-sm border-2 transition ${
+                  isOverCapacity ? 'border-red-300 bg-red-50/30' : 'border-gray-100'
+                }`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold">
+                      {member.avatar}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{member.name}</h3>
+                      <p className="text-sm text-gray-500">{member.role}</p>
+                    </div>
+                    {isOverCapacity && (
+                      <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Over capacity
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                    <p className="text-sm text-gray-500">{member.role}</p>
+                  
+                  <div className="mb-3">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Workload</span>
+                      <span className={`font-medium ${isOverCapacity ? 'text-red-600' : ''}`}>
+                        {workload.hours.toFixed(1)}h / {capacity}h
+                      </span>
+                    </div>
+                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden relative">
+                      <div 
+                        className={`h-full transition-all ${
+                          isOverCapacity ? 'bg-red-500' : loadPercent > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: `${loadPercent}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-                
-                <div className="mb-3">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Estimated Workload</span>
-                    <span className="font-medium">{workload.hours.toFixed(1)}h</span>
-                  </div>
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all ${
-                        loadPercent > 80 ? 'bg-red-500' : loadPercent > 50 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
-                      style={{ width: `${loadPercent}%` }}
+                  
+                  {/* Capacity slider */}
+                  <div className="mb-3">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Set weekly capacity</span>
+                      <span>{capacity}h</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="40"
+                      step="1"
+                      value={capacity}
+                      onChange={e => setMemberCapacity(member.id, selectedWeek, parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
                     />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>0h</span>
+                      <span>20h</span>
+                      <span>40h</span>
+                    </div>
+                  </div>
+                  
+                  {/* Breakdown by intensity with time estimates */}
+                  <div className="flex gap-1 text-xs flex-wrap">
+                    {workload.byIntensity.quick > 0 && (
+                      <span className={`px-2 py-0.5 rounded ${intensityColors.quick}`}>
+                        {workload.byIntensity.quick} quick (~20min)
+                      </span>
+                    )}
+                    {workload.byIntensity.small > 0 && (
+                      <span className={`px-2 py-0.5 rounded ${intensityColors.small}`}>
+                        {workload.byIntensity.small} small (~1h)
+                      </span>
+                    )}
+                    {workload.byIntensity.medium > 0 && (
+                      <span className={`px-2 py-0.5 rounded ${intensityColors.medium}`}>
+                        {workload.byIntensity.medium} medium (~3h)
+                      </span>
+                    )}
+                    {workload.byIntensity.large > 0 && (
+                      <span className={`px-2 py-0.5 rounded ${intensityColors.large}`}>
+                        {workload.byIntensity.large} large (~6h)
+                      </span>
+                    )}
+                    {workload.byIntensity.huge > 0 && (
+                      <span className={`px-2 py-0.5 rounded ${intensityColors.huge}`}>
+                        {workload.byIntensity.huge} huge (~1 day)
+                      </span>
+                    )}
+                    {workload.unspecified > 0 && (
+                      <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                        {workload.unspecified} unspecified
+                      </span>
+                    )}
+                    {workload.hours === 0 && (
+                      <span className="text-gray-400 italic">No tasks this week</span>
+                    )}
                   </div>
                 </div>
-                
-                {/* Breakdown by intensity with time estimates */}
-                <div className="flex gap-1 text-xs flex-wrap">
-                  {workload.byIntensity.quick > 0 && (
-                    <span className={`px-2 py-0.5 rounded ${intensityColors.quick}`}>
-                      {workload.byIntensity.quick} quick (~20min)
-                    </span>
-                  )}
-                  {workload.byIntensity.small > 0 && (
-                    <span className={`px-2 py-0.5 rounded ${intensityColors.small}`}>
-                      {workload.byIntensity.small} small (~1h)
-                    </span>
-                  )}
-                  {workload.byIntensity.medium > 0 && (
-                    <span className={`px-2 py-0.5 rounded ${intensityColors.medium}`}>
-                      {workload.byIntensity.medium} medium (~3h)
-                    </span>
-                  )}
-                  {workload.byIntensity.large > 0 && (
-                    <span className={`px-2 py-0.5 rounded ${intensityColors.large}`}>
-                      {workload.byIntensity.large} large (~6h)
-                    </span>
-                  )}
-                  {workload.byIntensity.huge > 0 && (
-                    <span className={`px-2 py-0.5 rounded ${intensityColors.huge}`}>
-                      {workload.byIntensity.huge} huge (~1 day)
-                    </span>
-                  )}
-                  {workload.unspecified > 0 && (
-                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                      {workload.unspecified} unspecified
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       )}
 
