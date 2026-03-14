@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, DragEvent } from 'react'
 
 // Team members from Steps Foundation
 const TEAM_MEMBERS = [
@@ -68,6 +68,36 @@ const INITIAL_TASKS: Task[] = [
     dueDate: '2026-03-18',
     createdAt: '2026-03-14',
   },
+  {
+    id: 5,
+    title: 'Book catering for event',
+    description: 'Confirm lunch and refreshments for 250 attendees',
+    assignee: 5,
+    priority: 'high',
+    status: 'review',
+    dueDate: '2026-03-16',
+    createdAt: '2026-03-14',
+  },
+  {
+    id: 6,
+    title: 'Print name badges',
+    description: 'Design and print name badges for all confirmed attendees',
+    assignee: 6,
+    priority: 'low',
+    status: 'todo',
+    dueDate: '2026-03-20',
+    createdAt: '2026-03-14',
+  },
+  {
+    id: 7,
+    title: 'Set up registration desk',
+    description: 'Prepare check-in system and volunteer briefing',
+    assignee: 1,
+    priority: 'medium',
+    status: 'done',
+    dueDate: '2026-03-20',
+    createdAt: '2026-03-10',
+  },
 ]
 
 const priorityColors: Record<Priority, string> = {
@@ -84,11 +114,28 @@ const statusColors: Record<Status, string> = {
   'done': 'bg-green-200',
 }
 
+const statusLabels: Record<Status, string> = {
+  'todo': 'To Do',
+  'in-progress': 'In Progress',
+  'review': 'Review',
+  'done': 'Done',
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
-  const [view, setView] = useState<'board' | 'list' | 'workload'>('board')
+  const [view, setView] = useState<'board' | 'team' | 'list' | 'workload'>('board')
+  const [draggedTask, setDraggedTask] = useState<number | null>(null)
 
   const getTasksByStatus = (status: Status) => tasks.filter(t => t.status === status)
+  const getTasksByMember = (memberId: number, includeArchived: boolean = false) => {
+    if (includeArchived) {
+      return tasks.filter(t => t.assignee === memberId)
+    }
+    return tasks.filter(t => t.assignee === memberId && t.status !== 'done')
+  }
+  const getArchivedTasksByMember = (memberId: number) => 
+    tasks.filter(t => t.assignee === memberId && t.status === 'done')
+  
   const getMember = (id: number) => TEAM_MEMBERS.find(m => m.id === id)
   
   const getWorkload = (memberId: number) => {
@@ -100,6 +147,83 @@ export default function Home() {
     }
   }
 
+  // Drag and drop handlers
+  const handleDragStart = (e: DragEvent, taskId: number) => {
+    setDraggedTask(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDropOnStatus = (e: DragEvent, newStatus: Status) => {
+    e.preventDefault()
+    if (draggedTask === null) return
+    
+    setTasks(prev => prev.map(task => 
+      task.id === draggedTask ? { ...task, status: newStatus } : task
+    ))
+    setDraggedTask(null)
+  }
+
+  const handleDropOnMember = (e: DragEvent, newAssignee: number) => {
+    e.preventDefault()
+    if (draggedTask === null) return
+    
+    setTasks(prev => prev.map(task => 
+      task.id === draggedTask ? { ...task, assignee: newAssignee } : task
+    ))
+    setDraggedTask(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTask(null)
+  }
+
+  // Task card component
+  const TaskCard = ({ task, showStatus = false }: { task: Task; showStatus?: boolean }) => {
+    const member = getMember(task.assignee)
+    return (
+      <div
+        draggable
+        onDragStart={(e) => handleDragStart(e, task.id)}
+        onDragEnd={handleDragEnd}
+        className={`bg-white rounded-lg p-4 shadow-sm border border-gray-100 hover:shadow-md transition cursor-grab active:cursor-grabbing ${
+          draggedTask === task.id ? 'opacity-50' : ''
+        }`}
+      >
+        <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
+        <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+          {task.description}
+        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[task.priority]}`}>
+              {task.priority}
+            </span>
+            {showStatus && (
+              <span className={`text-xs px-2 py-1 rounded-full ${statusColors[task.status]} text-gray-700`}>
+                {statusLabels[task.status]}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </span>
+            {member && (
+              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-medium" title={member.name}>
+                {member.avatar.charAt(0)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <main className="min-h-screen p-6">
       {/* Header */}
@@ -109,32 +233,78 @@ export default function Home() {
           <p className="text-gray-500">Event #4: The Great Lock-In — March 21, 2026</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setView('board')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              view === 'board' ? 'bg-purple-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-            }`}
-          >
-            Board
-          </button>
-          <button
-            onClick={() => setView('list')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              view === 'list' ? 'bg-purple-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-            }`}
-          >
-            List
-          </button>
-          <button
-            onClick={() => setView('workload')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              view === 'workload' ? 'bg-purple-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-            }`}
-          >
-            Workload
-          </button>
+          {(['board', 'team', 'list', 'workload'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-4 py-2 rounded-lg font-medium transition capitalize ${
+                view === v ? 'bg-purple-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Team View - Columns by team member */}
+      {view === 'team' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {TEAM_MEMBERS.map(member => {
+            const activeTasks = getTasksByMember(member.id)
+            const archivedTasks = getArchivedTasksByMember(member.id)
+            
+            return (
+              <div 
+                key={member.id} 
+                className="bg-gray-50 rounded-xl p-4 min-h-[400px]"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDropOnMember(e, member.id)}
+              >
+                {/* Member header */}
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                    {member.avatar}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-semibold text-gray-700 text-sm truncate">{member.name.split(' ')[0]}</h2>
+                    <p className="text-xs text-gray-400">{activeTasks.length} active</p>
+                  </div>
+                </div>
+                
+                {/* Active tasks */}
+                <div className="space-y-3 mb-4">
+                  {activeTasks.map(task => (
+                    <TaskCard key={task.id} task={task} showStatus />
+                  ))}
+                  {activeTasks.length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">No active tasks</p>
+                  )}
+                </div>
+
+                {/* Archived/Done tasks */}
+                {archivedTasks.length > 0 && (
+                  <div className="border-t border-gray-200 pt-3">
+                    <p className="text-xs text-gray-400 mb-2">Completed ({archivedTasks.length})</p>
+                    <div className="space-y-2 opacity-60">
+                      {archivedTasks.slice(0, 3).map(task => (
+                        <div key={task.id} className="bg-white rounded-lg p-3 text-sm">
+                          <p className="text-gray-600 line-clamp-1">{task.title}</p>
+                        </div>
+                      ))}
+                      {archivedTasks.length > 3 && (
+                        <p className="text-xs text-gray-400 text-center">
+                          +{archivedTasks.length - 3} more
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Workload View */}
       {view === 'workload' && (
@@ -189,15 +359,22 @@ export default function Home() {
         </div>
       )}
 
-      {/* Board View */}
+      {/* Board View - Kanban with drag & drop */}
       {view === 'board' && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {(['todo', 'in-progress', 'review', 'done'] as Status[]).map(status => (
-            <div key={status} className="bg-gray-50 rounded-xl p-4">
+            <div 
+              key={status} 
+              className={`bg-gray-50 rounded-xl p-4 min-h-[400px] transition ${
+                draggedTask !== null ? 'ring-2 ring-purple-200 ring-inset' : ''
+              }`}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDropOnStatus(e, status)}
+            >
               <div className="flex items-center gap-2 mb-4">
                 <div className={`w-3 h-3 rounded-full ${statusColors[status]}`} />
-                <h2 className="font-semibold text-gray-700 capitalize">
-                  {status.replace('-', ' ')}
+                <h2 className="font-semibold text-gray-700">
+                  {statusLabels[status]}
                 </h2>
                 <span className="ml-auto text-sm text-gray-400">
                   {getTasksByStatus(status).length}
@@ -205,35 +382,9 @@ export default function Home() {
               </div>
               
               <div className="space-y-3">
-                {getTasksByStatus(status).map(task => {
-                  const member = getMember(task.assignee)
-                  return (
-                    <div
-                      key={task.id}
-                      className="bg-white rounded-lg p-4 shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer"
-                    >
-                      <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
-                      <p className="text-sm text-gray-500 mb-3 line-clamp-2">
-                        {task.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[task.priority]}`}>
-                          {task.priority}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">
-                            {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                          </span>
-                          {member && (
-                            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-medium">
-                              {member.avatar.charAt(0)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+                {getTasksByStatus(status).map(task => (
+                  <TaskCard key={task.id} task={task} />
+                ))}
               </div>
             </div>
           ))}
@@ -269,7 +420,7 @@ export default function Home() {
                             <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-sm font-medium">
                               {member.avatar}
                             </div>
-                            <span className="text-gray-700">{member.name}</span>
+                            <span className="text-gray-700">{member.name.split(' ')[0]}</span>
                           </>
                         )}
                       </div>
@@ -281,7 +432,7 @@ export default function Home() {
                     </td>
                     <td className="p-4">
                       <span className={`text-xs px-2 py-1 rounded-full ${statusColors[task.status]} text-gray-700`}>
-                        {task.status.replace('-', ' ')}
+                        {statusLabels[task.status]}
                       </span>
                     </td>
                     <td className="p-4 text-gray-600">
@@ -292,6 +443,13 @@ export default function Home() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Drag hint */}
+      {draggedTask !== null && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-full text-sm shadow-lg">
+          Drop to move task
         </div>
       )}
     </main>
