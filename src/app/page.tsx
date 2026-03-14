@@ -794,6 +794,7 @@ interface SuggestedTask {
   status: Status
   workflow: string | null
   selected: boolean
+  dueDate?: string // Parsed from notes, e.g., "2026-03-14"
 }
 
 // Meeting Notes Parser Modal
@@ -816,16 +817,16 @@ function MeetingNotesModal({
     if (!notes.trim()) return
     setIsAnalyzing(true)
     
-    // Parse meeting notes to extract tasks - BALANCED approach
-    // Find actionable tasks, with or without explicit assignees
-    const sentences = notes.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 10)
+    // Parse meeting notes to extract tasks
+    // Supports both structured lists (- Person: - task) and free-form notes
+    const lines = notes.split('\n').map(l => l.trim())
     const tasks: SuggestedTask[] = []
     
     // Team member names and nicknames
     const memberAliases: { id: number; names: string[] }[] = [
-      { id: 1, names: ["god'sfavour", "godsfavour", "favour", "fav"] },
+      { id: 1, names: ["god'sfavour", "godsfavour", "favour", "fav", "you (favour)", "you(favour)"] },
       { id: 2, names: ["jin", "jim"] },
-      { id: 3, names: ["daniyaal", "danny", "dani", "dan"] },
+      { id: 3, names: ["daniyaal", "danny", "dani", "dan", "dany"] },
       { id: 4, names: ["sam", "samuel"] },
       { id: 5, names: ["earl"] },
       { id: 6, names: ["aditya", "adi"] },
@@ -844,150 +845,252 @@ function MeetingNotesModal({
       return 0 // Unassigned
     }
     
-    // Action verbs that signal a task
-    const actionVerbs = [
-      'set up', 'setup', 'create', 'build', 'design', 'write', 'draft', 'prepare',
-      'send', 'email', 'contact', 'reach out', 'follow up', 'call', 'message',
-      'schedule', 'book', 'arrange', 'organize', 'coordinate', 'plan',
-      'review', 'check', 'confirm', 'finalize', 'complete', 'finish',
-      'interview', 'meet', 'discuss', 'present', 'pitch',
-      'update', 'edit', 'fix', 'resolve', 'handle', 'manage',
-      'research', 'find', 'look into', 'investigate',
-      'post', 'publish', 'share', 'announce',
-    ]
-    
-    // Conversational noise to filter out (not tasks)
-    const noisePatterns = [
-      /catch up later/i, /call you later/i, /talk soon/i, /see you/i,
-      /sounds good/i, /that works/i, /makes sense/i, /good idea/i,
-      /thanks|thank you/i, /no problem/i, /you're welcome/i,
-      /how are you/i, /what do you think/i, /let me know/i,
-      /yeah|yep|yes|no|nope|okay|ok|sure/i,
-      /anyway|anyways|by the way|btw/i,
-      /^\s*i think/i, /^\s*maybe/i, /^\s*probably/i,
-    ]
-    
-    // Check if sentence is conversational noise
-    const isNoise = (text: string): boolean => {
-      if (text.length < 20) return true // Too short
-      return noisePatterns.some(p => p.test(text))
+    // Parse date from text like "by Thu 12 Mar 2026" or "Fri 13 Mar 2026"
+    const parseDate = (text: string): string | null => {
+      // Match patterns like "by Thu 12 Mar 2026", "Fri 13 Mar 2026", "by Sun 22 Mar 2026"
+      const dateMatch = text.match(/(?:by\s+)?(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/i)
+      if (dateMatch) {
+        const months: Record<string, string> = {
+          jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+          jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+        }
+        const day = dateMatch[1].padStart(2, '0')
+        const month = months[dateMatch[2].toLowerCase()]
+        const year = dateMatch[3]
+        return `${year}-${month}-${day}`
+      }
+      return null
     }
     
-    // Check if sentence has an action verb
-    const hasAction = (text: string): boolean => {
-      const lower = text.toLowerCase()
-      return actionVerbs.some(verb => lower.includes(verb))
-    }
-    
-    // Get surrounding context
-    const getContext = (idx: number): string => {
-      const start = Math.max(0, idx - 1)
-      const end = Math.min(sentences.length, idx + 2)
-      return sentences.slice(start, end).join('. ') + '.'
-    }
-    
-    // Estimate intensity
+    // Estimate intensity based on keywords
     const estimateIntensity = (text: string): Intensity => {
       const lower = text.toLowerCase()
-      if (/quick|simple|small|minor|brief|short/.test(lower)) return 'quick'
-      if (/big|major|full|complete|entire|comprehensive|large project/.test(lower)) return 'huge'
-      if (/significant|substantial|large/.test(lower)) return 'large'
+      if (/quick|simple|small|minor|brief|short|call|email|message|respond|reply/.test(lower)) return 'quick'
+      if (/lead overall|co-lead|take over|drive|ongoing|full|complete|entire|comprehensive/.test(lower)) return 'huge'
+      if (/lead on|significant|substantial|large|coordinate|finalise|finalize/.test(lower)) return 'large'
+      if (/prepare|create|set up|setup|design|write|draft|plan/.test(lower)) return 'medium'
       return 'small'
     }
     
-    // Estimate priority
-    const estimatePriority = (text: string): Priority => {
+    // Estimate priority based on date proximity and keywords
+    const estimatePriority = (text: string, dueDate: string | null): Priority => {
       const lower = text.toLowerCase()
-      if (/urgent|asap|immediately|critical|emergency|right away|today/.test(lower)) return 'urgent'
-      if (/important|priority|soon|this week|by friday|by monday/.test(lower)) return 'high'
-      if (/eventually|low priority|when possible|no rush|whenever/.test(lower)) return 'low'
+      
+      // Check keywords first
+      if (/urgent|asap|immediately|critical|emergency/.test(lower)) return 'urgent'
+      
+      // Check date proximity
+      if (dueDate) {
+        const due = new Date(dueDate)
+        const now = new Date()
+        const daysUntil = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        if (daysUntil <= 2) return 'urgent'
+        if (daysUntil <= 5) return 'high'
+        if (daysUntil <= 14) return 'medium'
+        return 'low'
+      }
+      
+      if (/important|priority|soon|this week/.test(lower)) return 'high'
+      if (/eventually|low priority|when possible|no rush/.test(lower)) return 'low'
       return 'medium'
     }
     
-    // Extract clean title
+    // Extract clean title (remove date part)
     const extractTitle = (text: string): string => {
       let title = text
         .replace(/^[-•*]\s*/, '') // Remove bullet points
-        .replace(/^(so|and|but|then|also|basically|essentially)\s+/i, '')
-        .replace(/^(we need to|we have to|we should|we will|i will|i need to|gonna|going to)\s+/i, '')
+        .replace(/\s*[–-]\s*(?:by\s+)?(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).*$/i, '') // Remove date suffix
+        .replace(/\s*[–-]\s*(?:ongoing|from\s+).*$/i, '') // Remove ongoing suffix
+        .replace(/\s*[–-]\s*(?:between|per\s+).*$/i, '') // Remove date ranges
         .trim()
       
       title = title.charAt(0).toUpperCase() + title.slice(1)
       
-      if (title.length > 70) {
-        title = title.slice(0, 67) + '...'
+      if (title.length > 80) {
+        title = title.slice(0, 77) + '...'
       }
       
       return title
     }
     
-    // Track processed to avoid duplicates
-    const processed = new Set<string>()
-    
-    // Process each sentence
-    for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i]
-      
-      // Skip noise
-      if (isNoise(sentence)) continue
-      
-      // Must have some action indicator
-      if (!hasAction(sentence)) continue
-      
-      // Create dedup key
-      const key = sentence.slice(0, 40).toLowerCase().replace(/\s+/g, ' ')
-      if (processed.has(key)) continue
-      processed.add(key)
-      
-      // Find assignee (might be 0 = unassigned)
-      const assigneeId = findMember(sentence)
-      
-      // Get context
-      const context = getContext(i)
-      
-      // Find collaborators
-      const collaborators: number[] = []
-      for (const member of memberAliases) {
-        if (member.id !== assigneeId && member.names.some(n => context.toLowerCase().includes(n))) {
-          collaborators.push(member.id)
+    // Check if line is a person header (e.g., "- Adi" or "- You (Favour)")
+    const isPersonHeader = (line: string): number => {
+      // Match "- Name" or "- You (Name)" at start of line
+      const headerMatch = line.match(/^-\s*(.+?)(?:\s*$|\s*\n)/)
+      if (headerMatch) {
+        const headerText = headerMatch[1].trim()
+        // Check if this is a person name (not a task)
+        if (headerText.length < 30 && !headerText.includes('–')) {
+          return findMember(headerText)
         }
       }
-      
-      // Build subtasks
-      const subtasks: Subtask[] = []
-      if (assigneeId) {
-        subtasks.push({
-          id: Date.now() + tasks.length * 100,
-          personId: assigneeId,
-          description: '',
-          intensity: estimateIntensity(context),
-        })
+      return -1 // Not a header
+    }
+    
+    // Check if line is a task bullet
+    const isTaskBullet = (line: string): boolean => {
+      return /^\s*-\s+[A-Z]/.test(line) && line.length > 15
+    }
+    
+    // Process structured format
+    let currentAssignee = 0
+    let isStructuredFormat = false
+    
+    // First pass: detect if this is structured format
+    for (const line of lines) {
+      if (isPersonHeader(line) !== -1 && line.match(/^-\s*\w+/)) {
+        isStructuredFormat = true
+        break
       }
-      collaborators.forEach((collabId, j) => {
-        subtasks.push({
-          id: Date.now() + tasks.length * 100 + j + 1,
-          personId: collabId,
-          description: '',
-          intensity: 'small',
+    }
+    
+    if (isStructuredFormat) {
+      // Structured format: parse by sections
+      for (const line of lines) {
+        if (!line) continue
+        
+        // Check for person header
+        const headerAssignee = isPersonHeader(line)
+        if (headerAssignee !== -1 && line.match(/^-\s*[A-Z]/) && !line.includes('–')) {
+          // This looks like a header (short, no dash-date pattern)
+          const possibleHeader = line.replace(/^-\s*/, '').trim()
+          if (possibleHeader.length < 40 && findMember(possibleHeader) !== 0) {
+            currentAssignee = findMember(possibleHeader)
+            continue
+          }
+          // "You" or "You (Favour)" special case
+          if (/^you\s*(\(|$)/i.test(possibleHeader)) {
+            currentAssignee = 1 // Favour
+            continue
+          }
+          // Team headers - unassigned
+          if (/team|entire|everyone|all/i.test(possibleHeader)) {
+            currentAssignee = 0
+            continue
+          }
+        }
+        
+        // Check for task bullet (indented or starts with -)
+        if (isTaskBullet(line) || (line.startsWith('-') && line.length > 20)) {
+          const taskText = line.replace(/^[-•*]\s*/, '').trim()
+          if (taskText.length < 15) continue
+          
+          const dueDate = parseDate(taskText)
+          const title = extractTitle(taskText)
+          
+          // Find collaborators mentioned in the task
+          const collaborators: number[] = []
+          for (const member of memberAliases) {
+            if (member.id !== currentAssignee) {
+              for (const name of member.names) {
+                if (taskText.toLowerCase().includes(name)) {
+                  collaborators.push(member.id)
+                  break
+                }
+              }
+            }
+          }
+          
+          // Build subtasks
+          const subtasks: Subtask[] = []
+          if (currentAssignee) {
+            subtasks.push({
+              id: Date.now() + tasks.length * 100,
+              personId: currentAssignee,
+              description: '',
+              intensity: estimateIntensity(taskText),
+            })
+          }
+          collaborators.forEach((collabId, j) => {
+            subtasks.push({
+              id: Date.now() + tasks.length * 100 + j + 1,
+              personId: collabId,
+              description: '',
+              intensity: 'small',
+            })
+          })
+          
+          tasks.push({
+            id: Date.now() + tasks.length,
+            title,
+            description: taskText,
+            assignee: currentAssignee,
+            collaborators,
+            subtasks,
+            priority: estimatePriority(taskText, dueDate),
+            status: 'todo',
+            workflow: selectedWorkflow,
+            selected: true,
+            dueDate: dueDate || undefined,
+          })
+        }
+      }
+    } else {
+      // Free-form format: look for action verbs
+      const actionVerbs = [
+        'set up', 'setup', 'create', 'build', 'design', 'write', 'draft', 'prepare',
+        'send', 'email', 'contact', 'reach out', 'follow up', 'call', 'message',
+        'schedule', 'book', 'arrange', 'organize', 'coordinate', 'plan',
+        'review', 'check', 'confirm', 'finalize', 'complete', 'finish',
+        'interview', 'meet', 'discuss', 'present', 'pitch', 'attend',
+        'update', 'edit', 'fix', 'resolve', 'handle', 'manage', 'lead',
+        'research', 'find', 'look into', 'investigate',
+        'post', 'publish', 'share', 'announce', 'film', 'work with',
+      ]
+      
+      const noisePatterns = [
+        /catch up later/i, /call you later/i, /talk soon/i, /sounds good/i,
+        /thanks|thank you/i, /no problem/i, /let me know/i,
+        /yeah|yep|okay|ok|sure/i, /anyway|by the way/i,
+      ]
+      
+      const sentences = notes.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 15)
+      const processed = new Set<string>()
+      
+      for (const sentence of sentences) {
+        if (noisePatterns.some(p => p.test(sentence))) continue
+        if (!actionVerbs.some(v => sentence.toLowerCase().includes(v))) continue
+        
+        const key = sentence.slice(0, 40).toLowerCase()
+        if (processed.has(key)) continue
+        processed.add(key)
+        
+        const assigneeId = findMember(sentence)
+        const dueDate = parseDate(sentence)
+        
+        const collaborators: number[] = []
+        for (const member of memberAliases) {
+          if (member.id !== assigneeId && member.names.some(n => sentence.toLowerCase().includes(n))) {
+            collaborators.push(member.id)
+          }
+        }
+        
+        const subtasks: Subtask[] = []
+        if (assigneeId) {
+          subtasks.push({
+            id: Date.now() + tasks.length * 100,
+            personId: assigneeId,
+            description: '',
+            intensity: estimateIntensity(sentence),
+          })
+        }
+        
+        tasks.push({
+          id: Date.now() + tasks.length,
+          title: extractTitle(sentence),
+          description: sentence,
+          assignee: assigneeId,
+          collaborators,
+          subtasks,
+          priority: estimatePriority(sentence, dueDate),
+          status: 'todo',
+          workflow: selectedWorkflow,
+          selected: true,
+          dueDate: dueDate || undefined,
         })
-      })
-      
-      // Create task
-      tasks.push({
-        id: Date.now() + tasks.length,
-        title: extractTitle(sentence),
-        description: context,
-        assignee: assigneeId,
-        collaborators,
-        subtasks,
-        priority: estimatePriority(context),
-        status: 'todo',
-        workflow: selectedWorkflow,
-        selected: true,
-      })
-      
-      // Limit to 25 tasks max
-      if (tasks.length >= 25) break
+        
+        if (tasks.length >= 30) break
+      }
     }
     
     // Simulate brief analysis time
@@ -1010,6 +1113,7 @@ function MeetingNotesModal({
   }
 
   const addSelectedTasks = () => {
+    const defaultDueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const tasksToAdd: Task[] = suggestedTasks
       .filter(t => t.selected)
       .map(t => ({
@@ -1021,7 +1125,7 @@ function MeetingNotesModal({
         subtasks: t.subtasks,
         priority: t.priority,
         status: t.status,
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        dueDate: t.dueDate || defaultDueDate,
         createdAt: new Date().toISOString().split('T')[0],
         workflow: selectedWorkflow,
         subWorkflow: null,
@@ -1179,6 +1283,12 @@ Example:
                                   <option value="high">High</option>
                                   <option value="urgent">Urgent</option>
                                 </select>
+                                <input
+                                  type="date"
+                                  value={task.dueDate || ''}
+                                  onChange={e => updateTask(task.id, { dueDate: e.target.value })}
+                                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                                />
                               </div>
                               <button
                                 onClick={() => setEditingTask(null)}
@@ -1202,6 +1312,11 @@ Example:
                                 <span className={`text-xs px-2 py-0.5 rounded ${priorityColors[task.priority]}`}>
                                   {task.priority}
                                 </span>
+                                {task.dueDate && (
+                                  <span className="text-xs text-gray-500">
+                                    📅 {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                )}
                                 {task.collaborators.length > 0 && (
                                   <span className="text-xs text-gray-500">
                                     +{task.collaborators.length} collaborator{task.collaborators.length > 1 ? 's' : ''}
