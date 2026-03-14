@@ -4,12 +4,12 @@ import { useState } from 'react'
 
 // Team members from Steps Foundation
 const TEAM_MEMBERS = [
-  { id: 1, name: "God'sFavour", role: 'Co-founder', avatar: 'GF' },
-  { id: 2, name: 'Jim', role: 'Co-founder', avatar: 'JS' },
-  { id: 3, name: 'Danielle', role: 'Co-founder', avatar: 'DA' },
-  { id: 4, name: 'Sam', role: 'Core Team', avatar: 'SE' },
-  { id: 5, name: 'Earl', role: 'Core Team', avatar: 'EX' },
-  { id: 6, name: 'Aditya', role: 'Core Team', avatar: 'AL' },
+  { id: 1, name: "God'sFavour Oluwanusin", role: 'Co-founder', avatar: 'GF' },
+  { id: 2, name: 'Jin Samson', role: 'Co-founder', avatar: 'JS' },
+  { id: 3, name: 'Daniyaal Anawar', role: 'Co-founder', avatar: 'DA' },
+  { id: 4, name: 'Sam Ellis', role: 'Core Team', avatar: 'SE' },
+  { id: 5, name: 'Earl Xavier', role: 'Core Team', avatar: 'EX' },
+  { id: 6, name: 'Aditya Luthukumar', role: 'Core Team', avatar: 'AL' },
 ]
 
 type Priority = 'low' | 'medium' | 'high' | 'urgent'
