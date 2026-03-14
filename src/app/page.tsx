@@ -2367,7 +2367,14 @@ export default function Home() {
                   <th className="text-left p-4 font-medium text-gray-600">Task</th>
                   <th className="text-left p-4 font-medium text-gray-600">
                     <button
-                      onClick={() => setSortBy('workflow')}
+                      onClick={() => {
+                        if (sortBy === 'workflow') {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                        } else {
+                          setSortBy('workflow')
+                          setSortOrder('asc')
+                        }
+                      }}
                       className={`hover:text-purple-600 ${sortBy === 'workflow' ? 'text-purple-600 font-semibold' : ''}`}
                     >
                       Workflow {sortBy === 'workflow' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
@@ -2389,7 +2396,14 @@ export default function Home() {
                   </th>
                   <th className="text-left p-4 font-medium text-gray-600">
                     <button
-                      onClick={() => setSortBy('priority')}
+                      onClick={() => {
+                        if (sortBy === 'priority') {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                        } else {
+                          setSortBy('priority')
+                          setSortOrder('asc')
+                        }
+                      }}
                       className={`hover:text-purple-600 ${sortBy === 'priority' ? 'text-purple-600 font-semibold' : ''}`}
                     >
                       Priority {sortBy === 'priority' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
@@ -2415,7 +2429,14 @@ export default function Home() {
                   </th>
                   <th className="text-left p-4 font-medium text-gray-600">
                     <button
-                      onClick={() => setSortBy('dueDate')}
+                      onClick={() => {
+                        if (sortBy === 'dueDate') {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                        } else {
+                          setSortBy('dueDate')
+                          setSortOrder('asc')
+                        }
+                      }}
                       className={`hover:text-purple-600 ${sortBy === 'dueDate' ? 'text-purple-600 font-semibold' : ''}`}
                     >
                       Due {sortBy === 'dueDate' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
