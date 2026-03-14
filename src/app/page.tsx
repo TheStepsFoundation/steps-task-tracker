@@ -26,7 +26,7 @@ const TEAM_MEMBERS = [
 ]
 
 // Workflows / Categories
-const WORKFLOWS = [
+const INITIAL_WORKFLOWS = [
   { id: 'event-4', name: '#4 The Great Lock-In', short: '#4', color: 'bg-purple-500' },
   { id: 'event-3', name: '#3 Degree Apprenticeship', short: '#3', color: 'bg-blue-500' },
   { id: 'event-2', name: '#2 Oxbridge Workshop', short: '#2', color: 'bg-indigo-500' },
@@ -35,6 +35,35 @@ const WORKFLOWS = [
   { id: 'partnerships', name: 'Partnerships', short: 'PTN', color: 'bg-amber-500' },
   { id: 'steps-scholars', name: 'Steps Scholars', short: 'SS', color: 'bg-rose-500' },
   { id: 'student-engagement', name: 'Student Engagement', short: 'ENG', color: 'bg-cyan-500' },
+]
+
+// Workflow color options
+const WORKFLOW_COLORS = [
+  'bg-purple-500', 'bg-blue-500', 'bg-indigo-500', 'bg-violet-500',
+  'bg-green-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500',
+  'bg-pink-500', 'bg-teal-500', 'bg-orange-500', 'bg-emerald-500',
+]
+
+// Template tasks for new events
+const EVENT_TEMPLATE_TASKS = [
+  { title: 'Create event poster', description: 'Design main promotional poster in Canva', priority: 'high' as Priority },
+  { title: 'Create sign-up form', description: 'Set up Google Form for event registration', priority: 'high' as Priority },
+  { title: 'Write LinkedIn post copy', description: 'Draft promotional copy for LinkedIn announcement', priority: 'medium' as Priority },
+  { title: 'Create TikTok content', description: 'Film and edit TikTok promotional video', priority: 'medium' as Priority },
+  { title: 'Write acceptance email', description: 'Draft email template for accepted applicants', priority: 'medium' as Priority },
+  { title: 'Write rejection email', description: 'Draft email template for unsuccessful applicants', priority: 'low' as Priority },
+  { title: 'Create event schedule', description: 'Plan detailed minute-by-minute schedule for event day', priority: 'high' as Priority },
+  { title: 'Confirm venue booking', description: 'Finalise venue reservation and logistics', priority: 'urgent' as Priority },
+  { title: 'Recruit volunteers', description: 'Reach out to volunteers and confirm availability', priority: 'medium' as Priority },
+  { title: 'Prepare attendee materials', description: 'Print name badges, handouts, and signage', priority: 'medium' as Priority },
+  { title: 'Send reminder emails', description: 'Email confirmed attendees 1 week and 1 day before', priority: 'medium' as Priority },
+  { title: 'Book catering', description: 'Arrange food and refreshments for attendees', priority: 'high' as Priority },
+  { title: 'Create feedback form', description: 'Set up post-event feedback survey', priority: 'low' as Priority },
+  { title: 'Reach out to speakers', description: 'Invite and confirm speakers/panelists', priority: 'urgent' as Priority },
+  { title: 'Brief speakers', description: 'Send speaker pack with logistics and expectations', priority: 'medium' as Priority },
+  { title: 'Sponsor outreach', description: 'Contact potential sponsors for the event', priority: 'medium' as Priority },
+  { title: 'School outreach', description: 'Email target schools to promote event', priority: 'high' as Priority },
+  { title: 'Social media campaign', description: 'Schedule promotional posts across platforms', priority: 'medium' as Priority },
 ]
 
 type Priority = 'low' | 'medium' | 'high' | 'urgent'
@@ -208,11 +237,13 @@ function DroppableColumn({
 function DraggableTaskCard({ 
   task, 
   onClick,
-  showStatus = false 
+  showStatus = false,
+  workflows,
 }: { 
   task: Task
   onClick: () => void
-  showStatus?: boolean 
+  showStatus?: boolean
+  workflows: Workflow[]
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -224,8 +255,8 @@ function DraggableTaskCard({
   } : undefined
 
   const member = TEAM_MEMBERS.find(m => m.id === task.assignee)
-  const workflow = WORKFLOWS.find(w => w.id === task.workflow)
-  const subWorkflow = WORKFLOWS.find(w => w.id === task.subWorkflow)
+  const workflow = workflows.find(w => w.id === task.workflow)
+  const subWorkflow = workflows.find(w => w.id === task.subWorkflow)
 
   const handleCardClick = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest('.drag-handle')) {
@@ -316,11 +347,13 @@ function DraggableTaskCard({
 function TaskModal({ 
   task, 
   onClose, 
-  onSave 
+  onSave,
+  workflows,
 }: { 
   task: Task
   onClose: () => void
-  onSave: (updatedTask: Task) => void 
+  onSave: (updatedTask: Task) => void
+  workflows: Workflow[]
 }) {
   const [editedTask, setEditedTask] = useState<Task>({ ...task })
 
@@ -339,8 +372,8 @@ function TaskModal({
     onClose()
   }
 
-  const currentWorkflow = WORKFLOWS.find(w => w.id === editedTask.workflow)
-  const currentSubWorkflow = WORKFLOWS.find(w => w.id === editedTask.subWorkflow)
+  const currentWorkflow = workflows.find(w => w.id === editedTask.workflow)
+  const currentSubWorkflow = workflows.find(w => w.id === editedTask.subWorkflow)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -372,7 +405,7 @@ function TaskModal({
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
               >
                 <option value="">None</option>
-                {WORKFLOWS.map(w => (
+                {workflows.map(w => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
@@ -392,7 +425,7 @@ function TaskModal({
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
               >
                 <option value="">None</option>
-                {WORKFLOWS.filter(w => w.id !== editedTask.workflow).map(w => (
+                {workflows.filter(w => w.id !== editedTask.workflow).map(w => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
@@ -546,11 +579,248 @@ function TaskModal({
   )
 }
 
+// Workflow type
+interface Workflow {
+  id: string
+  name: string
+  short: string
+  color: string
+}
+
+// New Workflow Modal with Template Tasks
+function NewWorkflowModal({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void
+  onSave: (workflow: Workflow, tasks: Task[]) => void
+}) {
+  const [name, setName] = useState('')
+  const [short, setShort] = useState('')
+  const [color, setColor] = useState('bg-purple-500')
+  const [selectedTasks, setSelectedTasks] = useState<Set<number>>(
+    new Set(EVENT_TEMPLATE_TASKS.map((_, i) => i))
+  )
+  const [defaultAssignee, setDefaultAssignee] = useState(1)
+
+  const toggleTask = (index: number) => {
+    setSelectedTasks(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const selectAll = () => {
+    setSelectedTasks(new Set(EVENT_TEMPLATE_TASKS.map((_, i) => i)))
+  }
+
+  const selectNone = () => {
+    setSelectedTasks(new Set())
+  }
+
+  const handleCreate = () => {
+    if (!name.trim() || !short.trim()) return
+
+    const workflowId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const newWorkflow: Workflow = {
+      id: workflowId,
+      name: name.trim(),
+      short: short.trim().toUpperCase(),
+      color,
+    }
+
+    const newTasks: Task[] = Array.from(selectedTasks).map((index, i) => {
+      const template = EVENT_TEMPLATE_TASKS[index]
+      return {
+        id: Date.now() + i,
+        title: template.title,
+        description: template.description,
+        assignee: defaultAssignee,
+        collaborators: [],
+        priority: template.priority,
+        status: 'todo' as Status,
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        createdAt: new Date().toISOString().split('T')[0],
+        workflow: workflowId,
+        subWorkflow: null,
+      }
+    })
+
+    onSave(newWorkflow, newTasks)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div 
+        className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold text-gray-900">Create New Workflow</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Workflow Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Workflow Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. #5 Summer Conference"
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Short Name (for badges)</label>
+              <input
+                type="text"
+                value={short}
+                onChange={e => setShort(e.target.value)}
+                placeholder="e.g. #5"
+                maxLength={5}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Color Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <div className="flex gap-2 flex-wrap">
+              {WORKFLOW_COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full ${c} ${color === c ? 'ring-2 ring-offset-2 ring-gray-400' : ''}`}
+                />
+              ))}
+            </div>
+            {name && short && (
+              <div className="mt-3">
+                <span className={`inline-flex items-center text-xs font-medium px-3 py-1 rounded text-white ${color}`}>
+                  {short.toUpperCase() || 'TAG'}
+                </span>
+                <span className="ml-2 text-sm text-gray-500">{name || 'Workflow Name'}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Default Assignee */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Default Assignee for Tasks</label>
+            <select
+              value={defaultAssignee}
+              onChange={e => setDefaultAssignee(parseInt(e.target.value))}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+            >
+              {TEAM_MEMBERS.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Template Tasks */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">Template Tasks</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="text-xs text-purple-600 hover:text-purple-700"
+                >
+                  Select All
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  type="button"
+                  onClick={selectNone}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Select None
+                </button>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 mb-3">
+              Select the tasks to include. {selectedTasks.size} of {EVENT_TEMPLATE_TASKS.length} selected.
+            </p>
+            <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg divide-y">
+              {EVENT_TEMPLATE_TASKS.map((task, index) => (
+                <label
+                  key={index}
+                  className={`flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50 ${
+                    selectedTasks.has(index) ? 'bg-purple-50' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTasks.has(index)}
+                    onChange={() => toggleTask(index)}
+                    className="mt-1 w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">{task.title}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                        task.priority === 'urgent' ? 'bg-red-100 text-red-700 border-red-200' :
+                        task.priority === 'high' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                        task.priority === 'medium' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                        'bg-gray-100 text-gray-700 border-gray-200'
+                      }`}>
+                        {task.priority}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500">{task.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={!name.trim() || !short.trim()}
+            className="px-5 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Create Workflow ({selectedTasks.size} tasks)
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
+  const [workflows, setWorkflows] = useState<Workflow[]>(INITIAL_WORKFLOWS)
   const [view, setView] = useState<'board' | 'team' | 'list' | 'workload'>('board')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [showNewWorkflowModal, setShowNewWorkflowModal] = useState(false)
   
   // Global workflow filter (applies to all views)
   const [globalWorkflow, setGlobalWorkflow] = useState<string>('all')
@@ -681,6 +951,12 @@ export default function Home() {
     ))
   }
 
+  const handleCreateWorkflow = (newWorkflow: Workflow, newTasks: Task[]) => {
+    setWorkflows(prev => [...prev, newWorkflow])
+    setTasks(prev => [...prev, ...newTasks])
+    setGlobalWorkflow(newWorkflow.id)
+  }
+
   return (
     <main className="min-h-screen p-6">
       {/* Header */}
@@ -707,6 +983,15 @@ export default function Home() {
       {/* Global Workflow Filter */}
       <div className="mb-6 flex items-center gap-3 flex-wrap">
         <span className="text-sm font-medium text-gray-600">Showing:</span>
+        <button
+          onClick={() => setShowNewWorkflowModal(true)}
+          className="px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition flex items-center gap-1"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          New Workflow
+        </button>
         <select
           value={globalWorkflow}
           onChange={(e) => setGlobalWorkflow(e.target.value)}
@@ -715,14 +1000,14 @@ export default function Home() {
           }`}
         >
           <option value="all">All Workflows</option>
-          {WORKFLOWS.map(w => (
+          {workflows.map(w => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
         </select>
         {globalWorkflow !== 'all' && (
           <>
             {(() => {
-              const wf = WORKFLOWS.find(w => w.id === globalWorkflow)
+              const wf = workflows.find(w => w.id === globalWorkflow)
               return wf ? (
                 <span className={`inline-flex items-center text-xs font-medium px-3 py-1 rounded-full text-white ${wf.color}`}>
                   {wf.name}
@@ -771,6 +1056,7 @@ export default function Home() {
                       key={task.id}
                       task={task}
                       onClick={() => setEditingTask(task)}
+                      workflows={workflows}
                     />
                   ))}
                 </div>
@@ -809,6 +1095,7 @@ export default function Home() {
                         task={task}
                         onClick={() => setEditingTask(task)}
                         showStatus
+                        workflows={workflows}
                       />
                     ))}
                     {activeTasks.length === 0 && (
@@ -998,8 +1285,8 @@ export default function Home() {
               <tbody>
                 {getFilteredSortedTasks().map(task => {
                   const member = TEAM_MEMBERS.find(m => m.id === task.assignee)
-                  const workflow = WORKFLOWS.find(w => w.id === task.workflow)
-                  const subWorkflow = WORKFLOWS.find(w => w.id === task.subWorkflow)
+                  const workflow = workflows.find(w => w.id === task.workflow)
+                  const subWorkflow = workflows.find(w => w.id === task.subWorkflow)
                   return (
                     <tr 
                       key={task.id} 
@@ -1067,6 +1354,15 @@ export default function Home() {
           task={editingTask}
           onClose={() => setEditingTask(null)}
           onSave={handleSaveTask}
+          workflows={workflows}
+        />
+      )}
+
+      {/* New Workflow Modal */}
+      {showNewWorkflowModal && (
+        <NewWorkflowModal
+          onClose={() => setShowNewWorkflowModal(false)}
+          onSave={handleCreateWorkflow}
         />
       )}
 
