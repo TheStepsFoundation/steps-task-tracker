@@ -254,7 +254,7 @@ function DraggableTaskCard({
     zIndex: 1000,
   } : undefined
 
-  const member = TEAM_MEMBERS.find(m => m.id === task.assignee)
+  const member = task.assignee ? TEAM_MEMBERS.find(m => m.id === task.assignee) : null
   const workflow = workflows.find(w => w.id === task.workflow)
   const subWorkflow = workflows.find(w => w.id === task.subWorkflow)
 
@@ -319,9 +319,13 @@ function DraggableTaskCard({
           {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
         </span>
         <div className="flex -space-x-2 ml-auto">
-          {member && (
+          {member ? (
             <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-medium border-2 border-white" title={member.name}>
               {member.avatar.charAt(0)}
+            </div>
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs border-2 border-white" title="Unassigned">
+              ?
             </div>
           )}
           {task.collaborators.slice(0, 2).map(collabId => {
@@ -601,7 +605,6 @@ function NewWorkflowModal({
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(
     new Set(EVENT_TEMPLATE_TASKS.map((_, i) => i))
   )
-  const [defaultAssignee, setDefaultAssignee] = useState(1)
 
   const toggleTask = (index: number) => {
     setSelectedTasks(prev => {
@@ -640,7 +643,7 @@ function NewWorkflowModal({
         id: Date.now() + i,
         title: template.title,
         description: template.description,
-        assignee: defaultAssignee,
+        assignee: 0, // Unassigned
         collaborators: [],
         priority: template.priority,
         status: 'todo' as Status,
@@ -717,20 +720,6 @@ function NewWorkflowModal({
                 <span className="ml-2 text-sm text-gray-500">{name || 'Workflow Name'}</span>
               </div>
             )}
-          </div>
-
-          {/* Default Assignee */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Default Assignee for Tasks</label>
-            <select
-              value={defaultAssignee}
-              onChange={e => setDefaultAssignee(parseInt(e.target.value))}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
-            >
-              {TEAM_MEMBERS.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
           </div>
 
           {/* Template Tasks */}
@@ -814,6 +803,145 @@ function NewWorkflowModal({
   )
 }
 
+// Edit Workflow Modal
+function EditWorkflowModal({
+  workflow,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  workflow: Workflow
+  onClose: () => void
+  onSave: (updated: Workflow) => void
+  onDelete: () => void
+}) {
+  const [name, setName] = useState(workflow.name)
+  const [short, setShort] = useState(workflow.short)
+  const [color, setColor] = useState(workflow.color)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const handleSave = () => {
+    if (!name.trim() || !short.trim()) return
+    onSave({
+      ...workflow,
+      name: name.trim(),
+      short: short.trim().toUpperCase(),
+      color,
+    })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div 
+        className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold text-gray-900">Edit Workflow</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Workflow Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Short Name</label>
+            <input
+              type="text"
+              value={short}
+              onChange={e => setShort(e.target.value)}
+              maxLength={5}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <div className="flex gap-2 flex-wrap">
+              {WORKFLOW_COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full ${c} ${color === c ? 'ring-2 ring-offset-2 ring-gray-400' : ''}`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="pt-2">
+            <span className={`inline-flex items-center text-xs font-medium px-3 py-1 rounded text-white ${color}`}>
+              {short.toUpperCase()}
+            </span>
+            <span className="ml-2 text-sm text-gray-500">{name}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 p-6 border-t bg-gray-50">
+          {!showDeleteConfirm ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg transition"
+              >
+                Delete
+              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!name.trim() || !short.trim()}
+                  className="px-5 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="w-full">
+              <p className="text-sm text-gray-600 mb-3">Delete this workflow? Tasks will keep their workflow tag but it won't appear in the filter.</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onDelete(); onClose(); }}
+                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition"
+                >
+                  Delete Workflow
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
   const [workflows, setWorkflows] = useState<Workflow[]>(INITIAL_WORKFLOWS)
@@ -821,6 +949,7 @@ export default function Home() {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showNewWorkflowModal, setShowNewWorkflowModal] = useState(false)
+  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
   
   // Global workflow filter (applies to all views)
   const [globalWorkflow, setGlobalWorkflow] = useState<string>('all')
@@ -855,6 +984,8 @@ export default function Home() {
   const getTasksByStatus = (status: Status) => filteredTasks.filter(t => t.status === status)
   const getTasksByMember = (memberId: number) => filteredTasks.filter(t => t.assignee === memberId && t.status !== 'done')
   const getArchivedTasksByMember = (memberId: number) => filteredTasks.filter(t => t.assignee === memberId && t.status === 'done')
+  const getUnassignedTasks = () => filteredTasks.filter(t => !t.assignee && t.status !== 'done')
+  const getUnassignedArchivedTasks = () => filteredTasks.filter(t => !t.assignee && t.status === 'done')
   
   const getWorkload = (memberId: number) => {
     const memberTasks = filteredTasks.filter(t => t.assignee === memberId && t.status !== 'done')
@@ -930,13 +1061,14 @@ export default function Home() {
         setTasks(prev => prev.map(t => {
           if (t.id === taskId) {
             const newCollaborators = t.collaborators.filter(id => id !== newAssigneeId)
-            if (!newCollaborators.includes(oldAssigneeId)) {
+            // Only add old assignee as collaborator if they were assigned (not 0/unassigned)
+            if (oldAssigneeId && !newCollaborators.includes(oldAssigneeId)) {
               newCollaborators.push(oldAssigneeId)
             }
             return {
               ...t,
               assignee: newAssigneeId,
-              collaborators: newCollaborators,
+              collaborators: newAssigneeId === 0 ? [] : newCollaborators,
             }
           }
           return t
@@ -955,6 +1087,17 @@ export default function Home() {
     setWorkflows(prev => [...prev, newWorkflow])
     setTasks(prev => [...prev, ...newTasks])
     setGlobalWorkflow(newWorkflow.id)
+  }
+
+  const handleUpdateWorkflow = (updated: Workflow) => {
+    setWorkflows(prev => prev.map(w => w.id === updated.id ? updated : w))
+  }
+
+  const handleDeleteWorkflow = (workflowId: string) => {
+    setWorkflows(prev => prev.filter(w => w.id !== workflowId))
+    if (globalWorkflow === workflowId) {
+      setGlobalWorkflow('all')
+    }
   }
 
   return (
@@ -1009,9 +1152,17 @@ export default function Home() {
             {(() => {
               const wf = workflows.find(w => w.id === globalWorkflow)
               return wf ? (
-                <span className={`inline-flex items-center text-xs font-medium px-3 py-1 rounded-full text-white ${wf.color}`}>
-                  {wf.name}
-                </span>
+                <>
+                  <span className={`inline-flex items-center text-xs font-medium px-3 py-1 rounded-full text-white ${wf.color}`}>
+                    {wf.name}
+                  </span>
+                  <button
+                    onClick={() => setEditingWorkflow(wf)}
+                    className="text-sm text-purple-600 hover:text-purple-700"
+                  >
+                    Edit
+                  </button>
+                </>
               ) : null
             })()}
             <button
@@ -1067,7 +1218,55 @@ export default function Home() {
 
         {/* Team View */}
         {view === 'team' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+            {/* Unassigned Column */}
+            <DroppableColumn
+              id="member-0"
+              className="bg-gray-100 rounded-xl p-4 min-h-[400px] transition-colors border-2 border-dashed border-gray-300"
+            >
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-300">
+                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-sm">
+                  ?
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold text-gray-700 text-sm">Unassigned</h2>
+                  <p className="text-xs text-gray-400">{getUnassignedTasks().length} tasks</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3 mb-4">
+                {getUnassignedTasks().map(task => (
+                  <DraggableTaskCard
+                    key={task.id}
+                    task={task}
+                    onClick={() => setEditingTask(task)}
+                    showStatus
+                    workflows={workflows}
+                  />
+                ))}
+                {getUnassignedTasks().length === 0 && (
+                  <p className="text-sm text-gray-400 text-center py-4">No unassigned tasks</p>
+                )}
+              </div>
+
+              {getUnassignedArchivedTasks().length > 0 && (
+                <div className="border-t border-gray-300 pt-3">
+                  <p className="text-xs text-gray-400 mb-2">Completed ({getUnassignedArchivedTasks().length})</p>
+                  <div className="space-y-2 opacity-60">
+                    {getUnassignedArchivedTasks().slice(0, 3).map(task => (
+                      <div 
+                        key={task.id} 
+                        className="bg-white rounded-lg p-3 text-sm cursor-pointer hover:opacity-100 transition"
+                        onClick={() => setEditingTask(task)}
+                      >
+                        <p className="text-gray-600 line-clamp-1">{task.title}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </DroppableColumn>
+
             {TEAM_MEMBERS.map(member => {
               const activeTasks = getTasksByMember(member.id)
               const archivedTasks = getArchivedTasksByMember(member.id)
@@ -1316,12 +1515,19 @@ export default function Home() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          {member && (
+                          {member ? (
                             <>
                               <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-sm font-medium">
                                 {member.avatar}
                               </div>
                               <span className="text-gray-700">{member.name.split(' ')[0]}</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                                ?
+                              </div>
+                              <span className="text-gray-400">Unassigned</span>
                             </>
                           )}
                         </div>
@@ -1363,6 +1569,16 @@ export default function Home() {
         <NewWorkflowModal
           onClose={() => setShowNewWorkflowModal(false)}
           onSave={handleCreateWorkflow}
+        />
+      )}
+
+      {/* Edit Workflow Modal */}
+      {editingWorkflow && (
+        <EditWorkflowModal
+          workflow={editingWorkflow}
+          onClose={() => setEditingWorkflow(null)}
+          onSave={handleUpdateWorkflow}
+          onDelete={() => handleDeleteWorkflow(editingWorkflow.id)}
         />
       )}
 
