@@ -816,59 +816,86 @@ function MeetingNotesModal({
     if (!notes.trim()) return
     setIsAnalyzing(true)
     
-    // Parse meeting notes to extract tasks - SELECTIVE approach
-    // Only extract clear, actionable items with explicit ownership
-    const fullText = notes
-    const sentences = notes.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 15)
+    // Parse meeting notes to extract tasks - BALANCED approach
+    // Find actionable tasks, with or without explicit assignees
+    const sentences = notes.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 10)
     const tasks: SuggestedTask[] = []
     
-    // Strong assignment patterns - must have name + action verb
-    const assignmentPatterns = [
-      /(\w+)\s+(?:will|is going to|shall)\s+(.+)/i,
-      /(\w+)\s+(?:needs? to|has to|must)\s+(.+)/i,
-      /(\w+)\s+(?:should|could)\s+(.+)/i,
-      /(\w+)\s+to\s+(handle|create|prepare|send|draft|review|coordinate|organize|contact|book|schedule|confirm|finalize|follow up|complete|finish|reach out|set up|write|design|build)\s+(.+)/i,
-      /(?:action|task|todo)(?:\s*[-:])?\s*(\w+)\s+(.+)/i,
-      /(\w+)\s+(?:is responsible for|owns|will take care of|will handle)\s+(.+)/i,
+    // Team member names and nicknames
+    const memberAliases: { id: number; names: string[] }[] = [
+      { id: 1, names: ["god'sfavour", "godsfavour", "favour", "fav"] },
+      { id: 2, names: ["jin", "jim"] },
+      { id: 3, names: ["daniyaal", "danny", "dani", "dan"] },
+      { id: 4, names: ["sam", "samuel"] },
+      { id: 5, names: ["earl"] },
+      { id: 6, names: ["aditya", "adi"] },
     ]
     
-    // Get first names of team members for matching
-    const memberNames = TEAM_MEMBERS.map(m => ({
-      id: m.id,
-      firstName: m.name.split(' ')[0].toLowerCase(),
-      fullName: m.name.toLowerCase(),
-    }))
-    
-    // Find team member by name
-    const findMember = (name: string): number => {
-      const lower = name.toLowerCase().trim()
-      const match = memberNames.find(m => m.firstName === lower || m.fullName.startsWith(lower))
-      return match?.id || 0
+    // Find team member by name/nickname
+    const findMember = (text: string): number => {
+      const lower = text.toLowerCase()
+      for (const member of memberAliases) {
+        for (const name of member.names) {
+          if (lower.includes(name)) {
+            return member.id
+          }
+        }
+      }
+      return 0 // Unassigned
     }
     
-    // Check if a name is a team member
-    const isTeamMember = (name: string): boolean => findMember(name) !== 0
+    // Action verbs that signal a task
+    const actionVerbs = [
+      'set up', 'setup', 'create', 'build', 'design', 'write', 'draft', 'prepare',
+      'send', 'email', 'contact', 'reach out', 'follow up', 'call', 'message',
+      'schedule', 'book', 'arrange', 'organize', 'coordinate', 'plan',
+      'review', 'check', 'confirm', 'finalize', 'complete', 'finish',
+      'interview', 'meet', 'discuss', 'present', 'pitch',
+      'update', 'edit', 'fix', 'resolve', 'handle', 'manage',
+      'research', 'find', 'look into', 'investigate',
+      'post', 'publish', 'share', 'announce',
+    ]
     
-    // Get surrounding context (2-3 sentences before and after)
-    const getContext = (targetSentence: string): string => {
-      const idx = sentences.findIndex(s => s === targetSentence)
-      if (idx === -1) return targetSentence
-      const start = Math.max(0, idx - 2)
-      const end = Math.min(sentences.length, idx + 3)
+    // Conversational noise to filter out (not tasks)
+    const noisePatterns = [
+      /catch up later/i, /call you later/i, /talk soon/i, /see you/i,
+      /sounds good/i, /that works/i, /makes sense/i, /good idea/i,
+      /thanks|thank you/i, /no problem/i, /you're welcome/i,
+      /how are you/i, /what do you think/i, /let me know/i,
+      /yeah|yep|yes|no|nope|okay|ok|sure/i,
+      /anyway|anyways|by the way|btw/i,
+      /^\s*i think/i, /^\s*maybe/i, /^\s*probably/i,
+    ]
+    
+    // Check if sentence is conversational noise
+    const isNoise = (text: string): boolean => {
+      if (text.length < 20) return true // Too short
+      return noisePatterns.some(p => p.test(text))
+    }
+    
+    // Check if sentence has an action verb
+    const hasAction = (text: string): boolean => {
+      const lower = text.toLowerCase()
+      return actionVerbs.some(verb => lower.includes(verb))
+    }
+    
+    // Get surrounding context
+    const getContext = (idx: number): string => {
+      const start = Math.max(0, idx - 1)
+      const end = Math.min(sentences.length, idx + 2)
       return sentences.slice(start, end).join('. ') + '.'
     }
     
-    // Estimate intensity from context
+    // Estimate intensity
     const estimateIntensity = (text: string): Intensity => {
       const lower = text.toLowerCase()
       if (/quick|simple|small|minor|brief|short/.test(lower)) return 'quick'
       if (/big|major|full|complete|entire|comprehensive|large project/.test(lower)) return 'huge'
       if (/significant|substantial|large/.test(lower)) return 'large'
-      if (/medium|moderate|standard/.test(lower)) return 'medium'
       return 'small'
     }
     
-    // Estimate priority from context
+    // Estimate priority
     const estimatePriority = (text: string): Priority => {
       const lower = text.toLowerCase()
       if (/urgent|asap|immediately|critical|emergency|right away|today/.test(lower)) return 'urgent'
@@ -877,92 +904,90 @@ function MeetingNotesModal({
       return 'medium'
     }
     
-    // Extract title from action (clean up and shorten)
-    const extractTitle = (action: string): string => {
-      // Remove filler words and clean up
-      let title = action
-        .replace(/^(the|a|an|to|that|this)\s+/i, '')
-        .replace(/\s+(the|a|an)\s+/gi, ' ')
+    // Extract clean title
+    const extractTitle = (text: string): string => {
+      let title = text
+        .replace(/^[-•*]\s*/, '') // Remove bullet points
+        .replace(/^(so|and|but|then|also|basically|essentially)\s+/i, '')
+        .replace(/^(we need to|we have to|we should|we will|i will|i need to|gonna|going to)\s+/i, '')
         .trim()
       
-      // Capitalize first letter
       title = title.charAt(0).toUpperCase() + title.slice(1)
       
-      // Truncate if too long
-      if (title.length > 60) {
-        title = title.slice(0, 57) + '...'
+      if (title.length > 70) {
+        title = title.slice(0, 67) + '...'
       }
       
       return title
     }
     
-    // Process sentences looking for clear assignments
-    const processedAssignees = new Set<string>() // Avoid duplicate tasks
+    // Track processed to avoid duplicates
+    const processed = new Set<string>()
     
-    for (const sentence of sentences) {
-      // Try each pattern
-      for (const pattern of assignmentPatterns) {
-        const match = sentence.match(pattern)
-        if (match) {
-          const potentialName = match[1]
-          const actionPart = match[2] || match[3] || ''
-          
-          // Only proceed if the name matches a team member
-          const assigneeId = findMember(potentialName)
-          if (assigneeId === 0) continue
-          
-          // Create a unique key to avoid duplicates
-          const taskKey = `${assigneeId}-${actionPart.slice(0, 30).toLowerCase()}`
-          if (processedAssignees.has(taskKey)) continue
-          processedAssignees.add(taskKey)
-          
-          // Get extended context
-          const context = getContext(sentence)
-          
-          // Find collaborators mentioned in context
-          const collaborators: number[] = []
-          for (const m of memberNames) {
-            if (m.id !== assigneeId && context.toLowerCase().includes(m.firstName)) {
-              collaborators.push(m.id)
-            }
-          }
-          
-          // Create task
-          const task: SuggestedTask = {
-            id: Date.now() + tasks.length,
-            title: extractTitle(actionPart),
-            description: context,
-            assignee: assigneeId,
-            collaborators,
-            subtasks: [{
-              id: Date.now() + tasks.length + 1000,
-              personId: assigneeId,
-              description: '',
-              intensity: estimateIntensity(context),
-            }],
-            priority: estimatePriority(context),
-            status: 'todo',
-            workflow: selectedWorkflow,
-            selected: true,
-          }
-          
-          // Add collaborator subtasks
-          collaborators.forEach((collabId, i) => {
-            task.subtasks.push({
-              id: Date.now() + tasks.length + 2000 + i,
-              personId: collabId,
-              description: '',
-              intensity: 'small',
-            })
-          })
-          
-          tasks.push(task)
-          break // Only match first pattern per sentence
+    // Process each sentence
+    for (let i = 0; i < sentences.length; i++) {
+      const sentence = sentences[i]
+      
+      // Skip noise
+      if (isNoise(sentence)) continue
+      
+      // Must have some action indicator
+      if (!hasAction(sentence)) continue
+      
+      // Create dedup key
+      const key = sentence.slice(0, 40).toLowerCase().replace(/\s+/g, ' ')
+      if (processed.has(key)) continue
+      processed.add(key)
+      
+      // Find assignee (might be 0 = unassigned)
+      const assigneeId = findMember(sentence)
+      
+      // Get context
+      const context = getContext(i)
+      
+      // Find collaborators
+      const collaborators: number[] = []
+      for (const member of memberAliases) {
+        if (member.id !== assigneeId && member.names.some(n => context.toLowerCase().includes(n))) {
+          collaborators.push(member.id)
         }
       }
       
-      // Limit to max 20 tasks
-      if (tasks.length >= 20) break
+      // Build subtasks
+      const subtasks: Subtask[] = []
+      if (assigneeId) {
+        subtasks.push({
+          id: Date.now() + tasks.length * 100,
+          personId: assigneeId,
+          description: '',
+          intensity: estimateIntensity(context),
+        })
+      }
+      collaborators.forEach((collabId, j) => {
+        subtasks.push({
+          id: Date.now() + tasks.length * 100 + j + 1,
+          personId: collabId,
+          description: '',
+          intensity: 'small',
+        })
+      })
+      
+      // Create task
+      tasks.push({
+        id: Date.now() + tasks.length,
+        title: extractTitle(sentence),
+        description: context,
+        assignee: assigneeId,
+        collaborators,
+        subtasks,
+        priority: estimatePriority(context),
+        status: 'todo',
+        workflow: selectedWorkflow,
+        selected: true,
+      })
+      
+      // Limit to 25 tasks max
+      if (tasks.length >= 25) break
     }
     
     // Simulate brief analysis time
@@ -1668,6 +1693,18 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status' | 'workflow'>('dueDate')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   
+  // Helper to toggle sort
+  const handleSortClick = (column: 'dueDate' | 'priority' | 'status' | 'workflow') => {
+    if (sortBy === column) {
+      // Same column - toggle order
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Different column - set new column, reset to asc
+      setSortBy(column)
+      setSortOrder('asc')
+    }
+  }
+  
   // Get tasks filtered by global workflow
   const getGlobalFilteredTasks = () => {
     if (globalWorkflow === 'all') return tasks
@@ -2367,14 +2404,7 @@ export default function Home() {
                   <th className="text-left p-4 font-medium text-gray-600">Task</th>
                   <th className="text-left p-4 font-medium text-gray-600">
                     <button
-                      onClick={() => {
-                        if (sortBy === 'workflow') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                        } else {
-                          setSortBy('workflow')
-                          setSortOrder('asc')
-                        }
-                      }}
+                      onClick={() => handleSortClick('workflow')}
                       className={`hover:text-purple-600 ${sortBy === 'workflow' ? 'text-purple-600 font-semibold' : ''}`}
                     >
                       Workflow {sortBy === 'workflow' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
@@ -2396,14 +2426,7 @@ export default function Home() {
                   </th>
                   <th className="text-left p-4 font-medium text-gray-600">
                     <button
-                      onClick={() => {
-                        if (sortBy === 'priority') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                        } else {
-                          setSortBy('priority')
-                          setSortOrder('asc')
-                        }
-                      }}
+                      onClick={() => handleSortClick('priority')}
                       className={`hover:text-purple-600 ${sortBy === 'priority' ? 'text-purple-600 font-semibold' : ''}`}
                     >
                       Priority {sortBy === 'priority' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
@@ -2429,14 +2452,7 @@ export default function Home() {
                   </th>
                   <th className="text-left p-4 font-medium text-gray-600">
                     <button
-                      onClick={() => {
-                        if (sortBy === 'dueDate') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                        } else {
-                          setSortBy('dueDate')
-                          setSortOrder('asc')
-                        }
-                      }}
+                      onClick={() => handleSortClick('dueDate')}
                       className={`hover:text-purple-600 ${sortBy === 'dueDate' ? 'text-purple-600 font-semibold' : ''}`}
                     >
                       Due {sortBy === 'dueDate' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
