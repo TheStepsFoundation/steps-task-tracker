@@ -914,10 +914,9 @@ export default function Home() {
               <span className="font-medium">{sortOrder === 'asc' ? 'Ascending ↑' : 'Descending ↓'}</span>
             </button>
             <div className="flex items-center gap-4">
-              {(filterWorkflow !== 'all' || filterStatus !== 'all' || filterAssignee !== 'all') && (
+              {(filterStatus !== 'all' || filterAssignee !== 'all') && (
                 <button
                   onClick={() => {
-                    setFilterWorkflow('all')
                     setFilterStatus('all')
                     setFilterAssignee('all')
                   }}
