@@ -861,74 +861,31 @@ export default function Home() {
       {/* List View */}
       {view === 'list' && (
         <div className="space-y-4">
-          {/* Filters & Sorting */}
-          <div className="bg-white rounded-xl shadow-sm border p-4">
-            <div className="flex flex-wrap gap-4 items-end">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Workflow</label>
-                <select
-                  value={filterWorkflow}
-                  onChange={(e) => setFilterWorkflow(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          {/* Sort Order Toggle + Count */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition"
+            >
+              <span className="text-gray-600">Sort:</span>
+              <span className="font-medium">{sortOrder === 'asc' ? 'Ascending ↑' : 'Descending ↓'}</span>
+            </button>
+            <div className="flex items-center gap-4">
+              {(filterWorkflow !== 'all' || filterStatus !== 'all' || filterAssignee !== 'all') && (
+                <button
+                  onClick={() => {
+                    setFilterWorkflow('all')
+                    setFilterStatus('all')
+                    setFilterAssignee('all')
+                  }}
+                  className="text-sm text-purple-600 hover:text-purple-700"
                 >
-                  <option value="all">All Workflows</option>
-                  {WORKFLOWS.map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="todo">To Do</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="review">Review</option>
-                  <option value="done">Done</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Assignee</label>
-                <select
-                  value={filterAssignee}
-                  onChange={(e) => setFilterAssignee(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                >
-                  <option value="all">Everyone</option>
-                  {TEAM_MEMBERS.map(m => (
-                    <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="border-l border-gray-200 pl-4">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Sort By</label>
-                <div className="flex gap-2">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                  >
-                    <option value="dueDate">Due Date</option>
-                    <option value="priority">Priority</option>
-                    <option value="status">Status</option>
-                    <option value="workflow">Workflow</option>
-                  </select>
-                  <button
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:bg-gray-50"
-                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                  >
-                    {sortOrder === 'asc' ? '↑' : '↓'}
-                  </button>
-                </div>
-              </div>
-              <div className="ml-auto text-sm text-gray-500">
-                {getFilteredSortedTasks().length} tasks
-              </div>
+                  Clear filters
+                </button>
+              )}
+              <span className="text-sm text-gray-500">
+                {getFilteredSortedTasks().length} of {tasks.length} tasks
+              </span>
             </div>
           </div>
 
@@ -938,11 +895,71 @@ export default function Home() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left p-4 font-medium text-gray-600">Task</th>
-                  <th className="text-left p-4 font-medium text-gray-600">Workflow</th>
-                  <th className="text-left p-4 font-medium text-gray-600">Assignee</th>
-                  <th className="text-left p-4 font-medium text-gray-600">Priority</th>
-                  <th className="text-left p-4 font-medium text-gray-600">Status</th>
-                  <th className="text-left p-4 font-medium text-gray-600">Due</th>
+                  <th className="text-left p-4 font-medium text-gray-600">
+                    <div className="relative inline-block">
+                      <select
+                        value={filterWorkflow}
+                        onChange={(e) => {
+                          setFilterWorkflow(e.target.value)
+                          setSortBy('workflow')
+                        }}
+                        className={`appearance-none bg-transparent pr-6 cursor-pointer hover:text-purple-600 outline-none ${filterWorkflow !== 'all' ? 'text-purple-600 font-semibold' : ''}`}
+                      >
+                        <option value="all">Workflow ▾</option>
+                        {WORKFLOWS.map(w => (
+                          <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </th>
+                  <th className="text-left p-4 font-medium text-gray-600">
+                    <div className="relative inline-block">
+                      <select
+                        value={filterAssignee}
+                        onChange={(e) => setFilterAssignee(e.target.value)}
+                        className={`appearance-none bg-transparent pr-6 cursor-pointer hover:text-purple-600 outline-none ${filterAssignee !== 'all' ? 'text-purple-600 font-semibold' : ''}`}
+                      >
+                        <option value="all">Assignee ▾</option>
+                        {TEAM_MEMBERS.map(m => (
+                          <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </th>
+                  <th className="text-left p-4 font-medium text-gray-600">
+                    <button
+                      onClick={() => setSortBy('priority')}
+                      className={`hover:text-purple-600 ${sortBy === 'priority' ? 'text-purple-600 font-semibold' : ''}`}
+                    >
+                      Priority {sortBy === 'priority' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium text-gray-600">
+                    <div className="relative inline-block">
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => {
+                          setFilterStatus(e.target.value)
+                          setSortBy('status')
+                        }}
+                        className={`appearance-none bg-transparent pr-6 cursor-pointer hover:text-purple-600 outline-none ${filterStatus !== 'all' ? 'text-purple-600 font-semibold' : ''}`}
+                      >
+                        <option value="all">Status ▾</option>
+                        <option value="todo">To Do</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="review">Review</option>
+                        <option value="done">Done</option>
+                      </select>
+                    </div>
+                  </th>
+                  <th className="text-left p-4 font-medium text-gray-600">
+                    <button
+                      onClick={() => setSortBy('dueDate')}
+                      className={`hover:text-purple-600 ${sortBy === 'dueDate' ? 'text-purple-600 font-semibold' : ''}`}
+                    >
+                      Due {sortBy === 'dueDate' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
