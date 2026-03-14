@@ -92,8 +92,8 @@ const INITIAL_TASKS: Task[] = [
     assignee: 1,
     collaborators: [3],
     subtasks: [
-      { id: 1, personId: 1, description: 'Edit video and add captions' },
-      { id: 2, personId: 3, description: 'Review and approve final cut' },
+      { id: 1, personId: 1, description: 'Edit video and add captions', intensity: 'medium' },
+      { id: 2, personId: 3, description: 'Review and approve final cut', intensity: 'quick' },
     ],
     priority: 'high',
     status: 'in-progress',
@@ -123,9 +123,9 @@ const INITIAL_TASKS: Task[] = [
     assignee: 3,
     collaborators: [1, 2],
     subtasks: [
-      { id: 3, personId: 3, description: 'Send follow-up emails to all speakers' },
-      { id: 4, personId: 1, description: 'Coordinate travel arrangements' },
-      { id: 5, personId: 2, description: 'Prepare speaker briefing packs' },
+      { id: 3, personId: 3, description: 'Send follow-up emails to all speakers', intensity: 'small' },
+      { id: 4, personId: 1, description: 'Coordinate travel arrangements', intensity: 'medium' },
+      { id: 5, personId: 2, description: 'Prepare speaker briefing packs', intensity: 'large' },
     ],
     priority: 'urgent',
     status: 'in-progress',
@@ -407,7 +407,8 @@ function TaskModal({
         newSubtasks.push({
           id: Date.now(),
           personId: memberId,
-          description: ''
+          description: '',
+          intensity: 'medium'
         })
       }
       
@@ -620,6 +621,7 @@ function TaskModal({
                     id: Date.now(),
                     personId: editedTask.assignee || 0,
                     description: '',
+                    intensity: 'medium',
                   }
                   setEditedTask({
                     ...editedTask,
@@ -669,6 +671,19 @@ function TaskModal({
                           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
                         />
                       </div>
+                      <select
+                        value={subtask.intensity}
+                        onChange={e => {
+                          const newSubtasks = [...editedTask.subtasks]
+                          newSubtasks[index] = { ...subtask, intensity: e.target.value as Intensity }
+                          setEditedTask({ ...editedTask, subtasks: newSubtasks })
+                        }}
+                        className={`px-2 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${intensityColors[subtask.intensity]}`}
+                      >
+                        {INTENSITY_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                       <button
                         type="button"
                         onClick={() => {
@@ -721,11 +736,31 @@ interface Workflow {
   archived?: boolean
 }
 
+// Intensity levels for subtasks
+type Intensity = 'quick' | 'small' | 'medium' | 'large' | 'huge'
+
+const INTENSITY_OPTIONS: { value: Intensity; label: string; hours: number }[] = [
+  { value: 'quick', label: 'Quick Win', hours: 0.33 },  // ~20 mins
+  { value: 'small', label: 'Small', hours: 1 },
+  { value: 'medium', label: 'Medium', hours: 3 },
+  { value: 'large', label: 'Large', hours: 6 },
+  { value: 'huge', label: 'Huge', hours: 8 },  // ~1 day
+]
+
+const intensityColors: Record<Intensity, string> = {
+  quick: 'bg-green-100 text-green-700',
+  small: 'bg-blue-100 text-blue-700',
+  medium: 'bg-yellow-100 text-yellow-700',
+  large: 'bg-orange-100 text-orange-700',
+  huge: 'bg-red-100 text-red-700',
+}
+
 // Subtask type - each person's specific work on a task
 interface Subtask {
   id: number
   personId: number
   description: string
+  intensity: Intensity
 }
 
 // New Workflow Modal with Template Tasks
@@ -1031,13 +1066,23 @@ function EditWorkflowModal({
           {!showDeleteConfirm ? (
             <>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { onArchive(); onClose(); }}
-                  className="px-4 py-2 text-amber-600 font-medium hover:bg-amber-50 rounded-lg transition"
-                >
-                  Archive
-                </button>
+                {workflow.archived ? (
+                  <button
+                    type="button"
+                    onClick={() => { onArchive(); onClose(); }}
+                    className="px-4 py-2 text-green-600 font-medium hover:bg-green-50 rounded-lg transition"
+                  >
+                    Unarchive
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { onArchive(); onClose(); }}
+                    className="px-4 py-2 text-amber-600 font-medium hover:bg-amber-50 rounded-lg transition"
+                  >
+                    Archive
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
@@ -1137,11 +1182,48 @@ export default function Home() {
   const getUnassignedArchivedTasks = () => filteredTasks.filter(t => !t.assignee && t.status === 'done')
   
   const getWorkload = (memberId: number) => {
-    const memberTasks = filteredTasks.filter(t => t.assignee === memberId && t.status !== 'done')
+    // Calculate workload from subtasks assigned to this person (in non-done tasks)
+    const activeTasks = filteredTasks.filter(t => t.status !== 'done')
+    
+    let totalHours = 0
+    let subtaskCount = 0
+    const intensityCounts: Record<Intensity, number> = { quick: 0, small: 0, medium: 0, large: 0, huge: 0 }
+    
+    activeTasks.forEach(task => {
+      task.subtasks
+        .filter(st => st.personId === memberId)
+        .forEach(st => {
+          const intensity = INTENSITY_OPTIONS.find(o => o.value === st.intensity)
+          if (intensity) {
+            totalHours += intensity.hours
+            intensityCounts[st.intensity]++
+            subtaskCount++
+          }
+        })
+    })
+    
+    // Also count tasks where they're the assignee but have no subtask yet
+    const assignedWithNoSubtask = activeTasks.filter(t => 
+      t.assignee === memberId && !t.subtasks.some(st => st.personId === memberId)
+    ).length
+    
+    // Assume medium intensity for unspecified work
+    totalHours += assignedWithNoSubtask * 3
+    
+    const urgentTasks = activeTasks.filter(t => 
+      t.priority === 'urgent' && (t.assignee === memberId || t.subtasks.some(st => st.personId === memberId))
+    ).length
+    const highTasks = activeTasks.filter(t => 
+      t.priority === 'high' && (t.assignee === memberId || t.subtasks.some(st => st.personId === memberId))
+    ).length
+    
     return {
-      total: memberTasks.length,
-      urgent: memberTasks.filter(t => t.priority === 'urgent').length,
-      high: memberTasks.filter(t => t.priority === 'high').length,
+      hours: totalHours,
+      subtasks: subtaskCount,
+      unspecified: assignedWithNoSubtask,
+      urgent: urgentTasks,
+      high: highTasks,
+      byIntensity: intensityCounts,
     }
   }
 
@@ -1515,8 +1597,8 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {TEAM_MEMBERS.map(member => {
             const workload = getWorkload(member.id)
-            const maxTasks = 5
-            const loadPercent = Math.min((workload.total / maxTasks) * 100, 100)
+            const maxHours = 16 // ~2 days of work
+            const loadPercent = Math.min((workload.hours / maxHours) * 100, 100)
             
             return (
               <div key={member.id} className="bg-white rounded-xl p-5 shadow-sm border">
@@ -1532,8 +1614,8 @@ export default function Home() {
                 
                 <div className="mb-3">
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Workload</span>
-                    <span className="font-medium">{workload.total} tasks</span>
+                    <span className="text-gray-600">Estimated Workload</span>
+                    <span className="font-medium">{workload.hours.toFixed(1)}h</span>
                   </div>
                   <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                     <div 
@@ -1545,7 +1627,7 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <div className="flex gap-2 text-xs">
+                <div className="flex gap-2 text-xs flex-wrap mb-2">
                   {workload.urgent > 0 && (
                     <span className="px-2 py-1 bg-red-100 text-red-700 rounded">
                       {workload.urgent} urgent
@@ -1554,6 +1636,40 @@ export default function Home() {
                   {workload.high > 0 && (
                     <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded">
                       {workload.high} high
+                    </span>
+                  )}
+                </div>
+                
+                {/* Breakdown by intensity */}
+                <div className="flex gap-1 text-xs flex-wrap">
+                  {workload.byIntensity.quick > 0 && (
+                    <span className={`px-2 py-0.5 rounded ${intensityColors.quick}`}>
+                      {workload.byIntensity.quick} quick
+                    </span>
+                  )}
+                  {workload.byIntensity.small > 0 && (
+                    <span className={`px-2 py-0.5 rounded ${intensityColors.small}`}>
+                      {workload.byIntensity.small} small
+                    </span>
+                  )}
+                  {workload.byIntensity.medium > 0 && (
+                    <span className={`px-2 py-0.5 rounded ${intensityColors.medium}`}>
+                      {workload.byIntensity.medium} med
+                    </span>
+                  )}
+                  {workload.byIntensity.large > 0 && (
+                    <span className={`px-2 py-0.5 rounded ${intensityColors.large}`}>
+                      {workload.byIntensity.large} large
+                    </span>
+                  )}
+                  {workload.byIntensity.huge > 0 && (
+                    <span className={`px-2 py-0.5 rounded ${intensityColors.huge}`}>
+                      {workload.byIntensity.huge} huge
+                    </span>
+                  )}
+                  {workload.unspecified > 0 && (
+                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                      {workload.unspecified} unspecified
                     </span>
                   )}
                 </div>
@@ -1754,7 +1870,10 @@ export default function Home() {
           workflow={editingWorkflow}
           onClose={() => setEditingWorkflow(null)}
           onSave={handleUpdateWorkflow}
-          onArchive={() => handleArchiveWorkflow(editingWorkflow.id)}
+          onArchive={() => editingWorkflow.archived 
+            ? handleUnarchiveWorkflow(editingWorkflow.id) 
+            : handleArchiveWorkflow(editingWorkflow.id)
+          }
           onDelete={() => handleDeleteWorkflow(editingWorkflow.id)}
         />
       )}
