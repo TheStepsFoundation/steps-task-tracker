@@ -552,12 +552,20 @@ export default function Home() {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   
+  // Global workflow filter (applies to all views)
+  const [globalWorkflow, setGlobalWorkflow] = useState<string>('all')
+  
   // List view filters & sorting
-  const [filterWorkflow, setFilterWorkflow] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status' | 'workflow'>('dueDate')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  
+  // Get tasks filtered by global workflow
+  const getGlobalFilteredTasks = () => {
+    if (globalWorkflow === 'all') return tasks
+    return tasks.filter(t => t.workflow === globalWorkflow || t.subWorkflow === globalWorkflow)
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -573,12 +581,13 @@ export default function Home() {
     })
   )
 
-  const getTasksByStatus = (status: Status) => tasks.filter(t => t.status === status)
-  const getTasksByMember = (memberId: number) => tasks.filter(t => t.assignee === memberId && t.status !== 'done')
-  const getArchivedTasksByMember = (memberId: number) => tasks.filter(t => t.assignee === memberId && t.status === 'done')
+  const filteredTasks = getGlobalFilteredTasks()
+  const getTasksByStatus = (status: Status) => filteredTasks.filter(t => t.status === status)
+  const getTasksByMember = (memberId: number) => filteredTasks.filter(t => t.assignee === memberId && t.status !== 'done')
+  const getArchivedTasksByMember = (memberId: number) => filteredTasks.filter(t => t.assignee === memberId && t.status === 'done')
   
   const getWorkload = (memberId: number) => {
-    const memberTasks = tasks.filter(t => t.assignee === memberId && t.status !== 'done')
+    const memberTasks = filteredTasks.filter(t => t.assignee === memberId && t.status !== 'done')
     return {
       total: memberTasks.length,
       urgent: memberTasks.filter(t => t.priority === 'urgent').length,
@@ -588,11 +597,7 @@ export default function Home() {
 
   // Filtered and sorted tasks for list view
   const getFilteredSortedTasks = () => {
-    let filtered = [...tasks]
-    
-    if (filterWorkflow !== 'all') {
-      filtered = filtered.filter(t => t.workflow === filterWorkflow || t.subWorkflow === filterWorkflow)
-    }
+    let filtered = [...filteredTasks]
     if (filterStatus !== 'all') {
       filtered = filtered.filter(t => t.status === filterStatus)
     }
@@ -679,7 +684,7 @@ export default function Home() {
   return (
     <main className="min-h-screen p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Steps Task Tracker</h1>
           <p className="text-gray-500">Manage all workflows and events</p>
@@ -697,6 +702,44 @@ export default function Home() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Global Workflow Filter */}
+      <div className="mb-6 flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-medium text-gray-600">Showing:</span>
+        <select
+          value={globalWorkflow}
+          onChange={(e) => setGlobalWorkflow(e.target.value)}
+          className={`px-4 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${
+            globalWorkflow !== 'all' ? 'border-purple-500 text-purple-700 font-medium' : 'border-gray-200'
+          }`}
+        >
+          <option value="all">All Workflows</option>
+          {WORKFLOWS.map(w => (
+            <option key={w.id} value={w.id}>{w.name}</option>
+          ))}
+        </select>
+        {globalWorkflow !== 'all' && (
+          <>
+            {(() => {
+              const wf = WORKFLOWS.find(w => w.id === globalWorkflow)
+              return wf ? (
+                <span className={`inline-flex items-center text-xs font-medium px-3 py-1 rounded-full text-white ${wf.color}`}>
+                  {wf.name}
+                </span>
+              ) : null
+            })()}
+            <button
+              onClick={() => setGlobalWorkflow('all')}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              ✕ Clear
+            </button>
+          </>
+        )}
+        <span className="ml-auto text-sm text-gray-400">
+          {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+        </span>
       </div>
 
       <DndContext
@@ -896,21 +939,12 @@ export default function Home() {
                 <tr>
                   <th className="text-left p-4 font-medium text-gray-600">Task</th>
                   <th className="text-left p-4 font-medium text-gray-600">
-                    <div className="relative inline-block">
-                      <select
-                        value={filterWorkflow}
-                        onChange={(e) => {
-                          setFilterWorkflow(e.target.value)
-                          setSortBy('workflow')
-                        }}
-                        className={`appearance-none bg-transparent pr-6 cursor-pointer hover:text-purple-600 outline-none ${filterWorkflow !== 'all' ? 'text-purple-600 font-semibold' : ''}`}
-                      >
-                        <option value="all">Workflow ▾</option>
-                        {WORKFLOWS.map(w => (
-                          <option key={w.id} value={w.id}>{w.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <button
+                      onClick={() => setSortBy('workflow')}
+                      className={`hover:text-purple-600 ${sortBy === 'workflow' ? 'text-purple-600 font-semibold' : ''}`}
+                    >
+                      Workflow {sortBy === 'workflow' ? (sortOrder === 'asc' ? '↑' : '↓') : '▾'}
+                    </button>
                   </th>
                   <th className="text-left p-4 font-medium text-gray-600">
                     <div className="relative inline-block">
