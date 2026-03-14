@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, MouseEvent } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -12,8 +12,8 @@ import {
   DragStartEvent,
   DragEndEvent,
   useDroppable,
+  useDraggable,
 } from '@dnd-kit/core'
-import { useDraggable } from '@dnd-kit/core'
 
 // Team members from Steps Foundation
 const TEAM_MEMBERS = [
@@ -163,14 +163,14 @@ function DroppableColumn({
   )
 }
 
-// Draggable Task Card
+// Draggable Task Card with separate drag handle
 function DraggableTaskCard({ 
   task, 
-  onDoubleClick,
+  onClick,
   showStatus = false 
 }: { 
   task: Task
-  onDoubleClick: () => void
+  onClick: () => void
   showStatus?: boolean 
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -179,22 +179,41 @@ function DraggableTaskCard({
 
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    zIndex: 1000,
   } : undefined
 
   const member = TEAM_MEMBERS.find(m => m.id === task.assignee)
+
+  const handleCardClick = (e: MouseEvent) => {
+    // Don't trigger if clicking the drag handle
+    if ((e.target as HTMLElement).closest('.drag-handle')) {
+      return
+    }
+    onClick()
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
-      onDoubleClick={onDoubleClick}
-      className={`bg-white rounded-lg p-4 shadow-sm border border-gray-100 hover:shadow-md transition select-none ${
-        isDragging ? 'opacity-50 shadow-lg cursor-grabbing z-50' : 'cursor-grab'
+      onClick={handleCardClick}
+      className={`relative bg-white rounded-lg p-4 shadow-sm border border-gray-100 hover:shadow-md transition cursor-pointer ${
+        isDragging ? 'opacity-50 shadow-lg' : ''
       }`}
     >
-      <h3 className="font-medium text-gray-900 mb-2">{task.title}</h3>
+      {/* Drag Handle */}
+      <div 
+        {...listeners}
+        {...attributes}
+        className="drag-handle absolute top-2 right-2 p-1.5 rounded hover:bg-gray-100 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+        </svg>
+      </div>
+
+      <h3 className="font-medium text-gray-900 mb-2 pr-8">{task.title}</h3>
       <p className="text-sm text-gray-500 mb-3 line-clamp-2">{task.description}</p>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -429,13 +448,12 @@ export default function Home() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 150,
-        tolerance: 5,
+        distance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
+        delay: 100,
         tolerance: 5,
       },
     })
@@ -478,7 +496,6 @@ export default function Home() {
     }
     
     // Dropped on a team member column (team view)
-    // Old assignee becomes collaborator, new person becomes assignee
     if (overId.startsWith('member-')) {
       const newAssigneeId = parseInt(overId.replace('member-', ''))
       const oldAssigneeId = task.assignee
@@ -486,9 +503,7 @@ export default function Home() {
       if (newAssigneeId !== oldAssigneeId) {
         setTasks(prev => prev.map(t => {
           if (t.id === taskId) {
-            // Remove new assignee from collaborators if they were one
             const newCollaborators = t.collaborators.filter(id => id !== newAssigneeId)
-            // Add old assignee as collaborator (if not already)
             if (!newCollaborators.includes(oldAssigneeId)) {
               newCollaborators.push(oldAssigneeId)
             }
@@ -561,7 +576,7 @@ export default function Home() {
                     <DraggableTaskCard
                       key={task.id}
                       task={task}
-                      onDoubleClick={() => setEditingTask(task)}
+                      onClick={() => setEditingTask(task)}
                     />
                   ))}
                 </div>
@@ -598,7 +613,7 @@ export default function Home() {
                       <DraggableTaskCard
                         key={task.id}
                         task={task}
-                        onDoubleClick={() => setEditingTask(task)}
+                        onClick={() => setEditingTask(task)}
                         showStatus
                       />
                     ))}
@@ -615,7 +630,7 @@ export default function Home() {
                           <div 
                             key={task.id} 
                             className="bg-white rounded-lg p-3 text-sm cursor-pointer hover:opacity-100 transition"
-                            onDoubleClick={() => setEditingTask(task)}
+                            onClick={() => setEditingTask(task)}
                           >
                             <p className="text-gray-600 line-clamp-1">{task.title}</p>
                           </div>
@@ -712,7 +727,7 @@ export default function Home() {
                   <tr 
                     key={task.id} 
                     className="border-b hover:bg-gray-50 cursor-pointer"
-                    onDoubleClick={() => setEditingTask(task)}
+                    onClick={() => setEditingTask(task)}
                   >
                     <td className="p-4">
                       <div className="font-medium text-gray-900">{task.title}</div>
@@ -751,13 +766,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Drag hint */}
-      {activeTask && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-full text-sm shadow-lg z-40">
-          Drop on a column to move
-        </div>
-      )}
-
       {/* Task Edit Modal */}
       {editingTask && (
         <TaskModal
@@ -769,7 +777,7 @@ export default function Home() {
 
       {/* Instructions */}
       <div className="mt-8 text-center text-sm text-gray-400">
-        <p>Hold and drag cards to move them • Double-click to edit</p>
+        <p>Click card to edit • Drag the ⋮⋮ handle to move</p>
       </div>
     </main>
   )
