@@ -969,8 +969,8 @@ function MeetingNotesModal({
     // Process notes - check if bullet-based format
     let currentAssignee = 0
     
-    // Check if notes contain bullet points (-, •, *)
-    const hasBullets = lines.some(l => /^[-•*]\s+/.test(l))
+    // Check if notes contain bullet points (- or •, NOT * which conflicts with markdown)
+    const hasBullets = lines.some(l => /^[-•]\s+/.test(l))
     
     if (hasBullets) {
       // BULLET-BASED FORMAT: 1 bullet = 1 task
@@ -987,10 +987,10 @@ function MeetingNotesModal({
           continue
         }
         
-        // Only process bullet points
-        if (!line.startsWith('-') && !line.startsWith('•') && !line.startsWith('*')) continue
+        // Only process bullet points (- or •, not * to avoid markdown conflicts)
+        if (!line.startsWith('-') && !line.startsWith('•')) continue
         
-        const taskText = line.replace(/^[-•*]\s*/, '').trim()
+        const taskText = line.replace(/^[-•]\s*/, '').trim()
         if (taskText.length < 10) continue
         
         const dueDate = parseDate(taskText)
