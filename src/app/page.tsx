@@ -907,54 +907,73 @@ function MeetingNotesModal({
         .replace(/\s+/g, ' ') // Normalize whitespace
         .trim()
       
-      // Make more concise - remove filler phrases
+      // Remove trailing purpose clauses and filler
       title = title
-        .replace(/^(Lead overall on|Lead on|Take over and drive|Work with \w+ to)\s+/i, '')
-        .replace(/^(Begin early|Start high-level|Define and write down)\s+/i, '')
         .replace(/\s+so that\s+.*$/i, '')
         .replace(/\s+so\s+\w+\s+(can|are|is|will).*$/i, '')
         .replace(/\s+and be present as.*$/i, '')
         .replace(/\s+ensuring\s+.*$/i, '')
         .replace(/\s+once the\s+.*$/i, '')
+        .replace(/\s+about\s+.*partnership.*$/i, '')  // "about Great Lock In partnership"
+        .replace(/\s+and\s+pitch\s+.*$/i, '')  // "and pitch office visit"
+        .replace(/\s+and\s+reserved\s+.*$/i, '')
+        .replace(/\s+and\s+potential\s+.*$/i, '')
         .trim()
       
-      // Truncate if still too long (cut at word boundary)
-      if (title.length > 55) {
-        title = title.slice(0, 55).replace(/\s+\S*$/, '')
+      // Clean up function - removes trailing incomplete words
+      const cleanTrailing = (s: string): string => {
+        return s
+          .replace(/\s+(to|with|on|for|about|and|or|the|a|an|in|at|by|from|into|as|if|of|up|is|are|will|can|then|that|this|their|our|your)$/i, '')
+          .replace(/\s+(follow|pitch|share|send|post|drive|visit)$/i, '')  // verbs that need objects
+          .replace(/[,;:\-–/]$/, '')
+          .trim()
       }
       
-      // Clean up trailing words that leave the title incomplete
-      // Remove trailing prepositions, conjunctions, articles
-      title = title
-        .replace(/\s+(to|with|on|for|about|and|or|the|a|an|in|at|by|from|into|as|if|of|up|is|are|will|can|then|that|this|their|our|your)$/i, '')
-        .replace(/\s+(to|with|on|for|about|and|or|the|a|an|in|at|by|from|into|as|if|of|up|is|are|will|can|then|that|this|their|our|your)$/i, '') // Run twice for "to follow up on" -> "to follow up" -> ""
-        .replace(/\s+(to|with|on|for|about|and|or|the|a|an|in|at|by|from)$/i, '') // Third pass
-        .replace(/\s+(follow[- ]?up|pitch|share|send|post)$/i, '') // Remove trailing verbs that need objects
-        .replace(/\s+(and\s+\w+)$/i, '') // Remove "and [verb]" at end
-        .replace(/[,;:\-–/]$/, '') // Remove trailing punctuation
-        .trim()
+      // If still too long, find a good cut point
+      if (title.length > 50) {
+        // Try to cut before common preposition phrases
+        const cutPatterns = [
+          /\s+about\s+/i,
+          /\s+to\s+follow/i,
+          /\s+and\s+pitch/i,
+          /\s+and\s+\w+\s+/i,  // "and [verb]"
+          /\s+on\s+\w+\s+/i,   // "on [topic]"
+        ]
+        
+        for (const pattern of cutPatterns) {
+          const match = title.match(pattern)
+          if (match && match.index && match.index > 20 && match.index < 55) {
+            title = title.slice(0, match.index)
+            break
+          }
+        }
+      }
+      
+      // Final truncation if still too long
+      if (title.length > 50) {
+        title = title.slice(0, 50).replace(/\s+\S*$/, '')  // Cut at word boundary
+      }
+      
+      // Clean trailing words multiple times to catch chains
+      for (let i = 0; i < 4; i++) {
+        const cleaned = cleanTrailing(title)
+        if (cleaned === title) break
+        title = cleaned
+      }
       
       // Words that should stay lowercase (unless first word)
       const lowercaseWords = new Set([
-        'a', 'an', 'the', // articles
-        'and', 'but', 'or', 'nor', 'for', 'yet', 'so', // conjunctions
-        'to', 'at', 'by', 'for', 'in', 'of', 'on', 'up', 'as', 'if', // short prepositions
-        'with', 'from', 'into', 'onto', 'upon', 'about', 'after', 'before', // longer prepositions
+        'a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'yet', 'so',
+        'to', 'at', 'by', 'in', 'of', 'on', 'up', 'as', 'if',
+        'with', 'from', 'into', 'onto', 'upon', 'about', 'after', 'before',
         'over', 'under', 'between', 'through', 'during', 'without',
       ])
       
       // Apply title case
       const words = title.toLowerCase().split(' ')
       const titleCased = words.map((word, index) => {
-        // Always capitalize first word
-        if (index === 0) {
-          return word.charAt(0).toUpperCase() + word.slice(1)
-        }
-        // Keep lowercase words lowercase
-        if (lowercaseWords.has(word)) {
-          return word
-        }
-        // Capitalize other words
+        if (index === 0) return word.charAt(0).toUpperCase() + word.slice(1)
+        if (lowercaseWords.has(word)) return word
         return word.charAt(0).toUpperCase() + word.slice(1)
       })
       
@@ -2899,12 +2918,12 @@ export default function Home() {
   
   // Get capacity for a member for a specific week
   const getMemberCapacity = (memberId: number, weekStart: string): number => {
-    return weekCapacities[weekStart]?.[memberId] ?? 16 // Default 16h (2 days)
+    return weekCapacities[weekStart]?.[memberId] ?? 7 // Default 7h
   }
   
   // Set capacity for a member for a specific week
   const handleSetMemberCapacity = (memberId: number, weekStart: string, hours: number) => {
-    const clampedHours = Math.max(0, Math.min(40, hours))
+    const clampedHours = Math.max(0, Math.min(25, hours))
     setWeekCapacity(memberId, weekStart, clampedHours)
   }
   
@@ -3448,7 +3467,7 @@ export default function Home() {
                     <input
                       type="range"
                       min="0"
-                      max="40"
+                      max="25"
                       step="1"
                       value={capacity}
                       onChange={e => handleSetMemberCapacity(member.id, selectedWeek, parseInt(e.target.value))}
@@ -3456,8 +3475,8 @@ export default function Home() {
                     />
                     <div className="flex justify-between text-xs text-gray-400 mt-1">
                       <span>0h</span>
-                      <span>20h</span>
-                      <span>40h</span>
+                      <span>12h</span>
+                      <span>25h</span>
                     </div>
                   </div>
                   
