@@ -806,18 +806,37 @@ function MeetingNotesModal({
     
     // Parse date from text like "by Thu 12 Mar 2026" or "Fri 13 Mar 2026" or "~Sun 22 Mar 2026"
     const parseDate = (text: string): string | null => {
-      // Match patterns like "by Thu 12 Mar 2026", "Fri 13 Mar 2026", "~Sun 22 Mar 2026"
-      const dateMatch = text.match(/(?:by\s+|~\s*)?(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/i)
-      if (dateMatch) {
-        const months: Record<string, string> = {
-          jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
-          jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
-        }
-        const day = dateMatch[1].padStart(2, '0')
-        const month = months[dateMatch[2].toLowerCase()]
-        const year = dateMatch[3]
+      const months: Record<string, string> = {
+        jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+        jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+      }
+      
+      // Match patterns like "by Thu 12 Mar 2026", "Fri 13 Mar 2026", "~Sun 22 Mar 2026" (with year)
+      const dateMatchWithYear = text.match(/(?:by\s+|~\s*)?(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/i)
+      if (dateMatchWithYear) {
+        const day = dateMatchWithYear[1].padStart(2, '0')
+        const month = months[dateMatchWithYear[2].toLowerCase()]
+        const year = dateMatchWithYear[3]
         return `${year}-${month}-${day}`
       }
+      
+      // Match patterns like "by Thu 12 Mar", "Fri 13 Mar" (without year - assume current/next year)
+      const dateMatchNoYear = text.match(/(?:by\s+|~\s*)?(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?!\s*\d)/i)
+      if (dateMatchNoYear) {
+        const day = dateMatchNoYear[1].padStart(2, '0')
+        const month = months[dateMatchNoYear[2].toLowerCase()]
+        const now = new Date()
+        let year = now.getFullYear()
+        
+        // If the date has passed this year, assume next year
+        const parsedDate = new Date(year, parseInt(month) - 1, parseInt(day))
+        if (parsedDate < now) {
+          year++
+        }
+        
+        return `${year}-${month}-${day}`
+      }
+      
       return null
     }
     
@@ -1407,10 +1426,23 @@ Example:
                                         key={m.id}
                                         type="button"
                                         onClick={() => {
-                                          const newCollabs = isCollab
-                                            ? task.collaborators.filter(c => c !== m.id)
-                                            : [...task.collaborators, m.id]
-                                          updateTask(task.id, { collaborators: newCollabs })
+                                          if (isCollab) {
+                                            // Removing collaborator - also remove their subtask
+                                            const newCollabs = task.collaborators.filter(c => c !== m.id)
+                                            const newSubtasks = task.subtasks.filter(st => st.personId !== m.id)
+                                            updateTask(task.id, { collaborators: newCollabs, subtasks: newSubtasks })
+                                          } else {
+                                            // Adding collaborator - also add a subtask for them
+                                            const newCollabs = [...task.collaborators, m.id]
+                                            const newSubtask: Subtask = {
+                                              id: Date.now() + m.id,
+                                              personId: m.id,
+                                              description: '',
+                                              intensity: 'small',
+                                            }
+                                            const newSubtasks = [...task.subtasks, newSubtask]
+                                            updateTask(task.id, { collaborators: newCollabs, subtasks: newSubtasks })
+                                          }
                                         }}
                                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${
                                           isCollab
