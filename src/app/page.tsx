@@ -1802,12 +1802,48 @@ function AddTaskModal({
   const [workflow, setWorkflow] = useState<string | null>(defaultWorkflow)
   const [priority, setPriority] = useState<Priority>('medium')
   const [assignee, setAssignee] = useState<number>(0)
+  const [collaborators, setCollaborators] = useState<number[]>([])
+  const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [dueDate, setDueDate] = useState(
     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   )
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [meetingNotes, setMeetingNotes] = useState('')
   const [activeTab, setActiveTab] = useState<'basic' | 'attachments'>('basic')
+  
+  // Toggle collaborator
+  const toggleCollaborator = (memberId: number) => {
+    if (memberId === assignee) return
+    
+    const isRemoving = collaborators.includes(memberId)
+    
+    if (isRemoving) {
+      setCollaborators(prev => prev.filter(id => id !== memberId))
+      setSubtasks(prev => prev.map(st => 
+        st.personId === memberId ? { ...st, personId: 0 } : st
+      ))
+    } else {
+      const unassignedSubtaskIndex = subtasks.findIndex(st => st.personId === 0)
+      
+      let newSubtasks = [...subtasks]
+      if (unassignedSubtaskIndex !== -1) {
+        newSubtasks[unassignedSubtaskIndex] = {
+          ...newSubtasks[unassignedSubtaskIndex],
+          personId: memberId
+        }
+      } else {
+        newSubtasks.push({
+          id: Date.now(),
+          personId: memberId,
+          description: '',
+          intensity: 'small'
+        })
+      }
+      
+      setCollaborators(prev => [...prev, memberId])
+      setSubtasks(newSubtasks)
+    }
+  }
   
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false)
@@ -1949,13 +1985,13 @@ function AddTaskModal({
       title: title.trim(),
       description: description.trim(),
       assignee,
-      collaborators: [],
-      subtasks: assignee ? [{
+      collaborators,
+      subtasks: subtasks.length > 0 ? subtasks : (assignee ? [{
         id: Date.now(),
         personId: assignee,
         description: '',
         intensity: 'small' as Intensity,
-      }] : [],
+      }] : []),
       priority,
       status: 'todo',
       dueDate,
@@ -2116,7 +2152,25 @@ function AddTaskModal({
                     <button
                       key={member.id}
                       type="button"
-                      onClick={() => setAssignee(member.id)}
+                      onClick={() => {
+                        const newAssignee = member.id
+                        const filteredCollabs = collaborators.filter(id => id !== member.id)
+                        
+                        // Auto-create subtask for assignee if no subtasks exist
+                        let newSubtasks = subtasks
+                        if (subtasks.length === 0) {
+                          newSubtasks = [{
+                            id: Date.now(),
+                            personId: newAssignee,
+                            description: '',
+                            intensity: 'small' as Intensity,
+                          }]
+                        }
+                        
+                        setAssignee(newAssignee)
+                        setCollaborators(filteredCollabs)
+                        setSubtasks(newSubtasks)
+                      }}
                       className={`flex items-center gap-2 p-3 rounded-lg border-2 transition ${
                         assignee === member.id
                           ? 'border-purple-500 bg-purple-50'
@@ -2130,6 +2184,128 @@ function AddTaskModal({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Collaborators */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Collaborators</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {TEAM_MEMBERS.filter(m => m.id !== assignee).map(member => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => toggleCollaborator(member.id)}
+                      className={`flex items-center gap-2 p-3 rounded-lg border-2 transition ${
+                        collaborators.includes(member.id)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                        collaborators.includes(member.id)
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {member.avatar}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 truncate">{member.name.split(' ')[0]}</span>
+                      {collaborators.includes(member.id) && (
+                        <svg className="w-4 h-4 text-blue-500 ml-auto flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subtasks - what each person is doing */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">What each person is doing</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newSubtask: Subtask = {
+                        id: Date.now(),
+                        personId: assignee || 0,
+                        description: '',
+                        intensity: 'small',
+                      }
+                      setSubtasks(prev => [...prev, newSubtask])
+                    }}
+                    className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    + Add subtask
+                  </button>
+                </div>
+                
+                {subtasks.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-4 text-center border border-dashed border-gray-200 rounded-lg">
+                    No subtasks yet. Add one to specify what each person is responsible for.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {subtasks.map((subtask, index) => {
+                      const person = TEAM_MEMBERS.find(m => m.id === subtask.personId)
+                      return (
+                        <div key={subtask.id} className="flex gap-3 items-start p-3 bg-gray-50 rounded-lg">
+                          <select
+                            value={subtask.personId}
+                            onChange={e => {
+                              const newSubtasks = [...subtasks]
+                              newSubtasks[index] = { ...subtask, personId: parseInt(e.target.value) }
+                              setSubtasks(newSubtasks)
+                            }}
+                            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none min-w-[140px]"
+                          >
+                            <option value={0}>Unassigned</option>
+                            {TEAM_MEMBERS.map(m => (
+                              <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>
+                            ))}
+                          </select>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={subtask.description}
+                              onChange={e => {
+                                const newSubtasks = [...subtasks]
+                                newSubtasks[index] = { ...subtask, description: e.target.value }
+                                setSubtasks(newSubtasks)
+                              }}
+                              placeholder="What are they doing?"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                            />
+                          </div>
+                          <select
+                            value={subtask.intensity}
+                            onChange={e => {
+                              const newSubtasks = [...subtasks]
+                              newSubtasks[index] = { ...subtask, intensity: e.target.value as Intensity }
+                              setSubtasks(newSubtasks)
+                            }}
+                            className={`px-2 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${intensityColors[subtask.intensity]}`}
+                          >
+                            {INTENSITY_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSubtasks(subtasks.filter((_, i) => i !== index))
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 transition"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
