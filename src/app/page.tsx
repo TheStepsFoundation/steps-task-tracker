@@ -966,72 +966,57 @@ function MeetingNotesModal({
       return false
     }
     
-    // Process structured format
+    // Process notes - check if bullet-based format
     let currentAssignee = 0
-    let isStructuredFormat = false
     
-    // First pass: detect if this is structured format (has person headers)
-    for (const line of lines) {
-      const headerCheck = isPersonHeader(line)
-      if (headerCheck.isHeader) {
-        isStructuredFormat = true
-        break
-      }
-    }
+    // Check if notes contain bullet points (-, •, *)
+    const hasBullets = lines.some(l => /^[-•*]\s+/.test(l))
     
-    if (isStructuredFormat) {
-      // Structured format: parse by sections
+    if (hasBullets) {
+      // BULLET-BASED FORMAT: 1 bullet = 1 task
+      // Person headers (like "Adi" or "You (Favour)") set the assignee
+      // Names mentioned in the bullet text become collaborators
+      
       for (const line of lines) {
         if (!line) continue
         
-        // Check for person header first
+        // Check for person header first (line without bullet, just a name)
         const headerCheck = isPersonHeader(line)
         if (headerCheck.isHeader) {
           currentAssignee = headerCheck.assignee
           continue
         }
         
-        // Check for task line (indented or starting with -)
-        const trimmedLine = line.trim()
-        if (!trimmedLine.startsWith('-') && !trimmedLine.startsWith('•')) continue
+        // Only process bullet points
+        if (!line.startsWith('-') && !line.startsWith('•') && !line.startsWith('*')) continue
         
-        const taskText = trimmedLine.replace(/^[-•*]\s*/, '').trim()
+        const taskText = line.replace(/^[-•*]\s*/, '').trim()
         if (taskText.length < 10) continue
         
         const dueDate = parseDate(taskText)
         const title = extractTitle(taskText)
         
-        // Find collaborators mentioned in the task
-        // Look for patterns like "with Sam", "and Dany", "co-lead with X"
+        // Find collaborators mentioned in the task text
         const collaborators: number[] = []
         const lowerText = taskText.toLowerCase()
         
         for (const member of memberAliases) {
           if (member.id !== currentAssignee) {
             for (const name of member.names) {
-              // Check for collaboration patterns
-              const patterns = [
-                `with ${name}`,
-                `and ${name}`,
-                `co-lead ${name}`,
-                `co‑lead ${name}`,
-                `${name} and `,
-                `${name}, `,
-                `+ ${name}`,
-              ]
-              
-              const hasPattern = patterns.some(p => lowerText.includes(p))
-              
-              // Also check for direct mention if name appears with context
-              const directMention = lowerText.includes(name) && 
-                (lowerText.includes('work with') || 
-                 lowerText.includes('coordinate') || 
-                 lowerText.includes('join') ||
-                 lowerText.includes('co-') ||
-                 lowerText.includes('co‑'))
-              
-              if (hasPattern || directMention) {
-                if (!collaborators.includes(member.id)) {
+              // Check if name appears in context suggesting collaboration
+              if (lowerText.includes(name)) {
+                // Common collaboration patterns
+                const isCollab = 
+                  lowerText.includes(`with ${name}`) ||
+                  lowerText.includes(`and ${name}`) ||
+                  lowerText.includes(`${name} and `) ||
+                  lowerText.includes(`co-lead`) ||
+                  lowerText.includes(`co‑lead`) ||
+                  lowerText.includes(`coordinate`) ||
+                  lowerText.includes(`work with`) ||
+                  lowerText.includes(`join`)
+                
+                if (isCollab && !collaborators.includes(member.id)) {
                   collaborators.push(member.id)
                 }
                 break
