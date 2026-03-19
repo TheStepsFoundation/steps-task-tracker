@@ -1899,17 +1899,22 @@ function EditWorkflowModal({
   onSave,
   onArchive,
   onDelete,
+  workflowTasks,
 }: {
   workflow: Workflow
   onClose: () => void
   onSave: (updated: Workflow) => void
   onArchive: () => void
-  onDelete: () => void
+  onDelete: (taskIdsToDelete: number[]) => void
+  workflowTasks: Task[]
 }) {
   const [name, setName] = useState(workflow.name)
   const [short, setShort] = useState(workflow.short)
   const [color, setColor] = useState(workflow.color)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [selectedTasksToDelete, setSelectedTasksToDelete] = useState<Set<number>>(
+    new Set(workflowTasks.map(t => t.id))
+  )
 
   const handleSave = () => {
     if (!name.trim() || !short.trim()) return
@@ -2026,9 +2031,74 @@ function EditWorkflowModal({
               </div>
             </>
           ) : (
-            <div className="w-full">
-              <p className="text-sm text-gray-600 mb-3">Delete this workflow permanently? Consider archiving instead.</p>
-              <div className="flex gap-3 justify-end">
+            <div className="w-full space-y-4">
+              <p className="text-sm text-gray-600">Delete this workflow? Select which associated tasks to also delete:</p>
+              
+              {workflowTasks.length > 0 ? (
+                <>
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTasksToDelete(new Set(workflowTasks.map(t => t.id)))}
+                      className="text-purple-600 hover:text-purple-700 font-medium"
+                    >
+                      Select All ({workflowTasks.length})
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTasksToDelete(new Set())}
+                      className="text-gray-500 hover:text-gray-700 font-medium"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                  
+                  <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y">
+                    {workflowTasks.map(task => (
+                      <label
+                        key={task.id}
+                        className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 ${
+                          selectedTasksToDelete.has(task.id) ? 'bg-red-50' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTasksToDelete.has(task.id)}
+                          onChange={() => {
+                            const newSet = new Set(selectedTasksToDelete)
+                            if (newSet.has(task.id)) {
+                              newSet.delete(task.id)
+                            } else {
+                              newSet.add(task.id)
+                            }
+                            setSelectedTasksToDelete(newSet)
+                          }}
+                          className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-900 truncate block">{task.title}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            task.status === 'done' ? 'bg-green-100 text-green-700' :
+                            task.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {task.status}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <p className="text-xs text-gray-500">
+                    {selectedTasksToDelete.size} task{selectedTasksToDelete.size !== 1 ? 's' : ''} will be deleted
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No tasks associated with this workflow.</p>
+              )}
+              
+              <div className="flex gap-3 justify-end pt-2">
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(false)}
@@ -2038,10 +2108,10 @@ function EditWorkflowModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => { onDelete(); onClose(); }}
+                  onClick={() => { onDelete(Array.from(selectedTasksToDelete)); onClose(); }}
                   className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition"
                 >
-                  Delete Permanently
+                  Delete Workflow{selectedTasksToDelete.size > 0 ? ` + ${selectedTasksToDelete.size} Tasks` : ''}
                 </button>
               </div>
             </div>
@@ -2790,6 +2860,7 @@ export default function Home() {
     isDemo,
     createTask,
     updateTask: updateTaskInDb,
+    deleteTask,
     setTasks,
     createWorkflow,
     updateWorkflow: updateWorkflowInDb,
@@ -2826,6 +2897,10 @@ export default function Home() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status' | 'workflow'>('dueDate')
+  
+  // Multi-select state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set())
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   
   // Helper to toggle sort
@@ -2985,6 +3060,49 @@ export default function Home() {
     return filtered
   }
 
+  // Multi-select functions
+  const toggleTaskSelection = (taskId: number) => {
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId)
+      } else {
+        newSet.add(taskId)
+      }
+      return newSet
+    })
+  }
+
+  const selectAllInStatus = (status: Status) => {
+    const tasksInStatus = filteredTasks.filter(t => t.status === status)
+    setSelectedTaskIds(new Set(tasksInStatus.map(t => t.id)))
+    setIsMultiSelectMode(true)
+  }
+
+  const clearSelection = () => {
+    setSelectedTaskIds(new Set())
+    setIsMultiSelectMode(false)
+  }
+
+  const moveSelectedToStatus = async (newStatus: Status) => {
+    const taskIds = Array.from(selectedTaskIds)
+    for (const taskId of taskIds) {
+      const task = tasks.find(t => t.id === taskId)
+      if (task) {
+        await updateTaskInDb({ ...task, status: newStatus })
+      }
+    }
+    clearSelection()
+  }
+
+  const deleteSelectedTasks = async () => {
+    const taskIds = Array.from(selectedTaskIds)
+    for (const taskId of taskIds) {
+      await deleteTask(taskId)
+    }
+    clearSelection()
+  }
+
   const handleDragStart = (event: DragStartEvent) => {
     const task = tasks.find(t => t.id === event.active.id)
     if (task) setActiveTask(task)
@@ -3067,7 +3185,12 @@ export default function Home() {
     }
   }
 
-  const handleDeleteWorkflow = async (workflowId: string) => {
+  const handleDeleteWorkflow = async (workflowId: string, taskIdsToDelete: number[] = []) => {
+    // Delete selected tasks first
+    for (const taskId of taskIdsToDelete) {
+      await deleteTask(taskId)
+    }
+    // Then delete the workflow
     await deleteWorkflowFromDb(workflowId)
     if (globalWorkflow === workflowId) {
       setGlobalWorkflow('all')
@@ -3217,6 +3340,49 @@ export default function Home() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
+        {/* Multi-select toolbar */}
+        {selectedTaskIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white rounded-xl px-6 py-3 shadow-2xl flex items-center gap-4 z-40">
+            <span className="font-medium">{selectedTaskIds.size} selected</span>
+            <div className="h-5 w-px bg-gray-600" />
+            <div className="flex gap-2">
+              <button
+                onClick={() => moveSelectedToStatus('todo')}
+                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+              >
+                → To Do
+              </button>
+              <button
+                onClick={() => moveSelectedToStatus('in-progress')}
+                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+              >
+                → In Progress
+              </button>
+              <button
+                onClick={() => moveSelectedToStatus('done')}
+                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+              >
+                → Done
+              </button>
+            </div>
+            <div className="h-5 w-px bg-gray-600" />
+            <button
+              onClick={deleteSelectedTasks}
+              className="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 rounded-lg transition"
+            >
+              Delete All
+            </button>
+            <button
+              onClick={clearSelection}
+              className="p-1.5 text-gray-400 hover:text-white transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Board View */}
         {view === 'board' && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -3229,19 +3395,38 @@ export default function Home() {
                 <div className="flex items-center gap-2 mb-4">
                   <div className={`w-3 h-3 rounded-full ${statusColors[status].split(' ')[0]}`} />
                   <h2 className="font-semibold text-gray-700">{statusLabels[status]}</h2>
-                  <span className="ml-auto text-sm text-gray-400">
+                  <span className="text-sm text-gray-400">
                     {getTasksByStatus(status).length}
                   </span>
+                  <button
+                    onClick={() => selectAllInStatus(status)}
+                    className="ml-auto text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    Select All
+                  </button>
                 </div>
                 
                 <div className="space-y-3">
                   {getTasksByStatus(status).map(task => (
-                    <DraggableTaskCard
-                      key={task.id}
-                      task={task}
-                      onClick={() => setEditingTask(task)}
-                      workflows={workflows}
-                    />
+                    <div key={task.id} className="relative">
+                      {(isMultiSelectMode || selectedTaskIds.size > 0) && (
+                        <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-10">
+                          <input
+                            type="checkbox"
+                            checked={selectedTaskIds.has(task.id)}
+                            onChange={() => toggleTaskSelection(task.id)}
+                            className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                          />
+                        </div>
+                      )}
+                      <div className={isMultiSelectMode || selectedTaskIds.size > 0 ? 'ml-5' : ''}>
+                        <DraggableTaskCard
+                          task={task}
+                          onClick={() => isMultiSelectMode ? toggleTaskSelection(task.id) : setEditingTask(task)}
+                          workflows={workflows}
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </DroppableColumn>
@@ -3738,7 +3923,8 @@ export default function Home() {
             ? handleUnarchiveWorkflow(editingWorkflow.id) 
             : handleArchiveWorkflow(editingWorkflow.id)
           }
-          onDelete={() => handleDeleteWorkflow(editingWorkflow.id)}
+          onDelete={(taskIdsToDelete) => handleDeleteWorkflow(editingWorkflow.id, taskIdsToDelete)}
+          workflowTasks={tasks.filter(t => t.workflow === editingWorkflow.id)}
         />
       )}
 
