@@ -70,6 +70,7 @@ interface Task {
   workflow: string | null
   subWorkflow: string | null
   attachments?: Attachment[]
+  archived?: boolean
 }
 
 const priorityColors: Record<Priority, string> = {
@@ -1904,7 +1905,7 @@ function EditWorkflowModal({
   workflow: Workflow
   onClose: () => void
   onSave: (updated: Workflow) => void
-  onArchive: () => void
+  onArchive: (taskIdsToArchive: number[]) => void
   onDelete: (taskIdsToDelete: number[]) => void
   workflowTasks: Task[]
 }) {
@@ -1912,7 +1913,11 @@ function EditWorkflowModal({
   const [short, setShort] = useState(workflow.short)
   const [color, setColor] = useState(workflow.color)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [selectedTasksToDelete, setSelectedTasksToDelete] = useState<Set<number>>(
+    new Set(workflowTasks.map(t => t.id))
+  )
+  const [selectedTasksToArchive, setSelectedTasksToArchive] = useState<Set<number>>(
     new Set(workflowTasks.map(t => t.id))
   )
 
@@ -1984,13 +1989,13 @@ function EditWorkflowModal({
         </div>
 
         <div className="flex items-center justify-between gap-3 p-6 border-t bg-gray-50">
-          {!showDeleteConfirm ? (
+          {!showDeleteConfirm && !showArchiveConfirm ? (
             <>
               <div className="flex gap-2">
                 {workflow.archived ? (
                   <button
                     type="button"
-                    onClick={() => { onArchive(); onClose(); }}
+                    onClick={() => { onArchive([]); onClose(); }}
                     className="px-4 py-2 text-green-600 font-medium hover:bg-green-50 rounded-lg transition"
                   >
                     Unarchive
@@ -1998,7 +2003,14 @@ function EditWorkflowModal({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => { onArchive(); onClose(); }}
+                    onClick={() => {
+                      if (workflowTasks.length > 0) {
+                        setShowArchiveConfirm(true)
+                      } else {
+                        onArchive([])
+                        onClose()
+                      }
+                    }}
                     className="px-4 py-2 text-amber-600 font-medium hover:bg-amber-50 rounded-lg transition"
                   >
                     Archive
@@ -2030,7 +2042,7 @@ function EditWorkflowModal({
                 </button>
               </div>
             </>
-          ) : (
+          ) : showDeleteConfirm ? (
             <div className="w-full space-y-4">
               <p className="text-sm text-gray-600">Delete this workflow? Select which associated tasks to also delete:</p>
               
@@ -2115,7 +2127,86 @@ function EditWorkflowModal({
                 </button>
               </div>
             </div>
-          )}
+          ) : showArchiveConfirm ? (
+            <div className="w-full space-y-4">
+              <p className="text-sm text-gray-600">Archive this workflow? Select which tasks to also archive:</p>
+              
+              <div className="flex gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTasksToArchive(new Set(workflowTasks.map(t => t.id)))}
+                  className="text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Select All ({workflowTasks.length})
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTasksToArchive(new Set())}
+                  className="text-gray-500 hover:text-gray-700 font-medium"
+                >
+                  Deselect All
+                </button>
+              </div>
+              
+              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y">
+                {workflowTasks.map(task => (
+                  <label
+                    key={task.id}
+                    className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 ${
+                      selectedTasksToArchive.has(task.id) ? 'bg-amber-50' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedTasksToArchive.has(task.id)}
+                      onChange={() => {
+                        const newSet = new Set(selectedTasksToArchive)
+                        if (newSet.has(task.id)) {
+                          newSet.delete(task.id)
+                        } else {
+                          newSet.add(task.id)
+                        }
+                        setSelectedTasksToArchive(newSet)
+                      }}
+                      className="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900 truncate block">{task.title}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        task.status === 'done' ? 'bg-green-100 text-green-700' :
+                        task.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {task.status}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              
+              <p className="text-xs text-gray-500">
+                {selectedTasksToArchive.size} task{selectedTasksToArchive.size !== 1 ? 's' : ''} will be archived
+              </p>
+              
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveConfirm(false)}
+                  className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onArchive(Array.from(selectedTasksToArchive)); onClose(); }}
+                  className="px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition"
+                >
+                  Archive Workflow{selectedTasksToArchive.size > 0 ? ` + ${selectedTasksToArchive.size} Tasks` : ''}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -2917,8 +3008,10 @@ export default function Home() {
   
   // Get tasks filtered by global workflow
   const getGlobalFilteredTasks = () => {
-    if (globalWorkflow === 'all') return tasks
-    return tasks.filter(t => t.workflow === globalWorkflow || t.subWorkflow === globalWorkflow)
+    // Always exclude archived tasks from the main view
+    const activeTasks = tasks.filter(t => !t.archived)
+    if (globalWorkflow === 'all') return activeTasks
+    return activeTasks.filter(t => t.workflow === globalWorkflow || t.subWorkflow === globalWorkflow)
   }
 
   const sensors = useSensors(
@@ -3168,7 +3261,15 @@ export default function Home() {
     await updateWorkflowInDb(updated)
   }
 
-  const handleArchiveWorkflow = async (workflowId: string) => {
+  const handleArchiveWorkflow = async (workflowId: string, taskIdsToArchive: number[] = []) => {
+    // Archive selected tasks (hide them, keep their status)
+    for (const taskId of taskIdsToArchive) {
+      const task = tasks.find(t => t.id === taskId)
+      if (task) {
+        await updateTaskInDb({ ...task, archived: true })
+      }
+    }
+    // Archive the workflow
     const workflow = workflows.find(w => w.id === workflowId)
     if (workflow) {
       await updateWorkflowInDb({ ...workflow, archived: true })
@@ -3182,6 +3283,11 @@ export default function Home() {
     const workflow = workflows.find(w => w.id === workflowId)
     if (workflow) {
       await updateWorkflowInDb({ ...workflow, archived: false })
+    }
+    // Unarchive all tasks associated with this workflow
+    const workflowTasks = tasks.filter(t => t.workflow === workflowId && t.archived)
+    for (const task of workflowTasks) {
+      await updateTaskInDb({ ...task, archived: false })
     }
   }
 
@@ -3398,12 +3504,21 @@ export default function Home() {
                   <span className="text-sm text-gray-400">
                     {getTasksByStatus(status).length}
                   </span>
-                  <button
-                    onClick={() => selectAllInStatus(status)}
-                    className="ml-auto text-xs text-purple-600 hover:text-purple-700 font-medium"
-                  >
-                    Select All
-                  </button>
+                  {isMultiSelectMode || selectedTaskIds.size > 0 ? (
+                    <button
+                      onClick={() => selectAllInStatus(status)}
+                      className="ml-auto text-xs text-purple-600 hover:text-purple-700 font-medium"
+                    >
+                      Select All ({getTasksByStatus(status).length})
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIsMultiSelectMode(true)}
+                      className="ml-auto text-xs text-gray-500 hover:text-purple-600 font-medium"
+                    >
+                      Select
+                    </button>
+                  )}
                 </div>
                 
                 <div className="space-y-3">
@@ -3919,9 +4034,9 @@ export default function Home() {
           workflow={editingWorkflow}
           onClose={() => setEditingWorkflow(null)}
           onSave={handleUpdateWorkflow}
-          onArchive={() => editingWorkflow.archived 
+          onArchive={(taskIdsToArchive) => editingWorkflow.archived 
             ? handleUnarchiveWorkflow(editingWorkflow.id) 
-            : handleArchiveWorkflow(editingWorkflow.id)
+            : handleArchiveWorkflow(editingWorkflow.id, taskIdsToArchive)
           }
           onDelete={(taskIdsToDelete) => handleDeleteWorkflow(editingWorkflow.id, taskIdsToDelete)}
           workflowTasks={tasks.filter(t => t.workflow === editingWorkflow.id)}

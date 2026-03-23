@@ -16,6 +16,7 @@ interface TaskRow {
   workflow_id: string | null
   sub_workflow_id: string | null
   created_at: string
+  archived: boolean | null
 }
 
 interface CollaboratorRow {
@@ -138,6 +139,7 @@ export function useTasks() {
         createdAt: t.created_at.split('T')[0],
         workflow: t.workflow_id,
         subWorkflow: t.sub_workflow_id,
+        archived: t.archived || false,
         attachments: attachmentRows
           .filter(a => a.task_id === t.id)
           .map(a => ({
@@ -260,6 +262,7 @@ export function useTasks() {
         due_date: task.dueDate || null,
         workflow_id: task.workflow || null,
         sub_workflow_id: task.subWorkflow || null,
+        archived: task.archived || false,
       })
       .eq('id', task.id)
 

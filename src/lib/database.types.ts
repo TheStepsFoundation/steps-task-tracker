@@ -18,10 +18,12 @@ export interface Database {
           created_at: string
           workflow_id: string | null
           sub_workflow_id: string | null
+          archived: boolean | null
         }
-        Insert: Omit<Database['public']['Tables']['tasks']['Row'], 'id' | 'created_at'> & {
+        Insert: Omit<Database['public']['Tables']['tasks']['Row'], 'id' | 'created_at' | 'archived'> & {
           id?: number
           created_at?: string
+          archived?: boolean
         }
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>
       }
@@ -145,6 +147,7 @@ export interface Task {
   workflow: string | null
   subWorkflow: string | null
   attachments?: Attachment[]
+  archived?: boolean
 }
 
 export interface Workflow {
