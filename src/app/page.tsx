@@ -790,7 +790,7 @@ function MeetingNotesModal({
       { id: 4, names: ["sam", "samuel"] },
       { id: 5, names: ["earl"] },
       { id: 6, names: ["aditya", "adi"] },
-      { id: 7, names: ["ricardo", "ric"] },
+      { id: 7, names: ["ricardo", "ric", "serrao"] },
     ]
     
     // Find team member by name/nickname
