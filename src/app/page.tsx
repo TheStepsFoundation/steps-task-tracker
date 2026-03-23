@@ -1039,14 +1039,94 @@ function MeetingNotesModal({
       return /^\s+[-•]\s+/.test(line)
     }
     
-    // Parse priority from text like "Priority: High" or "priority high"
+    // Parse priority from text like "Priority: High" or "Urgency: High"
     const parsePriority = (text: string): Priority | null => {
       const lower = text.toLowerCase()
-      if (/priority[:\s]+urgent/i.test(lower)) return 'urgent'
-      if (/priority[:\s]+high/i.test(lower)) return 'high'
-      if (/priority[:\s]+medium/i.test(lower)) return 'medium'
-      if (/priority[:\s]+low/i.test(lower)) return 'low'
+      // Support both "Priority:" and "Urgency:" labels
+      if (/(?:priority|urgency)[:\s]+urgent/i.test(lower)) return 'urgent'
+      if (/(?:priority|urgency)[:\s]+high/i.test(lower)) return 'high'
+      if (/(?:priority|urgency)[:\s]+medium/i.test(lower)) return 'medium'
+      if (/(?:priority|urgency)[:\s]+low/i.test(lower)) return 'low'
       return null
+    }
+    
+    // Parse collaborators from text like "Collaborators: Adi – providing room layout"
+    const parseCollaborators = (text: string): number[] => {
+      const collabs: number[] = []
+      // Match "Collaborators: Name" or "Collaborators: Name – description"
+      const collabMatch = text.match(/collaborators?[:\s]+(.+)/i)
+      if (collabMatch) {
+        const content = collabMatch[1].toLowerCase()
+        if (content.includes('none')) return []
+        
+        for (const member of memberAliases) {
+          for (const name of member.names) {
+            if (content.includes(name) && !collabs.includes(member.id)) {
+              collabs.push(member.id)
+            }
+          }
+        }
+      }
+      return collabs
+    }
+    
+    // Parse deadline from various formats
+    const parseDeadlineText = (text: string): string | null => {
+      const lower = text.toLowerCase()
+      
+      // Skip non-deadline lines
+      if (!/deadline[:\s]/i.test(lower)) return null
+      
+      // Handle "ASAP" - set to today
+      if (/asap/i.test(lower)) {
+        const today = new Date()
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      }
+      
+      // Handle "Ongoing" or "No fixed deadline" - no date
+      if (/ongoing|no fixed|no deadline/i.test(lower)) return null
+      
+      // Handle "Tomorrow (Wed, Mar 19)" - extract the date in parentheses
+      const parenMatch = text.match(/\((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*(\d{1,2})(?:,?\s*(\d{4}))?\)/i)
+      if (parenMatch) {
+        const months: Record<string, string> = {
+          jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+          jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+        }
+        const month = months[parenMatch[1].toLowerCase()]
+        const day = parenMatch[2].padStart(2, '0')
+        const year = parenMatch[3] || new Date().getFullYear().toString()
+        return `${year}-${month}-${day}`
+      }
+      
+      // Handle "Before Event #4 (Sat, Mar 21)" - date in second parentheses
+      const beforeMatch = text.match(/before.*\((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*(\d{1,2})(?:,?\s*(\d{4}))?\)/i)
+      if (beforeMatch) {
+        const months: Record<string, string> = {
+          jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+          jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+        }
+        const month = months[beforeMatch[1].toLowerCase()]
+        const day = beforeMatch[2].padStart(2, '0')
+        const year = beforeMatch[3] || new Date().getFullYear().toString()
+        return `${year}-${month}-${day}`
+      }
+      
+      // Handle "By evening before Event #4" - try to extract any date
+      const anyDateMatch = text.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*(\d{1,2})(?:,?\s*(\d{4}))?/i)
+      if (anyDateMatch) {
+        const months: Record<string, string> = {
+          jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+          jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+        }
+        const month = months[anyDateMatch[1].toLowerCase()]
+        const day = anyDateMatch[2].padStart(2, '0')
+        const year = anyDateMatch[3] || new Date().getFullYear().toString()
+        return `${year}-${month}-${day}`
+      }
+      
+      // Fallback to original parseDate
+      return parseDate(text)
     }
     
     // Process notes - check if bullet-based format
@@ -1082,8 +1162,9 @@ function MeetingNotesModal({
           continue
         }
         
-        // Check for section headers like "Favour's tasks", "Dany's tasks", "Whole team's tasks"
-        const sectionMatch = line.match(/^([A-Za-z']+(?:'s)?)\s+tasks?$/i)
+        // Check for section headers like "Favour's tasks", "### Dany's Tasks", "Whole team's tasks"
+        // Supports optional markdown heading prefix (###)
+        const sectionMatch = line.match(/^(?:#{1,6}\s*)?([A-Za-z']+(?:'s)?)\s+tasks?$/i)
         if (sectionMatch) {
           const name = sectionMatch[1].replace(/'s$/i, '').toLowerCase()
           const memberId = findMember(name)
@@ -1119,6 +1200,7 @@ function MeetingNotesModal({
         const detailLines: string[] = []
         let explicitPriority: Priority | null = null
         let explicitDeadline: string | null = null
+        let explicitCollaborators: number[] = []
         
         i++ // Move past the title line
         
@@ -1130,14 +1212,14 @@ function MeetingNotesModal({
           if (isTopLevelBullet(nextRaw)) break
           const nextHeaderCheck = isPersonHeader(nextLine)
           if (nextHeaderCheck.isHeader) break
-          if (/^([A-Za-z']+(?:'s)?)\s+tasks?$/i.test(nextLine)) break
+          if (/^(?:#{1,6}\s*)?([A-Za-z']+(?:'s)?)\s+tasks?$/i.test(nextLine)) break
           if (/^[-—]{3,}$/.test(nextLine)) break
           
           // Process indented content (or blank lines)
           if (nextLine) {
             const content = nextLine.replace(/^[-•]\s*/, '').trim()
             
-            // Check if it's a Priority line
+            // Check if it's a Priority/Urgency line
             const priority = parsePriority(content)
             if (priority) {
               explicitPriority = priority
@@ -1147,7 +1229,7 @@ function MeetingNotesModal({
             
             // Check if it's a Deadline line
             if (/^deadline[:\s]/i.test(content)) {
-              const dateMatch = parseDate(content)
+              const dateMatch = parseDeadlineText(content)
               if (dateMatch) {
                 explicitDeadline = dateMatch
               }
@@ -1155,8 +1237,17 @@ function MeetingNotesModal({
               continue
             }
             
-            // Otherwise it's a detail line
-            detailLines.push(content)
+            // Check if it's a Collaborators line
+            if (/^collaborators?[:\s]/i.test(content)) {
+              explicitCollaborators = parseCollaborators(content)
+              i++
+              continue
+            }
+            
+            // Otherwise it's a detail line (but skip urgency/priority lines)
+            if (!/^urgency[:\s]/i.test(content)) {
+              detailLines.push(content)
+            }
           }
           
           i++
@@ -1171,28 +1262,31 @@ function MeetingNotesModal({
         const priority = explicitPriority || estimatePriority(fullTaskText, dueDate)
         const title = extractTitle(taskTitle)
         
-        // Find collaborators mentioned in the task text
-        const collaborators: number[] = []
+        // Use explicit collaborators if found, otherwise detect from text
+        let collaborators: number[] = [...explicitCollaborators]
         const lowerText = fullTaskText.toLowerCase()
         
-        for (const member of memberAliases) {
-          if (member.id !== currentAssignee) {
-            for (const name of member.names) {
-              if (lowerText.includes(name)) {
-                const isCollab = 
-                  lowerText.includes(`with ${name}`) ||
-                  lowerText.includes(`and ${name}`) ||
-                  lowerText.includes(`${name} and `) ||
-                  lowerText.includes(`co-lead`) ||
-                  lowerText.includes(`co‑lead`) ||
-                  lowerText.includes(`coordinate`) ||
-                  lowerText.includes(`work with`) ||
-                  lowerText.includes(`join`)
-                
-                if (isCollab && !collaborators.includes(member.id)) {
-                  collaborators.push(member.id)
+        // Only auto-detect collaborators if none were explicitly listed
+        if (collaborators.length === 0) {
+          for (const member of memberAliases) {
+            if (member.id !== currentAssignee) {
+              for (const name of member.names) {
+                if (lowerText.includes(name)) {
+                  const isCollab = 
+                    lowerText.includes(`with ${name}`) ||
+                    lowerText.includes(`and ${name}`) ||
+                    lowerText.includes(`${name} and `) ||
+                    lowerText.includes(`co-lead`) ||
+                    lowerText.includes(`co‑lead`) ||
+                    lowerText.includes(`coordinate`) ||
+                    lowerText.includes(`work with`) ||
+                    lowerText.includes(`join`)
+                  
+                  if (isCollab && !collaborators.includes(member.id)) {
+                    collaborators.push(member.id)
+                  }
+                  break
                 }
-                break
               }
             }
           }
