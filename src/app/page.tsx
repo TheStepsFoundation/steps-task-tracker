@@ -1279,7 +1279,9 @@ function MeetingNotesModal({
             
             // Otherwise it's a detail line (but skip urgency/priority lines)
             if (!/^urgency[:\s]/i.test(content)) {
-              detailLines.push(content)
+              // Strip "Description:" prefix if present
+              const cleanContent = content.replace(/^description[:\s]+/i, '')
+              detailLines.push(cleanContent)
             }
           }
           
