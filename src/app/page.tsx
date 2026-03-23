@@ -1029,13 +1029,24 @@ function MeetingNotesModal({
       return { isHeader: false, assignee: 0 }
     }
     
-    // Check if line is a task bullet (indented or long)
-    const isTaskLine = (line: string): boolean => {
-      // Indented bullets are tasks
-      if (/^\s+-\s+/.test(line)) return true
-      // Long lines starting with - are tasks
-      if (line.startsWith('-') && line.length > 40) return true
-      return false
+    // Check if a line is a top-level bullet (no leading whitespace)
+    const isTopLevelBullet = (line: string): boolean => {
+      return /^[-•]\s+/.test(line)
+    }
+    
+    // Check if a line is an indented bullet (has leading whitespace)
+    const isIndentedBullet = (line: string): boolean => {
+      return /^\s+[-•]\s+/.test(line)
+    }
+    
+    // Parse priority from text like "Priority: High" or "priority high"
+    const parsePriority = (text: string): Priority | null => {
+      const lower = text.toLowerCase()
+      if (/priority[:\s]+urgent/i.test(lower)) return 'urgent'
+      if (/priority[:\s]+high/i.test(lower)) return 'high'
+      if (/priority[:\s]+medium/i.test(lower)) return 'medium'
+      if (/priority[:\s]+low/i.test(lower)) return 'low'
+      return null
     }
     
     // Process notes - check if bullet-based format
@@ -1044,40 +1055,130 @@ function MeetingNotesModal({
     // Check if notes contain bullet points (- or •, NOT * which conflicts with markdown)
     const hasBullets = lines.some(l => /^[-•]\s+/.test(l))
     
+    // Use original unsplit notes for indentation detection
+    const originalLines = notes.split('\n')
+    
     if (hasBullets) {
-      // BULLET-BASED FORMAT: 1 bullet = 1 task
-      // Person headers (like "Adi" or "You (Favour)") set the assignee
-      // Names mentioned in the bullet text become collaborators
+      // HIERARCHICAL BULLET-BASED FORMAT:
+      // - Top-level bullet (no indent) = new task title
+      // - Indented bullets = description details, priority, or deadline metadata
+      // - Person headers set the assignee for subsequent tasks
       
-      for (const line of lines) {
-        if (!line) continue
+      let i = 0
+      while (i < originalLines.length) {
+        const rawLine = originalLines[i]
+        const line = stripMarkdown(rawLine.trim())
         
-        // Check for person header first (line without bullet, just a name)
-        const headerCheck = isPersonHeader(line)
-        if (headerCheck.isHeader) {
-          currentAssignee = headerCheck.assignee
+        if (!line) {
+          i++
           continue
         }
         
-        // Only process bullet points (- or •, not * to avoid markdown conflicts)
-        if (!line.startsWith('-') && !line.startsWith('•')) continue
+        // Check for person header (line without bullet, just a name)
+        const headerCheck = isPersonHeader(line)
+        if (headerCheck.isHeader) {
+          currentAssignee = headerCheck.assignee
+          i++
+          continue
+        }
         
-        const taskText = line.replace(/^[-•]\s*/, '').trim()
-        if (taskText.length < 10) continue
+        // Check for section headers like "Favour's tasks", "Dany's tasks", "Whole team's tasks"
+        const sectionMatch = line.match(/^([A-Za-z']+(?:'s)?)\s+tasks?$/i)
+        if (sectionMatch) {
+          const name = sectionMatch[1].replace(/'s$/i, '').toLowerCase()
+          const memberId = findMember(name)
+          if (memberId !== 0) {
+            currentAssignee = memberId
+          } else if (name === 'whole team' || name === 'team') {
+            currentAssignee = 0
+          }
+          i++
+          continue
+        }
         
-        const dueDate = parseDate(taskText)
-        const title = extractTitle(taskText)
+        // Skip horizontal rules / separators
+        if (/^[-—]{3,}$/.test(line)) {
+          i++
+          continue
+        }
+        
+        // Only process top-level bullet points as new tasks
+        if (!isTopLevelBullet(rawLine)) {
+          i++
+          continue
+        }
+        
+        // Found a top-level bullet - this is a new task
+        const taskTitle = line.replace(/^[-•]\s*/, '').trim()
+        if (taskTitle.length < 5) {
+          i++
+          continue
+        }
+        
+        // Collect all following indented lines as details
+        const detailLines: string[] = []
+        let explicitPriority: Priority | null = null
+        let explicitDeadline: string | null = null
+        
+        i++ // Move past the title line
+        
+        while (i < originalLines.length) {
+          const nextRaw = originalLines[i]
+          const nextLine = stripMarkdown(nextRaw.trim())
+          
+          // Stop if we hit another top-level bullet, person header, or section header
+          if (isTopLevelBullet(nextRaw)) break
+          const nextHeaderCheck = isPersonHeader(nextLine)
+          if (nextHeaderCheck.isHeader) break
+          if (/^([A-Za-z']+(?:'s)?)\s+tasks?$/i.test(nextLine)) break
+          if (/^[-—]{3,}$/.test(nextLine)) break
+          
+          // Process indented content (or blank lines)
+          if (nextLine) {
+            const content = nextLine.replace(/^[-•]\s*/, '').trim()
+            
+            // Check if it's a Priority line
+            const priority = parsePriority(content)
+            if (priority) {
+              explicitPriority = priority
+              i++
+              continue
+            }
+            
+            // Check if it's a Deadline line
+            if (/^deadline[:\s]/i.test(content)) {
+              const dateMatch = parseDate(content)
+              if (dateMatch) {
+                explicitDeadline = dateMatch
+              }
+              i++
+              continue
+            }
+            
+            // Otherwise it's a detail line
+            detailLines.push(content)
+          }
+          
+          i++
+        }
+        
+        // Combine all text for analysis
+        const fullTaskText = [taskTitle, ...detailLines].join(' ')
+        const description = detailLines.join('\n')
+        
+        // Use explicit values if provided, otherwise estimate
+        const dueDate = explicitDeadline || parseDate(fullTaskText)
+        const priority = explicitPriority || estimatePriority(fullTaskText, dueDate)
+        const title = extractTitle(taskTitle)
         
         // Find collaborators mentioned in the task text
         const collaborators: number[] = []
-        const lowerText = taskText.toLowerCase()
+        const lowerText = fullTaskText.toLowerCase()
         
         for (const member of memberAliases) {
           if (member.id !== currentAssignee) {
             for (const name of member.names) {
-              // Check if name appears in context suggesting collaboration
               if (lowerText.includes(name)) {
-                // Common collaboration patterns
                 const isCollab = 
                   lowerText.includes(`with ${name}`) ||
                   lowerText.includes(`and ${name}`) ||
@@ -1104,7 +1205,7 @@ function MeetingNotesModal({
             id: Date.now() + tasks.length * 100,
             personId: currentAssignee,
             description: '',
-            intensity: estimateIntensity(taskText),
+            intensity: estimateIntensity(fullTaskText),
           })
         }
         collaborators.forEach((collabId, j) => {
@@ -1119,11 +1220,11 @@ function MeetingNotesModal({
         tasks.push({
           id: Date.now() + tasks.length,
           title,
-          description: taskText,
+          description: description || fullTaskText,
           assignee: currentAssignee,
           collaborators,
           subtasks,
-          priority: estimatePriority(taskText, dueDate),
+          priority,
           status: 'todo',
           workflow: selectedWorkflow,
           selected: true,
