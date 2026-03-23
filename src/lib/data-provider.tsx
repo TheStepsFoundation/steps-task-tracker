@@ -20,6 +20,7 @@ export const TEAM_MEMBERS = [
   { id: 4, name: 'Sam Ellis', role: 'Core Team', avatar: 'SE' },
   { id: 5, name: 'Earl Xavier', role: 'Core Team', avatar: 'EX' },
   { id: 6, name: 'Aditya Muthukumar', role: 'Core Team', avatar: 'AM' },
+  { id: 7, name: 'Ricardo Serrao', role: 'Core Team', avatar: 'RS' },
 ]
 
 // Default workflows
