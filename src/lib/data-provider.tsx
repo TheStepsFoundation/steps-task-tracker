@@ -415,6 +415,7 @@ async function fetchTasksFromSupabase(supabase: any): Promise<Task[]> {
     status: t.status as Status,
     dueDate: t.due_date,
     createdAt: t.created_at.split('T')[0],
+    createdBy: t.created_by || undefined,
     workflow: t.workflow_id,
     subWorkflow: t.sub_workflow_id,
     attachments: (attachRes.data || [])
@@ -460,6 +461,7 @@ async function createTaskInSupabase(supabase: any, task: Task) {
     due_date: task.dueDate,
     workflow_id: task.workflow,
     sub_workflow_id: task.subWorkflow,
+    created_by: task.createdBy || null,
   }).select().single()
 
   if (task.collaborators.length > 0) {

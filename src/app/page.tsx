@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, MouseEvent } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth, getUserDisplayName } from '@/lib/auth-provider'
 import {
   DndContext,
   DragOverlay,
@@ -3250,6 +3252,16 @@ function AddTaskModal({
 }
 
 export default function Home() {
+  const router = useRouter()
+  const { user, loading: authLoading, signOut } = useAuth()
+  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [authLoading, user, router])
+  
   // Data from Supabase (or demo mode)
   const {
     tasks,
@@ -3270,6 +3282,21 @@ export default function Home() {
     setWeekCapacity,
     setWeekNote,
   } = useData()
+  
+  // Show loading while checking auth
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <svg className="animate-spin h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-gray-600">Loading...</span>
+        </div>
+      </div>
+    )
+  }
 
   const [view, setView] = useState<'board' | 'team' | 'list' | 'workload'>('board')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
@@ -3703,18 +3730,37 @@ export default function Home() {
           <h1 className="text-3xl font-bold text-gray-900">Steps Task Tracker</h1>
           <p className="text-gray-500">Manage all workflows and events</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {(['board', 'team', 'list', 'workload'] as const).map((v) => (
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2 flex-wrap">
+            {(['board', 'team', 'list', 'workload'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-4 py-2 rounded-lg font-medium transition capitalize ${
+                  view === v ? 'bg-purple-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          
+          {/* User Profile */}
+          <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-sm">
+              {getUserDisplayName(user?.email).slice(0, 2).toUpperCase()}
+            </div>
+            <span className="text-sm text-gray-700 hidden sm:block">{getUserDisplayName(user?.email)}</span>
             <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-4 py-2 rounded-lg font-medium transition capitalize ${
-                view === v ? 'bg-purple-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
+              onClick={() => signOut()}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              title="Sign out"
             >
-              {v}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
-          ))}
+          </div>
         </div>
       </div>
 

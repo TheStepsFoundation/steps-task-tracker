@@ -144,6 +144,7 @@ export interface Task {
   status: Status
   dueDate: string
   createdAt: string
+  createdBy?: string // Email of user who created the task
   workflow: string | null
   subWorkflow: string | null
   attachments?: Attachment[]
