@@ -43,8 +43,9 @@ export interface Database {
           person_id: number
           description: string
           intensity: Intensity
+          completed: boolean
         }
-        Insert: Omit<Database['public']['Tables']['subtasks']['Row'], 'id'>
+        Insert: Omit<Database['public']['Tables']['subtasks']['Row'], 'id' | 'completed'> & { completed?: boolean }
         Update: Partial<Database['public']['Tables']['subtasks']['Insert']>
       }
       attachments: {
@@ -131,6 +132,7 @@ export interface Subtask {
   personId: number
   description: string
   intensity: Intensity
+  completed?: boolean
 }
 
 export interface Task {

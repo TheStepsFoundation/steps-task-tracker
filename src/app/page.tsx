@@ -131,6 +131,7 @@ function DraggableTaskCard({
   workflows,
   teamMembers,
   viewingMemberId,
+  onToggleComplete,
 }: { 
   task: Task
   onClick: () => void
@@ -138,6 +139,7 @@ function DraggableTaskCard({
   workflows: Workflow[]
   teamMembers: { id: number; name: string; role: string; avatar: string }[]
   viewingMemberId?: number // The member whose section this card is in (for Team view)
+  onToggleComplete?: (task: Task, memberId: number) => void // For subtask completion in Team view
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -155,6 +157,12 @@ function DraggableTaskCard({
   // In Team view, highlight tasks where the viewing member is the primary assignee
   const isPrimaryAssignee = viewingMemberId !== undefined && task.assignee === viewingMemberId
   const isCollaborator = viewingMemberId !== undefined && task.assignee !== viewingMemberId
+  
+  // Find this member's subtask completion status
+  const memberSubtask = viewingMemberId !== undefined 
+    ? task.subtasks.find(st => st.personId === viewingMemberId)
+    : null
+  const isSubtaskCompleted = memberSubtask?.completed || false
 
   const handleCardClick = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest('.drag-handle')) {
@@ -172,6 +180,8 @@ function DraggableTaskCard({
         isDragging ? 'opacity-60 shadow-lg scale-[1.02]' : ''
       } ${
         isPrimaryAssignee ? 'border-purple-300 ring-2 ring-purple-200' : 'border-gray-100'
+      } ${
+        isSubtaskCompleted ? 'opacity-60' : ''
       }`}
     >
       {/* Drag Handle */}
@@ -185,6 +195,27 @@ function DraggableTaskCard({
           <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
         </svg>
       </div>
+      
+      {/* Completion Checkbox - only in Team view */}
+      {viewingMemberId !== undefined && onToggleComplete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleComplete(task, viewingMemberId)
+          }}
+          className={`absolute top-2 left-2 w-5 h-5 rounded border-2 flex items-center justify-center transition ${
+            isSubtaskCompleted
+              ? 'bg-green-500 border-green-500 text-white'
+              : 'border-gray-300 hover:border-green-400 bg-white'
+          }`}
+        >
+          {isSubtaskCompleted && (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+      )}
 
       {/* Workflow badges */}
       {workflow && (
@@ -1988,6 +2019,7 @@ interface Subtask {
   personId: number
   description: string
   intensity: Intensity
+  completed?: boolean
 }
 
 // New Workflow Modal with Template Tasks
@@ -3814,6 +3846,17 @@ export default function Home() {
     await updateTaskInDb(updatedTask)
   }
 
+  // Toggle subtask completion for a specific member
+  const toggleSubtaskCompletion = async (task: Task, memberId: number) => {
+    const updatedSubtasks = task.subtasks.map(st => 
+      st.personId === memberId 
+        ? { ...st, completed: !st.completed }
+        : st
+    )
+    const updatedTask = { ...task, subtasks: updatedSubtasks }
+    await updateTaskInDb(updatedTask)
+  }
+
   const handleCreateWorkflow = async (newWorkflow: Workflow, newTasks: Task[]) => {
     await createWorkflow(newWorkflow)
     for (const task of newTasks) {
@@ -4301,30 +4344,52 @@ export default function Home() {
                       {displayTasks.map(task => {
                         const workflow = workflows.find(w => w.id === task.workflow)
                         const isPrimaryAssignee = task.assignee === member.id
+                        const memberSubtask = task.subtasks.find(st => st.personId === member.id)
+                        const isSubtaskCompleted = memberSubtask?.completed || false
                         return (
                           <div
                             key={task.id}
-                            onClick={() => setEditingTask(task)}
-                            className={`bg-white rounded p-2 cursor-pointer hover:shadow-sm transition ${
+                            className={`bg-white rounded p-2 hover:shadow-sm transition ${
                               isPrimaryAssignee ? 'border-2 border-purple-300 ring-1 ring-purple-100' : 'border border-gray-100'
-                            }`}
+                            } ${isSubtaskCompleted ? 'opacity-60' : ''}`}
                           >
-                            <p className="text-[11px] font-medium text-gray-900 line-clamp-1">{task.title}</p>
-                            <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              {workflow && (
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded text-white ${workflow.color}`}>
-                                  {workflow.short}
-                                </span>
-                              )}
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded ${statusColors[task.status]}`}>
-                                {statusLabels[task.status]}
-                              </span>
-                              {!isPrimaryAssignee && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">collab</span>
-                              )}
-                              <span className="text-[9px] text-gray-400 ml-auto">
-                                {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                              </span>
+                            <div className="flex items-start gap-1.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleSubtaskCompletion(task, member.id)
+                                }}
+                                className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition ${
+                                  isSubtaskCompleted
+                                    ? 'bg-green-500 border-green-500 text-white'
+                                    : 'border-gray-300 hover:border-green-400'
+                                }`}
+                              >
+                                {isSubtaskCompleted && (
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </button>
+                              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setEditingTask(task)}>
+                                <p className={`text-[11px] font-medium text-gray-900 line-clamp-1 ${isSubtaskCompleted ? 'line-through' : ''}`}>{task.title}</p>
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {workflow && (
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded text-white ${workflow.color}`}>
+                                      {workflow.short}
+                                    </span>
+                                  )}
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${statusColors[task.status]}`}>
+                                    {statusLabels[task.status]}
+                                  </span>
+                                  {!isPrimaryAssignee && (
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">collab</span>
+                                  )}
+                                  <span className="text-[9px] text-gray-400 ml-auto">
+                                    {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )
@@ -4442,6 +4507,7 @@ export default function Home() {
                           workflows={workflows}
                           teamMembers={teamMembers}
                           viewingMemberId={member.id}
+                          onToggleComplete={toggleSubtaskCompletion}
                         />
                       ))}
                       {activeTasks.length === 0 && (

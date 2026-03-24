@@ -434,6 +434,7 @@ async function fetchTasksFromSupabase(supabase: any): Promise<Task[]> {
         personId: s.person_id || 0,
         description: s.description || '',
         intensity: s.intensity as Intensity,
+        completed: s.completed || false,
       })),
     priority: t.priority as Priority,
     status: t.status as Status,
@@ -501,6 +502,7 @@ async function createTaskInSupabase(supabase: any, task: Task) {
         person_id: st.personId || null,
         description: st.description,
         intensity: st.intensity,
+        completed: st.completed || false,
       }))
     )
   }
@@ -546,6 +548,7 @@ async function updateTaskInSupabase(supabase: any, task: Task) {
         person_id: st.personId || null,
         description: st.description,
         intensity: st.intensity,
+        completed: st.completed || false,
       }))
     )
   }
