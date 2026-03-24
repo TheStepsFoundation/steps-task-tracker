@@ -3725,8 +3725,8 @@ export default function Home() {
   }
   
   const getWorkload = (memberId: number, periodStart?: string, period: 'week' | '2weeks' | 'month' | 'quarter' = 'week', mode: 'fixed' | 'rolling' = 'rolling') => {
-    // Calculate workload from subtasks assigned to this person (in non-done tasks)
-    let activeTasks = filteredTasks.filter(t => t.status !== 'done')
+    // Calculate workload from subtasks assigned to this person (all tasks regardless of status)
+    let activeTasks = [...filteredTasks]
     
     // Filter by period if provided
     if (periodStart) {
@@ -3773,7 +3773,7 @@ export default function Home() {
   
   // Get tasks for a specific member and intensity level (for popup display)
   const getTasksByIntensity = (memberId: number, intensity: Intensity | 'unspecified', periodStart?: string, period: 'week' | '2weeks' | 'month' | 'quarter' = 'week', mode: 'fixed' | 'rolling' = 'rolling') => {
-    let activeTasks = filteredTasks.filter(t => t.status !== 'done')
+    let activeTasks = [...filteredTasks]
     
     // Filter by period if provided
     if (periodStart) {
