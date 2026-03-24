@@ -4157,11 +4157,11 @@ export default function Home() {
 
             {/* Compact View */}
             {teamViewMode === 'compact' && (
-            <div className="flex lg:grid lg:grid-cols-7 gap-3 overflow-x-auto pb-2 snap-x snap-mandatory lg:snap-none -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0">
               {/* Unassigned Column */}
               <DroppableColumn
                 id="member-0"
-                className="bg-gray-100 rounded-lg p-3 min-h-[200px] transition-colors border border-dashed border-gray-300 w-[160px] sm:w-[180px] lg:w-auto flex-shrink-0 lg:flex-shrink snap-center"
+                className="bg-gray-100 rounded-lg p-3 min-h-[200px] transition-colors border border-dashed border-gray-300 w-[160px] sm:w-[180px] flex-shrink-0 snap-center"
               >
                 <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-300">
                   <div className="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-xs">
@@ -4176,7 +4176,7 @@ export default function Home() {
                 <div className="space-y-1.5">
                   {getUnassignedTasks()
                     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-                    .slice(0, expandedMembers.has(0) ? undefined : 3)
+                    .slice(0, expandedMembers.has(0) ? undefined : 7)
                     .map(task => {
                       const workflow = workflows.find(w => w.id === task.workflow)
                       return (
@@ -4205,7 +4205,7 @@ export default function Home() {
                   {getUnassignedTasks().length === 0 && (
                     <p className="text-[10px] text-gray-400 text-center py-2">None</p>
                   )}
-                  {getUnassignedTasks().length > 3 && (
+                  {getUnassignedTasks().length > 7 && (
                     <button
                       onClick={() => setExpandedMembers(prev => {
                         const next = new Set(prev)
@@ -4215,7 +4215,7 @@ export default function Home() {
                       })}
                       className="w-full text-[10px] text-purple-600 hover:text-purple-700 py-1"
                     >
-                      {expandedMembers.has(0) ? 'Show less' : `+${getUnassignedTasks().length - 3} more`}
+                      {expandedMembers.has(0) ? 'Show less' : `+${getUnassignedTasks().length - 7} more`}
                     </button>
                   )}
                 </div>
@@ -4233,13 +4233,13 @@ export default function Home() {
                 activeTasks = [...activeTasks].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
                 
                 const isExpanded = expandedMembers.has(member.id)
-                const displayTasks = isExpanded ? activeTasks : activeTasks.slice(0, 3)
+                const displayTasks = isExpanded ? activeTasks : activeTasks.slice(0, 7)
                 
                 return (
                   <DroppableColumn
                     key={member.id}
                     id={`member-${member.id}`}
-                    className="bg-gray-50 rounded-lg p-3 min-h-[200px] transition-colors w-[160px] sm:w-[180px] lg:w-auto flex-shrink-0 lg:flex-shrink snap-center"
+                    className="bg-gray-50 rounded-lg p-3 min-h-[200px] transition-colors w-[160px] sm:w-[180px] flex-shrink-0 snap-center"
                   >
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
                       <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-[10px]">
@@ -4286,7 +4286,7 @@ export default function Home() {
                       {activeTasks.length === 0 && (
                         <p className="text-[10px] text-gray-400 text-center py-2">No tasks</p>
                       )}
-                      {activeTasks.length > 3 && (
+                      {activeTasks.length > 7 && (
                         <button
                           onClick={() => setExpandedMembers(prev => {
                             const next = new Set(prev)
@@ -4296,7 +4296,7 @@ export default function Home() {
                           })}
                           className="w-full text-[10px] text-purple-600 hover:text-purple-700 py-1"
                         >
-                          {isExpanded ? 'Show less' : `+${activeTasks.length - 3} more`}
+                          {isExpanded ? 'Show less' : `+${activeTasks.length - 7} more`}
                         </button>
                       )}
                     </div>
@@ -4308,11 +4308,11 @@ export default function Home() {
 
             {/* Comfortable View */}
             {teamViewMode === 'comfortable' && (
-            <div className="flex lg:grid lg:grid-cols-7 gap-4 overflow-x-auto pb-2 snap-x snap-mandatory lg:snap-none -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0">
               {/* Unassigned Column */}
               <DroppableColumn
                 id="member-0"
-                className="bg-gray-100 rounded-xl p-4 min-h-[300px] lg:min-h-[400px] transition-colors border-2 border-dashed border-gray-300 w-[220px] sm:w-[260px] lg:w-auto flex-shrink-0 lg:flex-shrink snap-center"
+                className="bg-gray-100 rounded-xl p-4 min-h-[300px] transition-colors border-2 border-dashed border-gray-300 w-[220px] sm:w-[260px] flex-shrink-0 snap-center"
               >
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-300">
                   <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-sm">
@@ -4374,7 +4374,7 @@ export default function Home() {
                   <DroppableColumn
                     key={member.id}
                     id={`member-${member.id}`}
-                    className="bg-gray-50 rounded-xl p-4 min-h-[300px] lg:min-h-[400px] transition-colors w-[220px] sm:w-[260px] lg:w-auto flex-shrink-0 lg:flex-shrink snap-center"
+                    className="bg-gray-50 rounded-xl p-4 min-h-[300px] transition-colors w-[220px] sm:w-[260px] flex-shrink-0 snap-center"
                   >
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
                       <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
