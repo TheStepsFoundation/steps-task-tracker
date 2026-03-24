@@ -104,6 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         redirectTo: typeof window !== 'undefined' 
           ? `${window.location.origin}/auth/callback`
           : undefined,
+        queryParams: {
+          prompt: 'select_account',  // Always show account picker
+        },
       },
     })
 
