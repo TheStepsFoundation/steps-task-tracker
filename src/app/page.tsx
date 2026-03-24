@@ -297,6 +297,11 @@ function TaskModal({
   const [editedTask, setEditedTask] = useState<Task>({ ...task })
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [activeTab, setActiveTab] = useState<'basic' | 'attachments'>('basic')
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
   
   // Check if there are unsaved changes
   const hasChanges = JSON.stringify(editedTask) !== JSON.stringify(task)
@@ -388,10 +393,10 @@ function TaskModal({
     
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={handleClose}>
       <div 
-        className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b">
+        <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
           <h2 className="text-xl font-semibold text-gray-900">Edit Task</h2>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 p-2">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -400,8 +405,61 @@ function TaskModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Workflow Selection - At the top */}
+        {/* Tabs */}
+        <div className="flex border-b flex-shrink-0">
+          <button
+            onClick={() => setActiveTab('basic')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+              activeTab === 'basic'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Task Details
+          </button>
+          <button
+            onClick={() => setActiveTab('attachments')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+              activeTab === 'attachments'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Attachments
+            {editedTask.attachments && editedTask.attachments.length > 0 && (
+              <span className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded-full">
+                {editedTask.attachments.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'basic' ? (
+            <div className="space-y-6">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+            <input
+              type="text"
+              value={editedTask.title}
+              onChange={e => setEditedTask({ ...editedTask, title: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <textarea
+              value={editedTask.description}
+              onChange={e => setEditedTask({ ...editedTask, description: e.target.value })}
+              rows={2}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+            />
+          </div>
+
+          {/* Workflow Selection */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Main Workflow</label>
@@ -447,26 +505,6 @@ function TaskModal({
                 </div>
               )}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-            <input
-              type="text"
-              value={editedTask.title}
-              onChange={e => setEditedTask({ ...editedTask, title: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-            <textarea
-              value={editedTask.description}
-              onChange={e => setEditedTask({ ...editedTask, description: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
-            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -678,85 +716,225 @@ function TaskModal({
               </div>
             )}
           </div>
-
-          {/* Attachments Display */}
-          {editedTask.attachments && editedTask.attachments.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Attachments ({editedTask.attachments.length})
-              </label>
-              <div className="space-y-2">
-                {editedTask.attachments.map(attachment => (
-                  <div 
-                    key={attachment.id}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                  >
-                    {/* Icon */}
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      attachment.type === 'image' ? 'bg-blue-100' :
-                      attachment.type === 'voice' ? 'bg-green-100' :
-                      'bg-amber-100'
-                    }`}>
-                      {attachment.type === 'image' ? (
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      ) : attachment.type === 'voice' ? (
-                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      )}
-                    </div>
-                    
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{attachment.name}</p>
-                      {attachment.type === 'voice' && attachment.duration && (
-                        <p className="text-xs text-gray-500">
-                          {Math.floor(attachment.duration / 60)}:{(attachment.duration % 60).toString().padStart(2, '0')}
-                        </p>
-                      )}
-                      {attachment.type === 'note' && (
-                        <p className="text-xs text-gray-500 truncate">{attachment.url.slice(0, 60)}...</p>
-                      )}
-                    </div>
-                    
-                    {/* Image preview */}
-                    {attachment.type === 'image' && (
-                      <img 
-                        src={attachment.url} 
-                        alt={attachment.name}
-                        className="w-12 h-12 object-cover rounded"
-                      />
-                    )}
-                    
-                    {/* Audio playback */}
-                    {attachment.type === 'voice' && (
-                      <audio src={attachment.url} controls className="h-8 w-32" />
-                    )}
-                    
-                    {/* Remove button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditedTask({
-                          ...editedTask,
-                          attachments: editedTask.attachments?.filter(a => a.id !== attachment.id)
-                        })
-                      }}
-                      className="p-1.5 text-gray-400 hover:text-red-500 transition"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+          
+          {/* Task Metadata - at bottom of details tab */}
+          {(task.createdBy || task.createdAt) && (
+            <div className="flex items-center gap-4 text-sm text-gray-400 pt-4 border-t border-gray-100">
+              {task.createdBy && (
+                <span className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-medium">
+                    {task.createdBy.split('@')[0].slice(0, 2).toUpperCase()}
                   </div>
-                ))}
+                  <span>Created by <span className="text-gray-600">{task.createdBy.split('@')[0]}</span></span>
+                </span>
+              )}
+              {task.createdAt && (
+                <span className="flex items-center gap-1 text-gray-400">
+                  •
+                  <span>{new Date(task.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </span>
+              )}
+            </div>
+          )}
+            </div>
+          ) : (
+            /* Attachments Tab */
+            <div className="space-y-4">
+              {/* Add Attachment Options */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Image Upload */}
+                <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-purple-300 hover:bg-purple-50 transition">
+                  <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm text-gray-600">Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onload = (event) => {
+                          const newAttachment: Attachment = {
+                            id: Date.now(),
+                            type: 'image',
+                            url: event.target?.result as string,
+                            name: file.name,
+                          }
+                          setEditedTask({
+                            ...editedTask,
+                            attachments: [...(editedTask.attachments || []), newAttachment]
+                          })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                  />
+                </label>
+
+                {/* Voice Recording */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (isRecording) {
+                      mediaRecorderRef.current?.stop()
+                      setIsRecording(false)
+                    } else {
+                      try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                        const mediaRecorder = new MediaRecorder(stream)
+                        mediaRecorderRef.current = mediaRecorder
+                        audioChunksRef.current = []
+                        
+                        mediaRecorder.ondataavailable = (e) => {
+                          audioChunksRef.current.push(e.data)
+                        }
+                        
+                        mediaRecorder.onstop = () => {
+                          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+                          const url = URL.createObjectURL(audioBlob)
+                          const newAttachment: Attachment = {
+                            id: Date.now(),
+                            type: 'voice',
+                            url,
+                            name: `Voice note ${new Date().toLocaleTimeString()}`,
+                            duration: recordingTime,
+                          }
+                          setEditedTask({
+                            ...editedTask,
+                            attachments: [...(editedTask.attachments || []), newAttachment]
+                          })
+                          setRecordingTime(0)
+                          stream.getTracks().forEach(track => track.stop())
+                        }
+                        
+                        mediaRecorder.start()
+                        setIsRecording(true)
+                        
+                        const startTime = Date.now()
+                        const timer = setInterval(() => {
+                          setRecordingTime(Math.floor((Date.now() - startTime) / 1000))
+                        }, 1000)
+                        
+                        mediaRecorder.addEventListener('stop', () => clearInterval(timer))
+                      } catch {
+                        alert('Could not access microphone')
+                      }
+                    }
+                  }}
+                  className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg transition ${
+                    isRecording 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                  }`}
+                >
+                  <svg className={`w-8 h-8 mb-2 ${isRecording ? 'text-red-500 animate-pulse' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                  <span className={`text-sm ${isRecording ? 'text-red-600' : 'text-gray-600'}`}>
+                    {isRecording ? `Recording ${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` : 'Voice Note'}
+                  </span>
+                </button>
+
+                {/* Quick Note */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const note = prompt('Enter a quick note:')
+                    if (note) {
+                      const newAttachment: Attachment = {
+                        id: Date.now(),
+                        type: 'note',
+                        url: note,
+                        name: `Note ${new Date().toLocaleTimeString()}`,
+                      }
+                      setEditedTask({
+                        ...editedTask,
+                        attachments: [...(editedTask.attachments || []), newAttachment]
+                      })
+                    }
+                  }}
+                  className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition"
+                >
+                  <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-sm text-gray-600">Quick Note</span>
+                </button>
               </div>
+
+              {/* Existing Attachments List */}
+              {editedTask.attachments && editedTask.attachments.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-gray-700">Attached ({editedTask.attachments.length})</h3>
+                  {editedTask.attachments.map(attachment => (
+                    <div 
+                      key={attachment.id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        attachment.type === 'image' ? 'bg-blue-100' :
+                        attachment.type === 'voice' ? 'bg-green-100' :
+                        'bg-amber-100'
+                      }`}>
+                        {attachment.type === 'image' ? (
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        ) : attachment.type === 'voice' ? (
+                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{attachment.name}</p>
+                        {attachment.type === 'voice' && attachment.duration && (
+                          <p className="text-xs text-gray-500">
+                            {Math.floor(attachment.duration / 60)}:{(attachment.duration % 60).toString().padStart(2, '0')}
+                          </p>
+                        )}
+                        {attachment.type === 'note' && (
+                          <p className="text-xs text-gray-500 truncate">{attachment.url.slice(0, 60)}...</p>
+                        )}
+                      </div>
+                      {attachment.type === 'image' && (
+                        <img src={attachment.url} alt={attachment.name} className="w-12 h-12 object-cover rounded" />
+                      )}
+                      {attachment.type === 'voice' && (
+                        <audio src={attachment.url} controls className="h-8 w-32" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditedTask({
+                            ...editedTask,
+                            attachments: editedTask.attachments?.filter(a => a.id !== attachment.id)
+                          })
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-500 transition"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  <p>No attachments yet</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -801,26 +979,6 @@ function TaskModal({
           )}
           
           {!showDeleteConfirm && <div className="flex-1" />}
-          
-          {/* Task Metadata - at bottom */}
-          {(task.createdBy || task.createdAt) && (
-            <div className="flex items-center gap-4 text-sm text-gray-400 pt-4 border-t border-gray-100">
-              {task.createdBy && (
-                <span className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-medium">
-                    {task.createdBy.split('@')[0].slice(0, 2).toUpperCase()}
-                  </div>
-                  <span>Created by <span className="text-gray-600">{task.createdBy.split('@')[0]}</span></span>
-                </span>
-              )}
-              {task.createdAt && (
-                <span className="flex items-center gap-1 text-gray-400">
-                  •
-                  <span>{new Date(task.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                </span>
-              )}
-            </div>
-          )}
           
           <div className="flex items-center gap-3">
             <button
