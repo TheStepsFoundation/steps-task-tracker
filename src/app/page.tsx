@@ -384,7 +384,7 @@ function TaskModal({
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
               >
                 <option value="">None</option>
-                {workflows.map(w => (
+                {workflows.filter(w => !w.archived).map(w => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
@@ -404,7 +404,7 @@ function TaskModal({
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
               >
                 <option value="">None</option>
-                {workflows.filter(w => w.id !== editedTask.workflow).map(w => (
+                {workflows.filter(w => w.id !== editedTask.workflow && !w.archived).map(w => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
