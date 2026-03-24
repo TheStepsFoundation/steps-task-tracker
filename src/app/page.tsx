@@ -370,28 +370,6 @@ function TaskModal({
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Task Metadata */}
-          {(task.createdBy || task.createdAt) && (
-            <div className="flex items-center gap-4 text-sm text-gray-500 pb-4 border-b border-gray-100">
-              {task.createdBy && (
-                <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Created by <span className="font-medium text-gray-700">{task.createdBy.split('@')[0]}</span>
-                </span>
-              )}
-              {task.createdAt && (
-                <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  {new Date(task.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
-              )}
-            </div>
-          )}
-          
           {/* Workflow Selection - At the top */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -792,6 +770,26 @@ function TaskModal({
           )}
           
           {!showDeleteConfirm && <div className="flex-1" />}
+          
+          {/* Task Metadata - at bottom */}
+          {(task.createdBy || task.createdAt) && (
+            <div className="flex items-center gap-4 text-sm text-gray-400 pt-4 border-t border-gray-100">
+              {task.createdBy && (
+                <span className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-medium">
+                    {task.createdBy.split('@')[0].slice(0, 2).toUpperCase()}
+                  </div>
+                  <span>Created by <span className="text-gray-600">{task.createdBy.split('@')[0]}</span></span>
+                </span>
+              )}
+              {task.createdAt && (
+                <span className="flex items-center gap-1 text-gray-400">
+                  •
+                  <span>{new Date(task.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </span>
+              )}
+            </div>
+          )}
           
           <div className="flex items-center gap-3">
             <button
@@ -3334,6 +3332,9 @@ export default function Home() {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   
+  // Board view sorting
+  const [boardSortBy, setBoardSortBy] = useState<'none' | 'dueDate' | 'priority' | 'assignee'>('none')
+  
   // Workload popup state: { memberId, intensity } or null
   const [workloadPopup, setWorkloadPopup] = useState<{ memberId: number; intensity: Intensity | 'unspecified' } | null>(null)
   
@@ -3400,7 +3401,29 @@ export default function Home() {
   }
 
   const filteredTasks = getGlobalFilteredTasks()
-  const getTasksByStatus = (status: Status) => filteredTasks.filter(t => t.status === status)
+  
+  // Priority order for sorting
+  const priorityOrder: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
+  
+  // Sort tasks based on boardSortBy
+  const sortBoardTasks = (tasksToSort: Task[]) => {
+    if (boardSortBy === 'none') return tasksToSort
+    
+    return [...tasksToSort].sort((a, b) => {
+      switch (boardSortBy) {
+        case 'dueDate':
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        case 'priority':
+          return priorityOrder[a.priority] - priorityOrder[b.priority]
+        case 'assignee':
+          return (a.assignee || 999) - (b.assignee || 999)
+        default:
+          return 0
+      }
+    })
+  }
+  
+  const getTasksByStatus = (status: Status) => sortBoardTasks(filteredTasks.filter(t => t.status === status))
   // Get tasks where member is assigned OR collaborating (non-done)
   const getTasksByMember = (memberId: number) => filteredTasks.filter(t => 
     (t.assignee === memberId || t.collaborators.includes(memberId)) && t.status !== 'done'
@@ -3932,6 +3955,21 @@ export default function Home() {
 
         {/* Board View */}
         {view === 'board' && (
+          <>
+          {/* Board Sort Controls */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm text-gray-500">Sort by:</span>
+            <select
+              value={boardSortBy}
+              onChange={(e) => setBoardSortBy(e.target.value as 'none' | 'dueDate' | 'priority' | 'assignee')}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            >
+              <option value="none">Default</option>
+              <option value="dueDate">Due Date</option>
+              <option value="priority">Priority</option>
+              <option value="assignee">Assignee</option>
+            </select>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {(['todo', 'in-progress', 'review', 'done'] as Status[]).map(status => (
               <DroppableColumn
@@ -3989,6 +4027,7 @@ export default function Home() {
               </DroppableColumn>
             ))}
           </div>
+          </>
         )}
 
         {/* Team View */}
