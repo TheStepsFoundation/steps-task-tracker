@@ -245,17 +245,20 @@ function TaskModal({
   task, 
   onClose, 
   onSave,
+  onDelete,
   workflows,
   teamMembers,
 }: { 
   task: Task
   onClose: () => void
   onSave: (updatedTask: Task) => void
+  onDelete?: (taskId: number) => void
   workflows: Workflow[]
   teamMembers: { id: number; name: string; role: string; avatar: string }[]
 }) {
   const [editedTask, setEditedTask] = useState<Task>({ ...task })
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   // Check if there are unsaved changes
   const hasChanges = JSON.stringify(editedTask) !== JSON.stringify(task)
@@ -720,21 +723,63 @@ function TaskModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-5 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition"
-          >
-            Save Changes
-          </button>
+        <div className="flex items-center justify-between gap-3 p-6 border-t bg-gray-50">
+          {/* Delete button */}
+          {onDelete && !showDeleteConfirm && (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg transition flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
+          )}
+          
+          {/* Delete confirmation */}
+          {showDeleteConfirm && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-red-600">Delete this task?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  onDelete?.(task.id)
+                  onClose()
+                }}
+                className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition"
+              >
+                Yes, delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-3 py-1.5 text-gray-600 text-sm font-medium hover:bg-gray-100 rounded-lg transition"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          
+          {!showDeleteConfirm && <div className="flex-1" />}
+          
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-5 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition"
+            >
+              Save Changes
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -4598,6 +4643,7 @@ export default function Home() {
           task={editingTask}
           onClose={() => setEditingTask(null)}
           onSave={handleSaveTask}
+          onDelete={deleteTask}
           workflows={workflows}
           teamMembers={teamMembers}
         />
