@@ -3836,7 +3836,7 @@ export default function Home() {
   
   // Get capacity for a member for a specific week
   const getMemberCapacity = (memberId: number, weekStart: string): number => {
-    return weekCapacities[weekStart]?.[memberId] ?? 7 // Default 7h
+    return weekCapacities[weekStart]?.[memberId] ?? 10 // Default 10h
   }
   
   // Set capacity for a member for a specific week
