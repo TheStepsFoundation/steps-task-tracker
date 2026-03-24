@@ -3241,6 +3241,7 @@ export default function Home() {
   // Team view state
   const [teamViewFilter, setTeamViewFilter] = useState<'all' | 'assigned' | 'collaborating'>('all')
   const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set())
+  const [teamViewMode, setTeamViewMode] = useState<'compact' | 'comfortable'>('compact')
   
   // Helper to toggle sort
   const handleSortClick = (column: 'dueDate' | 'priority' | 'status' | 'workflow') => {
@@ -3852,24 +3853,50 @@ export default function Home() {
         {/* Team View */}
         {view === 'team' && (
           <div className="space-y-3">
-            {/* Filter Controls */}
-            <div className="flex items-center gap-2 bg-white rounded-lg p-2 shadow-sm border">
-              <span className="text-xs text-gray-500 px-2">Show:</span>
-              {(['all', 'assigned', 'collaborating'] as const).map(filter => (
+            {/* Filter & View Mode Controls */}
+            <div className="flex items-center justify-between bg-white rounded-lg p-2 shadow-sm border">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 px-2">Show:</span>
+                {(['all', 'assigned', 'collaborating'] as const).map(filter => (
+                  <button
+                    key={filter}
+                    onClick={() => setTeamViewFilter(filter)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                      teamViewFilter === filter
+                        ? 'bg-purple-100 text-purple-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {filter === 'all' ? 'All' : filter === 'assigned' ? 'Assigned' : 'Collaborating'}
+                  </button>
+                ))}
+              </div>
+              
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 border-l pl-3 ml-3">
                 <button
-                  key={filter}
-                  onClick={() => setTeamViewFilter(filter)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
-                    teamViewFilter === filter
-                      ? 'bg-purple-100 text-purple-700'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                  onClick={() => setTeamViewMode('compact')}
+                  className={`p-1.5 rounded transition ${teamViewMode === 'compact' ? 'bg-purple-100 text-purple-700' : 'text-gray-400 hover:text-gray-600'}`}
+                  title="Compact view"
                 >
-                  {filter === 'all' ? 'All' : filter === 'assigned' ? 'Assigned' : 'Collaborating'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
                 </button>
-              ))}
+                <button
+                  onClick={() => setTeamViewMode('comfortable')}
+                  className={`p-1.5 rounded transition ${teamViewMode === 'comfortable' ? 'bg-purple-100 text-purple-700' : 'text-gray-400 hover:text-gray-600'}`}
+                  title="Comfortable view"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM4 13h16a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3a1 1 0 011-1z" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
+            {/* Compact View */}
+            {teamViewMode === 'compact' && (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               {/* Unassigned Column */}
               <DroppableColumn
@@ -4017,6 +4044,93 @@ export default function Home() {
                 )
               })}
             </div>
+            )}
+
+            {/* Comfortable View */}
+            {teamViewMode === 'comfortable' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+              {/* Unassigned Column */}
+              <DroppableColumn
+                id="member-0"
+                className="bg-gray-100 rounded-xl p-4 min-h-[400px] transition-colors border-2 border-dashed border-gray-300"
+              >
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-300">
+                  <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-sm">
+                    ?
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-semibold text-gray-700 text-sm">Unassigned</h2>
+                    <p className="text-xs text-gray-400">{getUnassignedTasks().length} tasks</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 mb-4">
+                  {getUnassignedTasks()
+                    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                    .map(task => (
+                    <DraggableTaskCard
+                      key={task.id}
+                      task={task}
+                      onClick={() => setEditingTask(task)}
+                      showStatus
+                      workflows={workflows}
+                      teamMembers={teamMembers}
+                    />
+                  ))}
+                  {getUnassignedTasks().length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">No unassigned tasks</p>
+                  )}
+                </div>
+              </DroppableColumn>
+
+              {teamMembers.map(member => {
+                // Get tasks and apply filter
+                let activeTasks = getTasksByMember(member.id)
+                if (teamViewFilter === 'assigned') {
+                  activeTasks = activeTasks.filter(t => t.assignee === member.id)
+                } else if (teamViewFilter === 'collaborating') {
+                  activeTasks = activeTasks.filter(t => t.assignee !== member.id && t.collaborators.includes(member.id))
+                }
+                // Sort by due date (earliest first)
+                activeTasks = [...activeTasks].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                
+                return (
+                  <DroppableColumn
+                    key={member.id}
+                    id={`member-${member.id}`}
+                    className="bg-gray-50 rounded-xl p-4 min-h-[400px] transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
+                      <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                        {member.avatar}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="font-semibold text-gray-700 text-sm truncate">{member.name.split(' ')[0]}</h2>
+                        <p className="text-xs text-gray-400">{activeTasks.length} active</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 mb-4">
+                      {activeTasks.map(task => (
+                        <DraggableTaskCard
+                          key={task.id}
+                          task={task}
+                          onClick={() => setEditingTask(task)}
+                          showStatus
+                          workflows={workflows}
+                          teamMembers={teamMembers}
+                          viewingMemberId={member.id}
+                        />
+                      ))}
+                      {activeTasks.length === 0 && (
+                        <p className="text-sm text-gray-400 text-center py-4">No active tasks</p>
+                      )}
+                    </div>
+                  </DroppableColumn>
+                )
+              })}
+            </div>
+            )}
           </div>
         )}
 
