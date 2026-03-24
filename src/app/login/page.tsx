@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-provider'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -10,9 +11,52 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const { signIn, signUp, signInWithGoogle, isAllowedEmail } = useAuth()
+  const [checkingHash, setCheckingHash] = useState(true)
+  const { signIn, signUp, signInWithGoogle, isAllowedEmail, user } = useAuth()
   const router = useRouter()
   const [googleLoading, setGoogleLoading] = useState(false)
+
+  // Check for OAuth tokens in URL hash (from Google redirect)
+  useEffect(() => {
+    const handleHashTokens = async () => {
+      // If there's an access_token in the hash, Supabase should process it
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        // Give Supabase a moment to process the hash
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          router.push('/')
+          return
+        }
+      }
+      setCheckingHash(false)
+    }
+    
+    handleHashTokens()
+  }, [router])
+
+  // If user is already logged in, redirect to home
+  useEffect(() => {
+    if (user) {
+      router.push('/')
+    }
+  }, [user, router])
+
+  // Show loading while checking hash
+  if (checkingHash) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <svg className="animate-spin h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-gray-600">Signing you in...</span>
+        </div>
+      </div>
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
