@@ -3281,13 +3281,6 @@ export default function Home() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
   
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login')
-    }
-  }, [authLoading, user, router])
-  
   // Data from Supabase (or demo mode)
   const {
     tasks,
@@ -3308,22 +3301,8 @@ export default function Home() {
     setWeekCapacity,
     setWeekNote,
   } = useData()
-  
-  // Show loading while checking auth
-  if (authLoading || !user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <svg className="animate-spin h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="text-gray-600">Loading...</span>
-        </div>
-      </div>
-    )
-  }
 
+  // ALL useState hooks MUST be before any early returns
   const [view, setView] = useState<'board' | 'team' | 'list' | 'workload'>('board')
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -3362,6 +3341,28 @@ export default function Home() {
   const [teamViewFilter, setTeamViewFilter] = useState<'all' | 'assigned' | 'collaborating'>('all')
   const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set())
   const [teamViewMode, setTeamViewMode] = useState<'compact' | 'comfortable'>('compact')
+  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [authLoading, user, router])
+  
+  // Show loading while checking auth (AFTER all hooks)
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <svg className="animate-spin h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-gray-600">Loading...</span>
+        </div>
+      </div>
+    )
+  }
   
   // Helper to toggle sort
   const handleSortClick = (column: 'dueDate' | 'priority' | 'status' | 'workflow') => {
