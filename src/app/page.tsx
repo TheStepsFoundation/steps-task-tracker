@@ -158,11 +158,12 @@ function DraggableTaskCard({
   const isPrimaryAssignee = viewingMemberId !== undefined && task.assignee === viewingMemberId
   const isCollaborator = viewingMemberId !== undefined && task.assignee !== viewingMemberId
   
-  // Find this member's subtask completion status
-  const memberSubtask = viewingMemberId !== undefined 
-    ? task.subtasks.find(st => st.personId === viewingMemberId)
-    : null
-  const isSubtaskCompleted = memberSubtask?.completed || false
+  // Find ALL of this member's subtasks and check if all are complete
+  const memberSubtasks = viewingMemberId !== undefined 
+    ? task.subtasks.filter(st => st.personId === viewingMemberId)
+    : []
+  const hasSubtasks = memberSubtasks.length > 0
+  const allSubtasksCompleted = hasSubtasks && memberSubtasks.every(st => st.completed)
 
   const handleCardClick = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest('.drag-handle')) {
@@ -176,12 +177,12 @@ function DraggableTaskCard({
       ref={setNodeRef}
       style={style}
       onClick={handleCardClick}
-      className={`relative bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-all duration-200 ease-out cursor-pointer ${
+      className={`group relative bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-all duration-200 ease-out cursor-pointer ${
         isDragging ? 'opacity-60 shadow-lg scale-[1.02]' : ''
       } ${
         isPrimaryAssignee ? 'border-purple-300 ring-2 ring-purple-200' : 'border-gray-100'
       } ${
-        isSubtaskCompleted ? 'opacity-60' : ''
+        allSubtasksCompleted ? 'opacity-60' : ''
       }`}
     >
       {/* Drag Handle */}
@@ -196,20 +197,20 @@ function DraggableTaskCard({
         </svg>
       </div>
       
-      {/* Completion Checkbox - only in Team view */}
-      {viewingMemberId !== undefined && onToggleComplete && (
+      {/* Completion Checkbox - only in Team view, show on hover or when completed */}
+      {viewingMemberId !== undefined && onToggleComplete && hasSubtasks && (
         <button
           onClick={(e) => {
             e.stopPropagation()
             onToggleComplete(task, viewingMemberId)
           }}
           className={`absolute top-2 left-2 w-5 h-5 rounded border-2 flex items-center justify-center transition ${
-            isSubtaskCompleted
+            allSubtasksCompleted
               ? 'bg-green-500 border-green-500 text-white'
-              : 'border-gray-300 hover:border-green-400 bg-white'
+              : 'border-gray-300 hover:border-green-400 bg-white opacity-0 group-hover:opacity-100'
           }`}
         >
-          {isSubtaskCompleted && (
+          {allSubtasksCompleted && (
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
@@ -655,7 +656,27 @@ function TaskModal({
                 {editedTask.subtasks.map((subtask, index) => {
                   const person = teamMembers.find(m => m.id === subtask.personId)
                   return (
-                    <div key={subtask.id} className="flex gap-3 items-start p-3 bg-gray-50 rounded-lg">
+                    <div key={subtask.id} className={`flex gap-3 items-start p-3 rounded-lg ${subtask.completed ? 'bg-green-50' : 'bg-gray-50'}`}>
+                      {/* Completion checkbox */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newSubtasks = [...editedTask.subtasks]
+                          newSubtasks[index] = { ...subtask, completed: !subtask.completed }
+                          setEditedTask({ ...editedTask, subtasks: newSubtasks })
+                        }}
+                        className={`mt-2 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition ${
+                          subtask.completed
+                            ? 'bg-green-500 border-green-500 text-white'
+                            : 'border-gray-300 hover:border-green-400 bg-white'
+                        }`}
+                      >
+                        {subtask.completed && (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
                       <select
                         value={subtask.personId}
                         onChange={e => {
@@ -663,7 +684,7 @@ function TaskModal({
                           newSubtasks[index] = { ...subtask, personId: parseInt(e.target.value) }
                           setEditedTask({ ...editedTask, subtasks: newSubtasks })
                         }}
-                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none min-w-[140px]"
+                        className={`px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none min-w-[120px] ${subtask.completed ? 'opacity-60' : ''}`}
                       >
                         <option value={0}>Unassigned</option>
                         {teamMembers.map(m => (
@@ -680,7 +701,7 @@ function TaskModal({
                             setEditedTask({ ...editedTask, subtasks: newSubtasks })
                           }}
                           placeholder="What are they doing?"
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                          className={`w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${subtask.completed ? 'line-through opacity-60' : ''}`}
                         />
                       </div>
                       <select
@@ -690,7 +711,7 @@ function TaskModal({
                           newSubtasks[index] = { ...subtask, intensity: e.target.value as Intensity }
                           setEditedTask({ ...editedTask, subtasks: newSubtasks })
                         }}
-                        className={`px-2 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${intensityColors[subtask.intensity]}`}
+                        className={`px-2 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${intensityColors[subtask.intensity]} ${subtask.completed ? 'opacity-60' : ''}`}
                       >
                         {INTENSITY_OPTIONS.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -4004,11 +4025,16 @@ export default function Home() {
     await updateTaskInDb(updatedTask)
   }
 
-  // Toggle subtask completion for a specific member
+  // Toggle ALL subtask completions for a specific member
   const toggleSubtaskCompletion = async (task: Task, memberId: number) => {
+    // Check if ALL of this member's subtasks are currently complete
+    const memberSubtasks = task.subtasks.filter(st => st.personId === memberId)
+    const allComplete = memberSubtasks.length > 0 && memberSubtasks.every(st => st.completed)
+    
+    // Toggle all to the opposite state
     const updatedSubtasks = task.subtasks.map(st => 
       st.personId === memberId 
-        ? { ...st, completed: !st.completed }
+        ? { ...st, completed: !allComplete }
         : st
     )
     const updatedTask = { ...task, subtasks: updatedSubtasks }
@@ -4502,35 +4528,38 @@ export default function Home() {
                       {displayTasks.map(task => {
                         const workflow = workflows.find(w => w.id === task.workflow)
                         const isPrimaryAssignee = task.assignee === member.id
-                        const memberSubtask = task.subtasks.find(st => st.personId === member.id)
-                        const isSubtaskCompleted = memberSubtask?.completed || false
+                        const memberSubtasks = task.subtasks.filter(st => st.personId === member.id)
+                        const hasSubtasks = memberSubtasks.length > 0
+                        const allSubtasksCompleted = hasSubtasks && memberSubtasks.every(st => st.completed)
                         return (
                           <div
                             key={task.id}
-                            className={`bg-white rounded p-2 hover:shadow-sm transition ${
+                            className={`group bg-white rounded p-2 hover:shadow-sm transition ${
                               isPrimaryAssignee ? 'border-2 border-purple-300 ring-1 ring-purple-100' : 'border border-gray-100'
-                            } ${isSubtaskCompleted ? 'opacity-60' : ''}`}
+                            } ${allSubtasksCompleted ? 'opacity-60' : ''}`}
                           >
                             <div className="flex items-start gap-1.5">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  toggleSubtaskCompletion(task, member.id)
-                                }}
-                                className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition ${
-                                  isSubtaskCompleted
-                                    ? 'bg-green-500 border-green-500 text-white'
-                                    : 'border-gray-300 hover:border-green-400'
-                                }`}
-                              >
-                                {isSubtaskCompleted && (
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </button>
+                              {hasSubtasks && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleSubtaskCompletion(task, member.id)
+                                  }}
+                                  className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition ${
+                                    allSubtasksCompleted
+                                      ? 'bg-green-500 border-green-500 text-white'
+                                      : 'border-gray-300 hover:border-green-400 opacity-0 group-hover:opacity-100'
+                                  }`}
+                                >
+                                  {allSubtasksCompleted && (
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </button>
+                              )}
                               <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setEditingTask(task)}>
-                                <p className={`text-[11px] font-medium text-gray-900 line-clamp-1 ${isSubtaskCompleted ? 'line-through' : ''}`}>{task.title}</p>
+                                <p className={`text-[11px] font-medium text-gray-900 line-clamp-1 ${allSubtasksCompleted ? 'line-through' : ''}`}>{task.title}</p>
                                 <div className="flex items-center gap-1 mt-1 flex-wrap">
                                   {workflow && (
                                     <span className={`text-[9px] px-1.5 py-0.5 rounded text-white ${workflow.color}`}>
