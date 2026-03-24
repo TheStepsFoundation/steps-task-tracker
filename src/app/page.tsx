@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, MouseEvent } from 'react'
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -14,6 +15,8 @@ import {
   useDroppable,
   useDraggable,
   defaultDropAnimationSideEffects,
+  CollisionDetection,
+  closestCenter,
 } from '@dnd-kit/core'
 import { useData } from '@/lib/data-provider'
 
@@ -3806,7 +3809,7 @@ export default function Home() {
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
