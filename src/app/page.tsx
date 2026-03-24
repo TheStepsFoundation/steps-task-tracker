@@ -3970,12 +3970,12 @@ export default function Home() {
               <option value="assignee">Assignee</option>
             </select>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="flex md:grid md:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 snap-x snap-mandatory md:snap-none">
             {(['todo', 'in-progress', 'review', 'done'] as Status[]).map(status => (
               <DroppableColumn
                 key={status}
                 id={status}
-                className="bg-gray-50 rounded-xl p-3 sm:p-4 min-h-[200px] sm:min-h-[400px] transition-colors"
+                className="bg-gray-50 rounded-xl p-3 sm:p-4 min-h-[300px] sm:min-h-[400px] transition-colors min-w-[280px] md:min-w-0 snap-center flex-shrink-0 md:flex-shrink"
               >
                 <div className="flex items-center gap-2 mb-4">
                   <div className={`w-3 h-3 rounded-full ${statusColors[status].split(' ')[0]}`} />
