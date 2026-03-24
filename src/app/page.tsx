@@ -2468,6 +2468,7 @@ function AddTaskModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [workflow, setWorkflow] = useState<string | null>(defaultWorkflow)
+  const [subWorkflow, setSubWorkflow] = useState<string | null>(null)
   const [priority, setPriority] = useState<Priority>('medium')
   const [assignee, setAssignee] = useState<number>(0)
   const [collaborators, setCollaborators] = useState<number[]>([])
@@ -2665,7 +2666,7 @@ function AddTaskModal({
       dueDate,
       createdAt: new Date().toISOString().split('T')[0],
       workflow,
-      subWorkflow: null,
+      subWorkflow,
       attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
     }
     
@@ -2757,17 +2758,34 @@ function AddTaskModal({
                 />
               </div>
 
-              {/* Workflow & Priority */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Workflow, Sub-Workflow & Priority */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Workflow</label>
                   <select
                     value={workflow || ''}
-                    onChange={e => setWorkflow(e.target.value || null)}
+                    onChange={e => {
+                      setWorkflow(e.target.value || null)
+                      // Clear sub-workflow if it matches the new workflow
+                      if (e.target.value === subWorkflow) setSubWorkflow(null)
+                    }}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
                   >
                     <option value="">No workflow</option>
                     {activeWorkflows.map(w => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Workflow</label>
+                  <select
+                    value={subWorkflow || ''}
+                    onChange={e => setSubWorkflow(e.target.value || null)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                  >
+                    <option value="">None</option>
+                    {activeWorkflows.filter(w => w.id !== workflow).map(w => (
                       <option key={w.id} value={w.id}>{w.name}</option>
                     ))}
                   </select>
