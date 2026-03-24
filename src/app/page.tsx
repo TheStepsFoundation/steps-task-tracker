@@ -13,6 +13,7 @@ import {
   DragEndEvent,
   useDroppable,
   useDraggable,
+  defaultDropAnimationSideEffects,
 } from '@dnd-kit/core'
 import { useData } from '@/lib/data-provider'
 
@@ -109,7 +110,7 @@ function DroppableColumn({
   return (
     <div 
       ref={setNodeRef}
-      className={`${className} ${isOver ? 'ring-2 ring-purple-400 ring-inset bg-purple-50' : ''}`}
+      className={`${className} transition-all duration-150 ease-out ${isOver ? 'ring-2 ring-purple-400 ring-inset bg-purple-50/70 scale-[1.01]' : ''}`}
     >
       {children}
     </div>
@@ -161,8 +162,8 @@ function DraggableTaskCard({
       ref={setNodeRef}
       style={style}
       onClick={handleCardClick}
-      className={`relative bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition cursor-pointer ${
-        isDragging ? 'opacity-50 shadow-lg' : ''
+      className={`relative bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-all duration-200 ease-out cursor-pointer ${
+        isDragging ? 'opacity-60 shadow-lg scale-[1.02]' : ''
       } ${
         isPrimaryAssignee ? 'border-purple-300 ring-2 ring-purple-200' : 'border-gray-100'
       }`}
@@ -171,7 +172,7 @@ function DraggableTaskCard({
       <div 
         {...listeners}
         {...attributes}
-        className="drag-handle absolute top-2 right-2 p-1.5 rounded hover:bg-gray-100 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none"
+        className="drag-handle absolute top-2 right-2 p-1.5 rounded hover:bg-gray-100 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -3329,13 +3330,13 @@ export default function Home() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8, // Slightly more distance to distinguish from clicks
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 100,
-        tolerance: 5,
+        delay: 150,
+        tolerance: 8,
       },
     })
   )
@@ -4197,11 +4198,19 @@ export default function Home() {
           </div>
         )}
 
-        <DragOverlay>
+        <DragOverlay
+          dropAnimation={{
+            duration: 200,
+            easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+            sideEffects: defaultDropAnimationSideEffects({
+              styles: { active: { opacity: '0.5' } },
+            }),
+          }}
+        >
           {activeTask && (
-            <div className="bg-white rounded-lg p-4 shadow-2xl border-2 border-purple-300 w-64 rotate-2">
-              <h3 className="font-medium text-gray-900 mb-2">{activeTask.title}</h3>
-              <p className="text-sm text-gray-500 line-clamp-2">{activeTask.description}</p>
+            <div className="bg-white rounded-lg p-4 shadow-2xl border-2 border-purple-400 w-72 rotate-1 scale-105 transition-transform">
+              <h3 className="font-medium text-gray-900 mb-1">{activeTask.title}</h3>
+              <p className="text-sm text-gray-500 line-clamp-1">{activeTask.description}</p>
             </div>
           )}
         </DragOverlay>
