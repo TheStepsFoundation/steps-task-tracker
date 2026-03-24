@@ -3975,7 +3975,7 @@ export default function Home() {
               <DroppableColumn
                 key={status}
                 id={status}
-                className="bg-gray-50 rounded-xl p-3 sm:p-4 min-h-[300px] sm:min-h-[400px] transition-colors min-w-[280px] md:min-w-0 snap-center flex-shrink-0 md:flex-shrink"
+                className="bg-gray-50 rounded-xl p-3 sm:p-4 min-h-[300px] sm:min-h-[400px] transition-colors w-[85vw] sm:w-[280px] md:w-auto md:min-w-0 snap-center flex-shrink-0 md:flex-shrink"
               >
                 <div className="flex items-center gap-2 mb-4">
                   <div className={`w-3 h-3 rounded-full ${statusColors[status].split(' ')[0]}`} />
