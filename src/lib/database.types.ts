@@ -152,6 +152,7 @@ export interface Task {
   attachments?: Attachment[]
   archived?: boolean
   blockedBy?: number[] // Task IDs that must be completed first
+  labels?: string[] // Label IDs
 }
 
 export interface Workflow {
@@ -167,4 +168,12 @@ export interface TeamMember {
   name: string
   role: string
   avatar: string
+}
+
+// Custom Labels
+export interface Label {
+  id: string
+  name: string
+  color: string
+  isDefault?: boolean
 }

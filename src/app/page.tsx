@@ -80,7 +80,25 @@ interface Task {
   attachments?: Attachment[]
   archived?: boolean
   blockedBy?: number[] // Task IDs that must be completed first
+  labels?: string[] // Label IDs
 }
+
+// Custom Labels
+interface Label {
+  id: string
+  name: string
+  color: string
+  isDefault?: boolean
+}
+
+// Default labels
+const DEFAULT_LABELS: Label[] = [
+  { id: 'blocked', name: 'Blocked', color: 'bg-red-500', isDefault: true },
+  { id: 'waiting', name: 'Waiting on External', color: 'bg-amber-500', isDefault: true },
+  { id: 'quick-win', name: 'Quick Win', color: 'bg-green-500', isDefault: true },
+  { id: 'urgent', name: 'Urgent', color: 'bg-rose-500', isDefault: true },
+  { id: 'review-needed', name: 'Review Needed', color: 'bg-purple-500', isDefault: true },
+]
 
 const priorityColors: Record<Priority, string> = {
   low: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -157,6 +175,7 @@ function DraggableTaskCard({
   viewingMemberId,
   onToggleComplete,
   onMoveToStatus,
+  labels = [],
 }: { 
   task: Task
   onClick: () => void
@@ -166,6 +185,7 @@ function DraggableTaskCard({
   viewingMemberId?: number // The member whose section this card is in (for Team view)
   onToggleComplete?: (task: Task, memberId: number) => void // For subtask completion in Team view
   onMoveToStatus?: (task: Task, status: Status) => void // Mobile move button
+  labels?: Label[]
 }) {
   const [showMoveMenu, setShowMoveMenu] = useState(false)
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -286,7 +306,7 @@ function DraggableTaskCard({
         </button>
       )}
 
-      {/* Workflow badges + blocked indicator */}
+      {/* Workflow badges + blocked indicator + labels */}
       <div className="flex items-center gap-1 mb-2 flex-wrap">
         {task.blockedBy && task.blockedBy.length > 0 && (
           <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded bg-red-100 text-red-700 whitespace-nowrap" title="Blocked by other tasks">
@@ -305,6 +325,18 @@ function DraggableTaskCard({
               {subWorkflow.short}
             </span>
           </>
+        )}
+        {/* Custom Labels */}
+        {task.labels?.slice(0, 2).map(labelId => {
+          const label = labels.find(l => l.id === labelId)
+          return label ? (
+            <span key={label.id} className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${label.color}`}>
+              {label.name}
+            </span>
+          ) : null
+        })}
+        {task.labels && task.labels.length > 2 && (
+          <span className="text-xs text-gray-400">+{task.labels.length - 2}</span>
         )}
       </div>
 
@@ -369,6 +401,8 @@ function TaskModal({
   workflows,
   teamMembers,
   tasks,
+  labels,
+  onAddLabel,
 }: { 
   task: Task
   onClose: () => void
@@ -378,6 +412,8 @@ function TaskModal({
   workflows: Workflow[]
   teamMembers: { id: number; name: string; role: string; avatar: string }[]
   tasks: Task[]
+  labels: Label[]
+  onAddLabel?: (name: string, color: string) => string
 }) {
   const [editedTask, setEditedTask] = useState<Task>({ ...task })
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false)
@@ -682,6 +718,54 @@ function TaskModal({
               <p className="text-xs text-amber-600 mt-1">
                 ⚠️ This task is blocked by {editedTask.blockedBy.length} task(s)
               </p>
+            )}
+          </div>
+
+          {/* Labels */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Labels</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {labels.map(label => {
+                const isSelected = editedTask.labels?.includes(label.id) || false
+                return (
+                  <button
+                    key={label.id}
+                    type="button"
+                    onClick={() => {
+                      const currentLabels = editedTask.labels || []
+                      if (isSelected) {
+                        setEditedTask({ ...editedTask, labels: currentLabels.filter(id => id !== label.id) })
+                      } else {
+                        setEditedTask({ ...editedTask, labels: [...currentLabels, label.id] })
+                      }
+                    }}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                      isSelected 
+                        ? `${label.color} text-white ring-2 ring-offset-1 ring-purple-400` 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {label.name}
+                  </button>
+                )
+              })}
+            </div>
+            {onAddLabel && (
+              <button
+                type="button"
+                onClick={() => {
+                  const name = prompt('Enter label name:')
+                  if (name) {
+                    const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-pink-500', 'bg-cyan-500', 'bg-indigo-500']
+                    const color = colors[Math.floor(Math.random() * colors.length)]
+                    const newId = onAddLabel(name, color)
+                    setEditedTask({ ...editedTask, labels: [...(editedTask.labels || []), newId] })
+                  }
+                }}
+                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+              >
+                + Create new label
+              </button>
             )}
           </div>
 
@@ -3695,6 +3779,27 @@ export default function Home() {
   const [calendarPeriod, setCalendarPeriod] = useState<'week' | 'month' | 'quarter'>('month')
   const [calendarMode, setCalendarMode] = useState<'fixed' | 'rolling'>('fixed')
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0])
+  
+  // Custom labels state
+  const [labels, setLabels] = useState<Label[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('task-tracker-labels')
+      if (stored) {
+        return [...DEFAULT_LABELS, ...JSON.parse(stored)]
+      }
+    }
+    return DEFAULT_LABELS
+  })
+  
+  // Save custom labels to localStorage
+  const addLabel = (name: string, color: string) => {
+    const newLabel: Label = { id: `custom-${Date.now()}`, name, color }
+    const customLabels = labels.filter(l => !l.isDefault)
+    const updated = [...customLabels, newLabel]
+    localStorage.setItem('task-tracker-labels', JSON.stringify(updated))
+    setLabels([...DEFAULT_LABELS, ...updated])
+    return newLabel.id
+  }
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showNewWorkflowModal, setShowNewWorkflowModal] = useState(false)
@@ -4753,6 +4858,7 @@ export default function Home() {
                           onClick={() => isMultiSelectMode ? toggleTaskSelection(task.id) : setEditingTask(task)}
                           workflows={workflows}
                           teamMembers={teamMembers}
+                          labels={labels}
                           onMoveToStatus={async (t, newStatus) => {
                             let updatedTask = { ...t, status: newStatus }
                             if (newStatus === 'done') {
@@ -5022,6 +5128,7 @@ export default function Home() {
                       showStatus
                       workflows={workflows}
                       teamMembers={teamMembers}
+                      labels={labels}
                       onMoveToStatus={async (t, newStatus) => {
                         let updatedTask = { ...t, status: newStatus }
                         if (newStatus === 'done') {
@@ -5088,6 +5195,7 @@ export default function Home() {
                           showStatus
                           workflows={workflows}
                           teamMembers={teamMembers}
+                          labels={labels}
                           viewingMemberId={member.id}
                           onToggleComplete={toggleSubtaskCompletion}
                           onMoveToStatus={async (t, newStatus) => {
@@ -5932,6 +6040,8 @@ export default function Home() {
           workflows={workflows}
           teamMembers={teamMembers}
           tasks={tasks}
+          labels={labels}
+          onAddLabel={addLabel}
         />
       )}
 
