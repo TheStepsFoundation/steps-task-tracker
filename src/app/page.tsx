@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth, getUserDisplayName } from '@/lib/auth-provider'
+import { useTheme } from '@/lib/theme-provider'
 import {
   DndContext,
   DragOverlay,
@@ -3614,6 +3615,7 @@ function AddTaskModal({
 export default function Home() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
+  const { theme, resolvedTheme, setTheme } = useTheme()
   
   // Data from Supabase (or demo mode)
   const {
@@ -4285,7 +4287,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen p-3 sm:p-6">
+    <main className="min-h-screen p-3 sm:p-6 bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Demo mode banner */}
       {isDemo && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800 text-sm">
@@ -4299,8 +4301,8 @@ export default function Home() {
       {/* Header */}
       <div className="flex justify-between items-center gap-2 mb-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Steps Task Tracker</h1>
-          <p className="text-gray-500 text-sm hidden sm:block">Manage all workflows and events</p>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white truncate">Steps Task Tracker</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm hidden sm:block">Manage all workflows and events</p>
         </div>
         
         {/* Search Bar */}
@@ -4314,7 +4316,7 @@ export default function Home() {
               placeholder="Search tasks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white dark:bg-gray-800 dark:text-white"
             />
             {searchQuery && (
               <button
@@ -4334,10 +4336,26 @@ export default function Home() {
           <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-sm">
             {getUserDisplayName(user?.email).slice(0, 2).toUpperCase()}
           </div>
-          <span className="text-sm text-gray-700 hidden lg:block">{getUserDisplayName(user?.email)}</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:block">{getUserDisplayName(user?.email)}</span>
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+            title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {resolvedTheme === 'dark' ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
           <button
             onClick={() => signOut()}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
             title="Sign out"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
