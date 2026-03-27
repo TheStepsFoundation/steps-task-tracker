@@ -153,6 +153,7 @@ export interface Task {
   archived?: boolean
   blockedBy?: number[] // Task IDs that must be completed first
   labels?: string[] // Label IDs
+  startDate?: string // For Gantt view
 }
 
 export interface Workflow {

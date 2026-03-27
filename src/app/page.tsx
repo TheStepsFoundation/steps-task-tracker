@@ -82,6 +82,7 @@ interface Task {
   archived?: boolean
   blockedBy?: number[] // Task IDs that must be completed first
   labels?: string[] // Label IDs
+  startDate?: string // For Gantt view - when work begins
 }
 
 // Custom Labels
@@ -670,14 +671,25 @@ function TaskModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-            <input
-              type="date"
-              value={editedTask.dueDate}
-              onChange={e => setEditedTask({ ...editedTask, dueDate: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date (optional)</label>
+              <input
+                type="date"
+                value={editedTask.startDate || ''}
+                onChange={e => setEditedTask({ ...editedTask, startDate: e.target.value || undefined })}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+              <input
+                type="date"
+                value={editedTask.dueDate}
+                onChange={e => setEditedTask({ ...editedTask, dueDate: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              />
+            </div>
           </div>
 
           {/* Blocked By - Task Dependencies */}
@@ -3774,7 +3786,7 @@ export default function Home() {
   } = useData()
 
   // ALL useState hooks MUST be before any early returns
-  const [view, setView] = useState<'board' | 'team' | 'list' | 'workload' | 'calendar'>('board')
+  const [view, setView] = useState<'board' | 'team' | 'list' | 'workload' | 'calendar' | 'gantt'>('board')
   
   // Calendar view state
   const [calendarPeriod, setCalendarPeriod] = useState<'week' | 'month' | 'quarter'>('month')
@@ -4600,7 +4612,7 @@ export default function Home() {
       
       {/* View Tabs - single row on mobile */}
       <div className="flex gap-1 sm:gap-2 mb-3 overflow-x-auto pb-1">
-        {(['board', 'team', 'list', 'calendar', 'workload'] as const).map((v) => (
+        {(['board', 'team', 'list', 'calendar', 'gantt', 'workload'] as const).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -6071,6 +6083,149 @@ export default function Home() {
               })()}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Gantt View */}
+      {view === 'gantt' && (
+        <div className="space-y-4">
+          {/* Gantt Header */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900 dark:text-white">Timeline View</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Drag task bars to adjust dates</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">{filteredTasks.length} tasks</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Gantt Chart */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 overflow-hidden">
+            {/* Timeline header */}
+            <div className="flex border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky top-0 z-10">
+              <div className="w-64 flex-shrink-0 p-3 font-medium text-gray-700 dark:text-gray-300 border-r dark:border-gray-700">
+                Task
+              </div>
+              <div className="flex-1 overflow-x-auto">
+                <div className="flex min-w-max">
+                  {(() => {
+                    // Generate 8 weeks of timeline
+                    const today = new Date()
+                    const weeks: { start: Date; label: string }[] = []
+                    for (let i = -2; i < 6; i++) {
+                      const weekStart = new Date(today)
+                      weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1 + (i * 7))
+                      weeks.push({
+                        start: weekStart,
+                        label: weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                      })
+                    }
+                    return weeks.map((week, i) => (
+                      <div 
+                        key={i} 
+                        className={`w-32 flex-shrink-0 p-2 text-center text-xs font-medium border-r dark:border-gray-700 ${
+                          i === 2 ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        {week.label}
+                      </div>
+                    ))
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Task rows */}
+            <div className="divide-y dark:divide-gray-700">
+              {filteredTasks
+                .sort((a, b) => new Date(a.startDate || a.dueDate).getTime() - new Date(b.startDate || b.dueDate).getTime())
+                .map(task => {
+                  const workflow = workflows.find(w => w.id === task.workflow)
+                  const startDate = new Date(task.startDate || task.createdAt || task.dueDate)
+                  const endDate = new Date(task.dueDate)
+                  const today = new Date()
+                  const timelineStart = new Date(today)
+                  timelineStart.setDate(timelineStart.getDate() - timelineStart.getDay() + 1 - 14) // 2 weeks back
+                  
+                  // Calculate bar position
+                  const dayWidth = 32 / 7 // 32px per day (w-32 = 7 days)
+                  const startOffset = Math.max(0, (startDate.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24)) * dayWidth
+                  const duration = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24) + 1) * dayWidth
+                  
+                  return (
+                    <div key={task.id} className="flex hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
+                      <div 
+                        className="w-64 flex-shrink-0 p-3 border-r dark:border-gray-700 cursor-pointer"
+                        onClick={() => setEditingTask(task)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {workflow && (
+                            <div className={`w-2 h-2 rounded-full ${workflow.color}`} />
+                          )}
+                          <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </div>
+                      </div>
+                      <div className="flex-1 p-2 relative overflow-x-auto">
+                        <div className="min-w-max h-8 relative">
+                          {/* Background grid */}
+                          <div className="absolute inset-0 flex">
+                            {Array.from({ length: 8 }).map((_, i) => (
+                              <div key={i} className={`w-32 flex-shrink-0 border-r dark:border-gray-700 ${i === 2 ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''}`} />
+                            ))}
+                          </div>
+                          {/* Task bar */}
+                          <div
+                            className={`absolute top-1 h-6 rounded cursor-move group-hover:ring-2 group-hover:ring-purple-400 transition ${
+                              workflow ? workflow.color : 'bg-gray-400'
+                            }`}
+                            style={{
+                              left: `${startOffset}px`,
+                              width: `${Math.max(20, duration)}px`,
+                            }}
+                            title={`${task.title}\n${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`}
+                            onClick={() => setEditingTask(task)}
+                          >
+                            <span className="px-2 text-xs text-white truncate block leading-6">
+                              {task.title}
+                            </span>
+                          </div>
+                          {/* Dependency arrows */}
+                          {task.blockedBy?.map(blockerId => {
+                            const blocker = filteredTasks.find(t => t.id === blockerId)
+                            if (!blocker) return null
+                            const blockerEnd = new Date(blocker.dueDate)
+                            const blockerOffset = Math.max(0, (blockerEnd.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24)) * dayWidth
+                            return (
+                              <div
+                                key={blockerId}
+                                className="absolute top-3 h-0.5 bg-red-400"
+                                style={{
+                                  left: `${blockerOffset}px`,
+                                  width: `${Math.max(0, startOffset - blockerOffset)}px`,
+                                }}
+                                title={`Blocked by: ${blocker.title}`}
+                              />
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+
+            {filteredTasks.length === 0 && (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                No tasks to display
+              </div>
+            )}
+          </div>
         </div>
       )}
 
