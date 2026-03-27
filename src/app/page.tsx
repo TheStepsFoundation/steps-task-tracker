@@ -4501,41 +4501,129 @@ export default function Home() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* Multi-select toolbar */}
+        {/* Multi-select toolbar (Feature #14: Bulk Edit) */}
         {selectedTaskIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white rounded-xl px-6 py-3 shadow-2xl flex items-center gap-4 z-40">
-            <span className="font-medium">{selectedTaskIds.size} selected</span>
-            <div className="h-5 w-px bg-gray-600" />
-            <div className="flex gap-2">
-              <button
-                onClick={() => moveSelectedToStatus('todo')}
-                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition"
-              >
-                → To Do
-              </button>
-              <button
-                onClick={() => moveSelectedToStatus('in-progress')}
-                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition"
-              >
-                → In Progress
-              </button>
-              <button
-                onClick={() => moveSelectedToStatus('done')}
-                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition"
-              >
-                → Done
-              </button>
-            </div>
-            <div className="h-5 w-px bg-gray-600" />
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white rounded-xl px-4 py-3 shadow-2xl flex items-center gap-3 z-40 max-w-[95vw] overflow-x-auto">
+            <span className="font-medium whitespace-nowrap">{selectedTaskIds.size} selected</span>
+            <div className="h-5 w-px bg-gray-600 flex-shrink-0" />
+            
+            {/* Status dropdown */}
+            <select
+              onChange={(e) => { if (e.target.value) { moveSelectedToStatus(e.target.value as Status); e.target.value = ''; } }}
+              className="px-2 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition cursor-pointer appearance-none pr-6"
+              defaultValue=""
+            >
+              <option value="" disabled>Status</option>
+              <option value="todo">→ To Do</option>
+              <option value="in-progress">→ In Progress</option>
+              <option value="review">→ Review</option>
+              <option value="done">→ Done</option>
+            </select>
+            
+            {/* Assignee dropdown */}
+            <select
+              onChange={async (e) => {
+                if (e.target.value) {
+                  const newAssignee = parseInt(e.target.value)
+                  for (const taskId of Array.from(selectedTaskIds)) {
+                    const task = tasks.find(t => t.id === taskId)
+                    if (task) {
+                      await updateTaskInDb({ ...task, assignee: newAssignee })
+                    }
+                  }
+                  clearSelection()
+                  e.target.value = ''
+                }
+              }}
+              className="px-2 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition cursor-pointer appearance-none pr-6"
+              defaultValue=""
+            >
+              <option value="" disabled>Assignee</option>
+              <option value="0">Unassigned</option>
+              {teamMembers.map(m => (
+                <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>
+              ))}
+            </select>
+            
+            {/* Priority dropdown */}
+            <select
+              onChange={async (e) => {
+                if (e.target.value) {
+                  const newPriority = e.target.value as Priority
+                  for (const taskId of Array.from(selectedTaskIds)) {
+                    const task = tasks.find(t => t.id === taskId)
+                    if (task) {
+                      await updateTaskInDb({ ...task, priority: newPriority })
+                    }
+                  }
+                  clearSelection()
+                  e.target.value = ''
+                }
+              }}
+              className="px-2 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition cursor-pointer appearance-none pr-6"
+              defaultValue=""
+            >
+              <option value="" disabled>Priority</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+            
+            {/* Workflow dropdown */}
+            <select
+              onChange={async (e) => {
+                if (e.target.value !== '') {
+                  const newWorkflow = e.target.value === 'none' ? null : e.target.value
+                  for (const taskId of Array.from(selectedTaskIds)) {
+                    const task = tasks.find(t => t.id === taskId)
+                    if (task) {
+                      await updateTaskInDb({ ...task, workflow: newWorkflow })
+                    }
+                  }
+                  clearSelection()
+                  e.target.value = ''
+                }
+              }}
+              className="px-2 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition cursor-pointer appearance-none pr-6 hidden sm:block"
+              defaultValue=""
+            >
+              <option value="" disabled>Workflow</option>
+              <option value="none">None</option>
+              {workflows.filter(w => !w.archived).map(w => (
+                <option key={w.id} value={w.id}>{w.short}</option>
+              ))}
+            </select>
+            
+            {/* Due date input */}
+            <input
+              type="date"
+              onChange={async (e) => {
+                if (e.target.value) {
+                  for (const taskId of Array.from(selectedTaskIds)) {
+                    const task = tasks.find(t => t.id === taskId)
+                    if (task) {
+                      await updateTaskInDb({ ...task, dueDate: e.target.value })
+                    }
+                  }
+                  clearSelection()
+                  e.target.value = ''
+                }
+              }}
+              className="px-2 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg transition cursor-pointer hidden sm:block"
+              title="Set due date"
+            />
+            
+            <div className="h-5 w-px bg-gray-600 flex-shrink-0" />
             <button
               onClick={deleteSelectedTasks}
-              className="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 rounded-lg transition"
+              className="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 rounded-lg transition whitespace-nowrap"
             >
-              Delete All
+              Delete
             </button>
             <button
               onClick={clearSelection}
-              className="p-1.5 text-gray-400 hover:text-white transition"
+              className="p-1.5 text-gray-400 hover:text-white transition flex-shrink-0"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
