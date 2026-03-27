@@ -79,6 +79,7 @@ interface Task {
   subWorkflow: string | null
   attachments?: Attachment[]
   archived?: boolean
+  blockedBy?: number[] // Task IDs that must be completed first
 }
 
 const priorityColors: Record<Priority, string> = {
@@ -285,22 +286,27 @@ function DraggableTaskCard({
         </button>
       )}
 
-      {/* Workflow badges */}
-      {workflow && (
-        <div className="flex items-center gap-1 mb-2 flex-wrap">
+      {/* Workflow badges + blocked indicator */}
+      <div className="flex items-center gap-1 mb-2 flex-wrap">
+        {task.blockedBy && task.blockedBy.length > 0 && (
+          <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded bg-red-100 text-red-700 whitespace-nowrap" title="Blocked by other tasks">
+            🔒 Blocked
+          </span>
+        )}
+        {workflow && (
           <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${workflow.color}`}>
             {workflow.short}
           </span>
-          {subWorkflow && (
-            <>
-              <span className="text-gray-400 text-xs">›</span>
-              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${subWorkflow.color}`}>
-                {subWorkflow.short}
-              </span>
-            </>
-          )}
-        </div>
-      )}
+        )}
+        {subWorkflow && (
+          <>
+            <span className="text-gray-400 text-xs">›</span>
+            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${subWorkflow.color}`}>
+              {subWorkflow.short}
+            </span>
+          </>
+        )}
+      </div>
 
       <h3 className="font-medium text-gray-900 mb-2 pr-8">{task.title}</h3>
       <p className="text-sm text-gray-500 mb-3 line-clamp-2">{task.description}</p>
@@ -362,6 +368,7 @@ function TaskModal({
   onDuplicate,
   workflows,
   teamMembers,
+  tasks,
 }: { 
   task: Task
   onClose: () => void
@@ -370,6 +377,7 @@ function TaskModal({
   onDuplicate?: (task: Task) => void
   workflows: Workflow[]
   teamMembers: { id: number; name: string; role: string; avatar: string }[]
+  tasks: Task[]
 }) {
   const [editedTask, setEditedTask] = useState<Task>({ ...task })
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false)
@@ -633,6 +641,48 @@ function TaskModal({
               onChange={e => setEditedTask({ ...editedTask, dueDate: e.target.value })}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
             />
+          </div>
+
+          {/* Blocked By - Task Dependencies */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Blocked By (Dependencies)</label>
+            <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+              {tasks.filter(t => t.id !== editedTask.id && t.status !== 'done').length === 0 ? (
+                <p className="p-3 text-sm text-gray-400">No other active tasks</p>
+              ) : (
+                tasks
+                  .filter(t => t.id !== editedTask.id && t.status !== 'done')
+                  .map(t => (
+                    <label 
+                      key={t.id} 
+                      className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editedTask.blockedBy?.includes(t.id) || false}
+                        onChange={(e) => {
+                          const currentBlocked = editedTask.blockedBy || []
+                          if (e.target.checked) {
+                            setEditedTask({ ...editedTask, blockedBy: [...currentBlocked, t.id] })
+                          } else {
+                            setEditedTask({ ...editedTask, blockedBy: currentBlocked.filter(id => id !== t.id) })
+                          }
+                        }}
+                        className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                      />
+                      <span className="text-sm text-gray-700 truncate flex-1">{t.title}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[t.status]}`}>
+                        {statusLabels[t.status]}
+                      </span>
+                    </label>
+                  ))
+              )}
+            </div>
+            {editedTask.blockedBy && editedTask.blockedBy.length > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                ⚠️ This task is blocked by {editedTask.blockedBy.length} task(s)
+              </p>
+            )}
           </div>
 
           <div>
@@ -5881,6 +5931,7 @@ export default function Home() {
           }}
           workflows={workflows}
           teamMembers={teamMembers}
+          tasks={tasks}
         />
       )}
 

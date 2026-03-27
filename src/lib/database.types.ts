@@ -151,6 +151,7 @@ export interface Task {
   subWorkflow: string | null
   attachments?: Attachment[]
   archived?: boolean
+  blockedBy?: number[] // Task IDs that must be completed first
 }
 
 export interface Workflow {
