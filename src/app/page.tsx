@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth, getUserDisplayName } from '@/lib/auth-provider'
 import { useTheme } from '@/lib/theme-provider'
+import { getDiscordWebhookUrl, setDiscordWebhookUrl, notifyTaskAssigned, notifyTaskCompleted } from '@/lib/discord-webhook'
 import {
   DndContext,
   DragOverlay,
@@ -3800,6 +3801,16 @@ export default function Home() {
     setLabels([...DEFAULT_LABELS, ...updated])
     return newLabel.id
   }
+  
+  // Settings modal state
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [discordWebhook, setDiscordWebhook] = useState('')
+  
+  // Load Discord webhook on mount
+  useEffect(() => {
+    const url = getDiscordWebhookUrl()
+    if (url) setDiscordWebhook(url)
+  }, [])
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showNewWorkflowModal, setShowNewWorkflowModal] = useState(false)
@@ -4344,6 +4355,31 @@ export default function Home() {
   }
 
   const handleSaveTask = async (updatedTask: Task) => {
+    const originalTask = tasks.find(t => t.id === updatedTask.id)
+    
+    // Check for assignee change
+    if (originalTask && originalTask.assignee !== updatedTask.assignee && updatedTask.assignee) {
+      const assignee = teamMembers.find(m => m.id === updatedTask.assignee)
+      if (assignee && getDiscordWebhookUrl()) {
+        notifyTaskAssigned({
+          title: updatedTask.title,
+          assignee: assignee.name,
+          dueDate: updatedTask.dueDate,
+          priority: updatedTask.priority,
+        }, window.location.href)
+      }
+    }
+    
+    // Check for status change to done
+    if (originalTask && originalTask.status !== 'done' && updatedTask.status === 'done') {
+      if (getDiscordWebhookUrl()) {
+        notifyTaskCompleted({
+          title: updatedTask.title,
+          completedBy: user?.email?.split('@')[0] || 'Someone',
+        }, window.location.href)
+      }
+    }
+    
     await updateTaskInDb(updatedTask)
   }
 
@@ -4512,6 +4548,17 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
               </svg>
             )}
+          </button>
+          {/* Settings */}
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+            title="Settings"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           </button>
           <button
             onClick={() => signOut()}
@@ -6090,8 +6137,82 @@ export default function Home() {
         />
       )}
 
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowSettingsModal(false)}>
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Settings</h2>
+              <button onClick={() => setShowSettingsModal(false)} className="text-gray-400 hover:text-gray-600 p-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Discord Webhook */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Discord Webhook URL
+                </label>
+                <input
+                  type="url"
+                  value={discordWebhook}
+                  onChange={e => setDiscordWebhook(e.target.value)}
+                  placeholder="https://discord.com/api/webhooks/..."
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 dark:text-white"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Get notified when tasks are assigned or due. Create a webhook in Discord Server Settings → Integrations.
+                </p>
+              </div>
+              
+              {/* Test Button */}
+              <button
+                onClick={async () => {
+                  if (discordWebhook) {
+                    setDiscordWebhookUrl(discordWebhook)
+                    const success = await notifyTaskAssigned({
+                      title: 'Test Task',
+                      assignee: 'Test User',
+                      dueDate: new Date().toISOString(),
+                      priority: 'medium',
+                    }, window.location.href)
+                    alert(success ? '✅ Notification sent!' : '❌ Failed to send. Check webhook URL.')
+                  }
+                }}
+                disabled={!discordWebhook}
+                className="w-full px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Test Discord Notification
+              </button>
+            </div>
+            <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="px-5 py-2.5 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setDiscordWebhookUrl(discordWebhook)
+                  setShowSettingsModal(false)
+                }}
+                className="px-5 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Instructions */}
-      <div className="mt-8 text-center text-sm text-gray-400">
+      <div className="mt-8 text-center text-sm text-gray-400 dark:text-gray-500">
         <p>Click card to edit • Drag the ⋮⋮ handle to move</p>
       </div>
     </main>
