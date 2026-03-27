@@ -127,11 +127,11 @@ interface WorkflowType {
   id: string
   name: string
   description: string
-  subTemplates?: EventSubTemplate[] // Only for event type
 }
 
-interface EventSubTemplate {
+interface SubTemplate {
   id: string
+  workflowTypeId: string
   name: string
   description: string
 }
@@ -139,28 +139,28 @@ interface EventSubTemplate {
 interface TaskTemplate {
   id: string
   workflowTypeId: string
-  subTemplateId?: string // For event sub-templates
+  subTemplateId?: string // For sub-templates
   title: string
   description: string
   priority: Priority
 }
 
-// Event sub-templates
-const EVENT_SUB_TEMPLATES: EventSubTemplate[] = [
-  { id: 'in-person', name: 'In-Person Event', description: 'Physical venue event with attendees' },
-  { id: 'online', name: 'Online Event', description: 'Virtual webinar or online workshop' },
-  { id: 'westminster', name: 'Westminster School Event', description: 'Event at Westminster school venue' },
-  { id: 'office-visit', name: 'Office Visit', description: 'Corporate office visit or tour' },
+// Default sub-templates (for Event workflow)
+const DEFAULT_SUB_TEMPLATES: SubTemplate[] = [
+  { id: 'in-person', workflowTypeId: 'event', name: 'In-Person Event', description: 'Physical venue event with attendees' },
+  { id: 'online', workflowTypeId: 'event', name: 'Online Event', description: 'Virtual webinar or online workshop' },
+  { id: 'westminster', workflowTypeId: 'event', name: 'Westminster School Event', description: 'Event at Westminster school venue' },
+  { id: 'office-visit', workflowTypeId: 'event', name: 'Office Visit', description: 'Corporate office visit or tour' },
 ]
 
-const WORKFLOW_TYPES: WorkflowType[] = [
-  { id: 'event', name: 'Event', description: 'Conferences, workshops, and gatherings', subTemplates: EVENT_SUB_TEMPLATES },
+const DEFAULT_WORKFLOW_TYPES: WorkflowType[] = [
+  { id: 'event', name: 'Event', description: 'Conferences, workshops, and gatherings' },
   { id: 'schools', name: 'Schools', description: 'School outreach and partnerships' },
   { id: 'partnerships', name: 'Partnerships', description: 'Sponsor and partner relationships' },
   { id: 'internal', name: 'Internal', description: 'Team operations and admin' },
 ]
 
-const TASK_TEMPLATES: TaskTemplate[] = [
+const DEFAULT_TASK_TEMPLATES: TaskTemplate[] = [
   // === IN-PERSON EVENT ===
   { id: 'ip-1', workflowTypeId: 'event', subTemplateId: 'in-person', title: 'Confirm venue booking', description: 'Finalise venue reservation and logistics', priority: 'urgent' },
   { id: 'ip-2', workflowTypeId: 'event', subTemplateId: 'in-person', title: 'Create event poster', description: 'Design main promotional poster in Canva', priority: 'high' },
@@ -2756,23 +2756,32 @@ interface Subtask {
 function NewWorkflowModal({
   onClose,
   onSave,
+  workflowTypes,
+  subTemplates,
+  taskTemplates,
 }: {
   onClose: () => void
   onSave: (workflow: Workflow, tasks: Task[]) => void
+  workflowTypes: WorkflowType[]
+  subTemplates: SubTemplate[]
+  taskTemplates: TaskTemplate[]
 }) {
   const [name, setName] = useState('')
   const [short, setShort] = useState('')
   const [color, setColor] = useState('bg-purple-500')
-  const [workflowTypeId, setWorkflowTypeId] = useState<string>('event')
-  const [eventSubTemplateId, setEventSubTemplateId] = useState<string>('in-person')
+  const [workflowTypeId, setWorkflowTypeId] = useState<string>(workflowTypes[0]?.id || 'event')
+  const eventSubTemplates = subTemplates.filter(st => st.workflowTypeId === workflowTypeId)
+  const [eventSubTemplateId, setEventSubTemplateId] = useState<string>(eventSubTemplates[0]?.id || 'in-person')
+  const initialTemplates = taskTemplates.filter(t => t.workflowTypeId === workflowTypeId && (eventSubTemplates.length === 0 || t.subTemplateId === eventSubTemplateId))
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(
-    new Set(TASK_TEMPLATES.filter(t => t.workflowTypeId === 'event' && t.subTemplateId === 'in-person').map((_, i) => i))
+    new Set(initialTemplates.map((_, i) => i))
   )
   
-  // Get templates for selected workflow type (and sub-template if event)
-  const typeTemplates = TASK_TEMPLATES.filter(t => {
+  // Get templates for selected workflow type (and sub-template if applicable)
+  const currentSubTemplates = subTemplates.filter(st => st.workflowTypeId === workflowTypeId)
+  const typeTemplates = taskTemplates.filter(t => {
     if (t.workflowTypeId !== workflowTypeId) return false
-    if (workflowTypeId === 'event' && t.subTemplateId !== eventSubTemplateId) return false
+    if (currentSubTemplates.length > 0 && t.subTemplateId !== eventSubTemplateId) return false
     return true
   })
 
@@ -2876,19 +2885,21 @@ function NewWorkflowModal({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Workflow Type</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {WORKFLOW_TYPES.map(type => (
+              {workflowTypes.map(type => (
                 <button
                   key={type.id}
                   type="button"
                   onClick={() => {
                     setWorkflowTypeId(type.id)
                     // Reset sub-template and selected tasks
-                    if (type.id === 'event') {
-                      setEventSubTemplateId('in-person')
-                      const newTemplates = TASK_TEMPLATES.filter(t => t.workflowTypeId === 'event' && t.subTemplateId === 'in-person')
+                    const typeSubTemplates = subTemplates.filter(st => st.workflowTypeId === type.id)
+                    if (typeSubTemplates.length > 0) {
+                      const firstSubTemplate = typeSubTemplates[0].id
+                      setEventSubTemplateId(firstSubTemplate)
+                      const newTemplates = taskTemplates.filter(t => t.workflowTypeId === type.id && t.subTemplateId === firstSubTemplate)
                       setSelectedTasks(new Set(newTemplates.map((_, i) => i)))
                     } else {
-                      const newTemplates = TASK_TEMPLATES.filter(t => t.workflowTypeId === type.id)
+                      const newTemplates = taskTemplates.filter(t => t.workflowTypeId === type.id)
                       setSelectedTasks(new Set(newTemplates.map((_, i) => i)))
                     }
                   }}
@@ -2905,18 +2916,20 @@ function NewWorkflowModal({
             </div>
           </div>
 
-          {/* Event Sub-Template (only show for Event type) */}
-          {workflowTypeId === 'event' && (
+          {/* Sub-Template (only show if workflow type has sub-templates) */}
+          {currentSubTemplates.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {workflowTypes.find(wt => wt.id === workflowTypeId)?.name || 'Workflow'} Type
+              </label>
               <div className="grid grid-cols-2 gap-2">
-                {EVENT_SUB_TEMPLATES.map(subTemplate => (
+                {currentSubTemplates.map(subTemplate => (
                   <button
                     key={subTemplate.id}
                     type="button"
                     onClick={() => {
                       setEventSubTemplateId(subTemplate.id)
-                      const newTemplates = TASK_TEMPLATES.filter(t => t.workflowTypeId === 'event' && t.subTemplateId === subTemplate.id)
+                      const newTemplates = taskTemplates.filter(t => t.workflowTypeId === workflowTypeId && t.subTemplateId === subTemplate.id)
                       setSelectedTasks(new Set(newTemplates.map((_, i) => i)))
                     }}
                     className={`p-3 rounded-lg border-2 text-left transition ${
@@ -3365,6 +3378,7 @@ function AddTaskModal({
   defaultWorkflow,
   teamMembers,
   currentUserEmail,
+  taskTemplates,
 }: {
   onClose: () => void
   onSave: (task: Task) => void
@@ -3372,6 +3386,7 @@ function AddTaskModal({
   defaultWorkflow: string | null
   teamMembers: { id: number; name: string; role: string; avatar: string }[]
   currentUserEmail?: string
+  taskTemplates: TaskTemplate[]
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -3391,12 +3406,12 @@ function AddTaskModal({
   // Get available templates based on selected workflow's type
   const selectedWorkflow = workflows.find(w => w.id === workflow)
   const availableTemplates = selectedWorkflow?.workflowTypeId 
-    ? TASK_TEMPLATES.filter(t => t.workflowTypeId === selectedWorkflow.workflowTypeId)
+    ? taskTemplates.filter(t => t.workflowTypeId === selectedWorkflow.workflowTypeId)
     : []
   
   // Apply template
   const applyTemplate = (templateId: string) => {
-    const template = TASK_TEMPLATES.find(t => t.id === templateId)
+    const template = taskTemplates.find(t => t.id === templateId)
     if (template) {
       setTitle(template.title)
       setDescription(template.description)
@@ -4146,6 +4161,481 @@ function AddTaskModal({
   )
 }
 
+// Template Manager Modal
+function TemplateManagerModal({
+  workflowTypes,
+  subTemplates,
+  taskTemplates,
+  onSaveWorkflowTypes,
+  onSaveSubTemplates,
+  onSaveTaskTemplates,
+  onClose,
+}: {
+  workflowTypes: WorkflowType[]
+  subTemplates: SubTemplate[]
+  taskTemplates: TaskTemplate[]
+  onSaveWorkflowTypes: (types: WorkflowType[]) => void
+  onSaveSubTemplates: (templates: SubTemplate[]) => void
+  onSaveTaskTemplates: (templates: TaskTemplate[]) => void
+  onClose: () => void
+}) {
+  const [activeTab, setActiveTab] = useState<'workflows' | 'subtemplates' | 'tasks'>('workflows')
+  const [editingWorkflowType, setEditingWorkflowType] = useState<WorkflowType | null>(null)
+  const [editingSubTemplate, setEditingSubTemplate] = useState<SubTemplate | null>(null)
+  const [editingTaskTemplate, setEditingTaskTemplate] = useState<TaskTemplate | null>(null)
+  const [selectedWorkflowTypeId, setSelectedWorkflowTypeId] = useState<string>(workflowTypes[0]?.id || 'event')
+  const [selectedSubTemplateId, setSelectedSubTemplateId] = useState<string>('')
+  
+  // New item forms
+  const [newWorkflowType, setNewWorkflowType] = useState({ name: '', description: '' })
+  const [newSubTemplate, setNewSubTemplate] = useState({ name: '', description: '' })
+  const [newTaskTemplate, setNewTaskTemplate] = useState({ title: '', description: '', priority: 'medium' as Priority })
+  
+  // Workflow type CRUD
+  const addWorkflowType = () => {
+    if (!newWorkflowType.name.trim()) return
+    const id = `wf-${Date.now()}`
+    onSaveWorkflowTypes([...workflowTypes, { id, ...newWorkflowType }])
+    setNewWorkflowType({ name: '', description: '' })
+  }
+  
+  const updateWorkflowType = (updated: WorkflowType) => {
+    onSaveWorkflowTypes(workflowTypes.map(wt => wt.id === updated.id ? updated : wt))
+    setEditingWorkflowType(null)
+  }
+  
+  const deleteWorkflowType = (id: string) => {
+    if (!confirm('Delete this workflow type and all its sub-templates and tasks?')) return
+    onSaveWorkflowTypes(workflowTypes.filter(wt => wt.id !== id))
+    onSaveSubTemplates(subTemplates.filter(st => st.workflowTypeId !== id))
+    onSaveTaskTemplates(taskTemplates.filter(tt => tt.workflowTypeId !== id))
+  }
+  
+  // Sub-template CRUD
+  const addSubTemplate = () => {
+    if (!newSubTemplate.name.trim()) return
+    const id = `st-${Date.now()}`
+    onSaveSubTemplates([...subTemplates, { id, workflowTypeId: selectedWorkflowTypeId, ...newSubTemplate }])
+    setNewSubTemplate({ name: '', description: '' })
+  }
+  
+  const updateSubTemplate = (updated: SubTemplate) => {
+    onSaveSubTemplates(subTemplates.map(st => st.id === updated.id ? updated : st))
+    setEditingSubTemplate(null)
+  }
+  
+  const deleteSubTemplate = (id: string) => {
+    if (!confirm('Delete this sub-template and all its tasks?')) return
+    onSaveSubTemplates(subTemplates.filter(st => st.id !== id))
+    onSaveTaskTemplates(taskTemplates.filter(tt => tt.subTemplateId !== id))
+  }
+  
+  // Task template CRUD
+  const addTaskTemplate = () => {
+    if (!newTaskTemplate.title.trim()) return
+    const id = `tt-${Date.now()}`
+    const hasSubTemplates = subTemplates.some(st => st.workflowTypeId === selectedWorkflowTypeId)
+    onSaveTaskTemplates([...taskTemplates, { 
+      id, 
+      workflowTypeId: selectedWorkflowTypeId,
+      subTemplateId: hasSubTemplates ? selectedSubTemplateId || undefined : undefined,
+      ...newTaskTemplate 
+    }])
+    setNewTaskTemplate({ title: '', description: '', priority: 'medium' })
+  }
+  
+  const updateTaskTemplate = (updated: TaskTemplate) => {
+    onSaveTaskTemplates(taskTemplates.map(tt => tt.id === updated.id ? updated : tt))
+    setEditingTaskTemplate(null)
+  }
+  
+  const deleteTaskTemplate = (id: string) => {
+    onSaveTaskTemplates(taskTemplates.filter(tt => tt.id !== id))
+  }
+  
+  // Filtered lists
+  const filteredSubTemplates = subTemplates.filter(st => st.workflowTypeId === selectedWorkflowTypeId)
+  const filteredTaskTemplates = taskTemplates.filter(tt => {
+    if (tt.workflowTypeId !== selectedWorkflowTypeId) return false
+    if (selectedSubTemplateId && tt.subTemplateId !== selectedSubTemplateId) return false
+    return true
+  })
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div 
+        className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Manage Templates</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Tabs */}
+        <div className="flex border-b dark:border-gray-700">
+          {(['workflows', 'subtemplates', 'tasks'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                activeTab === tab 
+                  ? 'text-purple-600 border-b-2 border-purple-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab === 'workflows' ? 'Workflow Types' : tab === 'subtemplates' ? 'Sub-Templates' : 'Task Templates'}
+            </button>
+          ))}
+        </div>
+        
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Workflow Types Tab */}
+          {activeTab === 'workflows' && (
+            <div className="space-y-4">
+              {/* Add new */}
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-3">Add Workflow Type</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newWorkflowType.name}
+                    onChange={e => setNewWorkflowType(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Name"
+                    className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    value={newWorkflowType.description}
+                    onChange={e => setNewWorkflowType(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Description"
+                    className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                  />
+                  <button
+                    onClick={addWorkflowType}
+                    disabled={!newWorkflowType.name.trim()}
+                    className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+              
+              {/* List */}
+              <div className="space-y-2">
+                {workflowTypes.map(wt => (
+                  <div key={wt.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    {editingWorkflowType?.id === wt.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingWorkflowType.name}
+                          onChange={e => setEditingWorkflowType({ ...editingWorkflowType, name: e.target.value })}
+                          className="flex-1 px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                        />
+                        <input
+                          type="text"
+                          value={editingWorkflowType.description}
+                          onChange={e => setEditingWorkflowType({ ...editingWorkflowType, description: e.target.value })}
+                          className="flex-1 px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                        />
+                        <button onClick={() => updateWorkflowType(editingWorkflowType)} className="text-green-600 hover:text-green-700">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </button>
+                        <button onClick={() => setEditingWorkflowType(null)} className="text-gray-400 hover:text-gray-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900 dark:text-white">{wt.name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{wt.description}</div>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {subTemplates.filter(st => st.workflowTypeId === wt.id).length} sub-templates
+                        </span>
+                        <button onClick={() => setEditingWorkflowType(wt)} className="text-gray-400 hover:text-purple-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onClick={() => deleteWorkflowType(wt.id)} className="text-gray-400 hover:text-red-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Sub-Templates Tab */}
+          {activeTab === 'subtemplates' && (
+            <div className="space-y-4">
+              {/* Workflow type selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">For Workflow Type</label>
+                <select
+                  value={selectedWorkflowTypeId}
+                  onChange={e => setSelectedWorkflowTypeId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white"
+                >
+                  {workflowTypes.map(wt => (
+                    <option key={wt.id} value={wt.id}>{wt.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Add new */}
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-3">Add Sub-Template</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newSubTemplate.name}
+                    onChange={e => setNewSubTemplate(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Name (e.g. In-Person Event)"
+                    className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    value={newSubTemplate.description}
+                    onChange={e => setNewSubTemplate(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Description"
+                    className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                  />
+                  <button
+                    onClick={addSubTemplate}
+                    disabled={!newSubTemplate.name.trim()}
+                    className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+              
+              {/* List */}
+              <div className="space-y-2">
+                {filteredSubTemplates.length === 0 ? (
+                  <p className="text-center text-gray-400 py-4">No sub-templates for this workflow type</p>
+                ) : filteredSubTemplates.map(st => (
+                  <div key={st.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    {editingSubTemplate?.id === st.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingSubTemplate.name}
+                          onChange={e => setEditingSubTemplate({ ...editingSubTemplate, name: e.target.value })}
+                          className="flex-1 px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                        />
+                        <input
+                          type="text"
+                          value={editingSubTemplate.description}
+                          onChange={e => setEditingSubTemplate({ ...editingSubTemplate, description: e.target.value })}
+                          className="flex-1 px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                        />
+                        <button onClick={() => updateSubTemplate(editingSubTemplate)} className="text-green-600 hover:text-green-700">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </button>
+                        <button onClick={() => setEditingSubTemplate(null)} className="text-gray-400 hover:text-gray-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900 dark:text-white">{st.name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{st.description}</div>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {taskTemplates.filter(tt => tt.subTemplateId === st.id).length} tasks
+                        </span>
+                        <button onClick={() => setEditingSubTemplate(st)} className="text-gray-400 hover:text-purple-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onClick={() => deleteSubTemplate(st.id)} className="text-gray-400 hover:text-red-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Task Templates Tab */}
+          {activeTab === 'tasks' && (
+            <div className="space-y-4">
+              {/* Filters */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Workflow Type</label>
+                  <select
+                    value={selectedWorkflowTypeId}
+                    onChange={e => { setSelectedWorkflowTypeId(e.target.value); setSelectedSubTemplateId('') }}
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white"
+                  >
+                    {workflowTypes.map(wt => (
+                      <option key={wt.id} value={wt.id}>{wt.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {filteredSubTemplates.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sub-Template</label>
+                    <select
+                      value={selectedSubTemplateId}
+                      onChange={e => setSelectedSubTemplateId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">All sub-templates</option>
+                      {filteredSubTemplates.map(st => (
+                        <option key={st.id} value={st.id}>{st.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              
+              {/* Add new */}
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-3">Add Task Template</h3>
+                <div className="flex gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={newTaskTemplate.title}
+                    onChange={e => setNewTaskTemplate(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Task title"
+                    className="flex-1 min-w-[200px] px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    value={newTaskTemplate.description}
+                    onChange={e => setNewTaskTemplate(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Description"
+                    className="flex-1 min-w-[200px] px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                  />
+                  <select
+                    value={newTaskTemplate.priority}
+                    onChange={e => setNewTaskTemplate(prev => ({ ...prev, priority: e.target.value as Priority }))}
+                    className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                  <button
+                    onClick={addTaskTemplate}
+                    disabled={!newTaskTemplate.title.trim()}
+                    className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+              
+              {/* List */}
+              <div className="space-y-2">
+                {filteredTaskTemplates.length === 0 ? (
+                  <p className="text-center text-gray-400 py-4">No task templates</p>
+                ) : filteredTaskTemplates.map(tt => (
+                  <div key={tt.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                    {editingTaskTemplate?.id === tt.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingTaskTemplate.title}
+                          onChange={e => setEditingTaskTemplate({ ...editingTaskTemplate, title: e.target.value })}
+                          className="flex-1 px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                        />
+                        <input
+                          type="text"
+                          value={editingTaskTemplate.description}
+                          onChange={e => setEditingTaskTemplate({ ...editingTaskTemplate, description: e.target.value })}
+                          className="flex-1 px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                        />
+                        <select
+                          value={editingTaskTemplate.priority}
+                          onChange={e => setEditingTaskTemplate({ ...editingTaskTemplate, priority: e.target.value as Priority })}
+                          className="px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                        <button onClick={() => updateTaskTemplate(editingTaskTemplate)} className="text-green-600 hover:text-green-700">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </button>
+                        <button onClick={() => setEditingTaskTemplate(null)} className="text-gray-400 hover:text-gray-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 dark:text-white">{tt.title}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                              tt.priority === 'urgent' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-300' :
+                              tt.priority === 'high' ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900 dark:text-orange-300' :
+                              tt.priority === 'medium' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-300' :
+                              'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-600 dark:text-gray-300'
+                            }`}>
+                              {tt.priority}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{tt.description}</div>
+                        </div>
+                        <button onClick={() => setEditingTaskTemplate(tt)} className="text-gray-400 hover:text-purple-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onClick={() => deleteTaskTemplate(tt.id)} className="text-gray-400 hover:text-red-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Footer */}
+        <div className="flex justify-between items-center p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+          <button
+            onClick={() => {
+              if (confirm('Reset all templates to defaults? This cannot be undone.')) {
+                onSaveWorkflowTypes(DEFAULT_WORKFLOW_TYPES)
+                onSaveSubTemplates(DEFAULT_SUB_TEMPLATES)
+                onSaveTaskTemplates(DEFAULT_TASK_TEMPLATES)
+              }
+            }}
+            className="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition text-sm"
+          >
+            Reset to Defaults
+          </button>
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
@@ -4200,6 +4690,52 @@ export default function Home() {
     setLabels([...DEFAULT_LABELS, ...updated])
     return newLabel.id
   }
+  
+  // Workflow types state (editable)
+  const [workflowTypes, setWorkflowTypes] = useState<WorkflowType[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('task-tracker-workflow-types')
+      if (stored) return JSON.parse(stored)
+    }
+    return DEFAULT_WORKFLOW_TYPES
+  })
+  
+  // Sub-templates state (editable)
+  const [subTemplates, setSubTemplates] = useState<SubTemplate[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('task-tracker-sub-templates')
+      if (stored) return JSON.parse(stored)
+    }
+    return DEFAULT_SUB_TEMPLATES
+  })
+  
+  // Task templates state (editable)
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('task-tracker-task-templates')
+      if (stored) return JSON.parse(stored)
+    }
+    return DEFAULT_TASK_TEMPLATES
+  })
+  
+  // Template management functions
+  const saveWorkflowTypes = (types: WorkflowType[]) => {
+    localStorage.setItem('task-tracker-workflow-types', JSON.stringify(types))
+    setWorkflowTypes(types)
+  }
+  
+  const saveSubTemplates = (templates: SubTemplate[]) => {
+    localStorage.setItem('task-tracker-sub-templates', JSON.stringify(templates))
+    setSubTemplates(templates)
+  }
+  
+  const saveTaskTemplates = (templates: TaskTemplate[]) => {
+    localStorage.setItem('task-tracker-task-templates', JSON.stringify(templates))
+    setTaskTemplates(templates)
+  }
+  
+  // Template management modal state
+  const [showTemplateManager, setShowTemplateManager] = useState(false)
   
   // Settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false)
@@ -4987,6 +5523,16 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
               </svg>
             )}
+          </button>
+          {/* Template Manager */}
+          <button
+            onClick={() => setShowTemplateManager(true)}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+            title="Manage Templates"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
           </button>
           {/* Settings */}
           <button
@@ -6679,6 +7225,9 @@ export default function Home() {
         <NewWorkflowModal
           onClose={() => setShowNewWorkflowModal(false)}
           onSave={handleCreateWorkflow}
+          workflowTypes={workflowTypes}
+          subTemplates={subTemplates}
+          taskTemplates={taskTemplates}
         />
       )}
 
@@ -6716,6 +7265,7 @@ export default function Home() {
           defaultWorkflow={globalWorkflow !== 'all' ? globalWorkflow : null}
           teamMembers={teamMembers}
           currentUserEmail={user?.email}
+          taskTemplates={taskTemplates}
         />
       )}
 
@@ -6791,6 +7341,19 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Template Manager Modal */}
+      {showTemplateManager && (
+        <TemplateManagerModal
+          workflowTypes={workflowTypes}
+          subTemplates={subTemplates}
+          taskTemplates={taskTemplates}
+          onSaveWorkflowTypes={saveWorkflowTypes}
+          onSaveSubTemplates={saveSubTemplates}
+          onSaveTaskTemplates={saveTaskTemplates}
+          onClose={() => setShowTemplateManager(false)}
+        />
       )}
 
       {/* Instructions */}
