@@ -154,6 +154,7 @@ function DraggableTaskCard({
   teamMembers,
   viewingMemberId,
   onToggleComplete,
+  onMoveToStatus,
 }: { 
   task: Task
   onClick: () => void
@@ -162,7 +163,9 @@ function DraggableTaskCard({
   teamMembers: { id: number; name: string; role: string; avatar: string }[]
   viewingMemberId?: number // The member whose section this card is in (for Team view)
   onToggleComplete?: (task: Task, memberId: number) => void // For subtask completion in Team view
+  onMoveToStatus?: (task: Task, status: Status) => void // Mobile move button
 }) {
+  const [showMoveMenu, setShowMoveMenu] = useState(false)
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
   })
@@ -188,10 +191,16 @@ function DraggableTaskCard({
   const allSubtasksCompleted = hasSubtasks && memberSubtasks.every(st => st.completed)
 
   const handleCardClick = (e: MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.drag-handle')) {
+    if ((e.target as HTMLElement).closest('.drag-handle') || 
+        (e.target as HTMLElement).closest('.move-menu')) {
       return
     }
     onClick()
+  }
+
+  const handleMoveClick = (e: MouseEvent) => {
+    e.stopPropagation()
+    setShowMoveMenu(!showMoveMenu)
   }
 
   return (
@@ -207,17 +216,52 @@ function DraggableTaskCard({
         allSubtasksCompleted ? 'opacity-60' : ''
       }`}
     >
-      {/* Drag Handle */}
+      {/* Drag Handle - desktop only */}
       <div 
         {...listeners}
         {...attributes}
-        className="drag-handle absolute top-2 right-2 p-1.5 rounded hover:bg-gray-100 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none transition-colors"
+        className="drag-handle absolute top-2 right-2 p-1.5 rounded hover:bg-gray-100 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none transition-colors hidden sm:block"
         onClick={(e) => e.stopPropagation()}
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
           <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
         </svg>
       </div>
+      
+      {/* Mobile Move Button */}
+      {onMoveToStatus && (
+        <div className="move-menu absolute top-2 right-2 sm:hidden">
+          <button
+            onClick={handleMoveClick}
+            className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+            </svg>
+          </button>
+          
+          {showMoveMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[120px]">
+              {(['todo', 'in-progress', 'review', 'done'] as Status[]).map(status => (
+                <button
+                  key={status}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMoveMenu(false)
+                    onMoveToStatus(task, status)
+                  }}
+                  disabled={task.status === status}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition ${
+                    task.status === status ? 'text-gray-400 bg-gray-50' : 'text-gray-700'
+                  }`}
+                >
+                  {statusLabels[status]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Completion Checkbox - only in Team view, show on hover or when completed */}
       {viewingMemberId !== undefined && onToggleComplete && hasSubtasks && (
@@ -4548,6 +4592,13 @@ export default function Home() {
                           onClick={() => isMultiSelectMode ? toggleTaskSelection(task.id) : setEditingTask(task)}
                           workflows={workflows}
                           teamMembers={teamMembers}
+                          onMoveToStatus={async (t, newStatus) => {
+                            let updatedTask = { ...t, status: newStatus }
+                            if (newStatus === 'done') {
+                              updatedTask.subtasks = updatedTask.subtasks.map(st => ({ ...st, completed: true }))
+                            }
+                            await updateTaskInDb(updatedTask)
+                          }}
                         />
                       </div>
                     </div>
@@ -4810,6 +4861,13 @@ export default function Home() {
                       showStatus
                       workflows={workflows}
                       teamMembers={teamMembers}
+                      onMoveToStatus={async (t, newStatus) => {
+                        let updatedTask = { ...t, status: newStatus }
+                        if (newStatus === 'done') {
+                          updatedTask.subtasks = updatedTask.subtasks.map(st => ({ ...st, completed: true }))
+                        }
+                        await updateTaskInDb(updatedTask)
+                      }}
                     />
                   ))}
                   {getUnassignedTasks().length === 0 && (
@@ -4871,6 +4929,13 @@ export default function Home() {
                           teamMembers={teamMembers}
                           viewingMemberId={member.id}
                           onToggleComplete={toggleSubtaskCompletion}
+                          onMoveToStatus={async (t, newStatus) => {
+                            let updatedTask = { ...t, status: newStatus }
+                            if (newStatus === 'done') {
+                              updatedTask.subtasks = updatedTask.subtasks.map(st => ({ ...st, completed: true }))
+                            }
+                            await updateTaskInDb(updatedTask)
+                          }}
                         />
                       ))}
                       {activeTasks.length === 0 && (
