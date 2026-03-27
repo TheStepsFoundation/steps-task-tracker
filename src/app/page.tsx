@@ -101,6 +101,28 @@ const statusLabels: Record<Status, string> = {
   'done': 'Done',
 }
 
+// Due date status helper (Feature #3)
+function getDueDateStatus(dueDate: string): 'overdue' | 'today' | 'this-week' | 'future' {
+  const due = new Date(dueDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  due.setHours(0, 0, 0, 0)
+  
+  const diffDays = Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  
+  if (diffDays < 0) return 'overdue'
+  if (diffDays === 0) return 'today'
+  if (diffDays <= 7) return 'this-week'
+  return 'future'
+}
+
+const dueDateColors: Record<ReturnType<typeof getDueDateStatus>, string> = {
+  'overdue': 'bg-red-500 text-white',
+  'today': 'bg-orange-500 text-white',
+  'this-week': 'bg-yellow-400 text-yellow-900',
+  'future': 'text-gray-400',
+}
+
 // Droppable Column
 function DroppableColumn({ 
   id, 
@@ -247,9 +269,16 @@ function DraggableTaskCard({
             {statusLabels[task.status]}
           </span>
         )}
-        <span className="text-xs text-gray-400 whitespace-nowrap">
-          {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-        </span>
+        {(() => {
+          const dueDateStatus = getDueDateStatus(task.dueDate)
+          return (
+            <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${dueDateColors[dueDateStatus]}`}>
+              {dueDateStatus === 'overdue' && '⚠️ '}
+              {dueDateStatus === 'today' && '📅 '}
+              {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </span>
+          )
+        })()}
         <div className="flex -space-x-2 ml-auto">
           {member ? (
             <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-[10px] font-medium border-2 border-white" title={member.name}>
@@ -285,6 +314,7 @@ function TaskModal({
   onClose, 
   onSave,
   onDelete,
+  onDuplicate,
   workflows,
   teamMembers,
 }: { 
@@ -292,6 +322,7 @@ function TaskModal({
   onClose: () => void
   onSave: (updatedTask: Task) => void
   onDelete?: (taskId: number) => void
+  onDuplicate?: (task: Task) => void
   workflows: Workflow[]
   teamMembers: { id: number; name: string; role: string; avatar: string }[]
 }) {
@@ -981,45 +1012,75 @@ function TaskModal({
         </div>
 
         <div className="flex items-center justify-between gap-3 p-6 border-t bg-gray-50">
-          {/* Delete button */}
-          {onDelete && !showDeleteConfirm && (
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg transition flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete
-            </button>
-          )}
-          
-          {/* Delete confirmation */}
-          {showDeleteConfirm && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-red-600">Delete this task?</span>
+          {/* Left side buttons */}
+          <div className="flex gap-2">
+            {/* Delete button */}
+            {onDelete && !showDeleteConfirm && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg transition flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            )}
+            
+            {/* Duplicate button */}
+            {onDuplicate && !showDeleteConfirm && (
               <button
                 type="button"
                 onClick={() => {
-                  onDelete?.(task.id)
+                  const duplicatedTask: Task = {
+                    ...editedTask,
+                    id: Date.now(),
+                    title: `${editedTask.title} (copy)`,
+                    status: 'todo',
+                    createdAt: new Date().toISOString().split('T')[0],
+                    subtasks: editedTask.subtasks.map(st => ({
+                      ...st,
+                      id: Date.now() + Math.random() * 1000,
+                      completed: false
+                    }))
+                  }
+                  onDuplicate(duplicatedTask)
                   onClose()
                 }}
-                className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition"
+                className="px-4 py-2 text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition flex items-center gap-2"
               >
-                Yes, delete
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Duplicate
               </button>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-3 py-1.5 text-gray-600 text-sm font-medium hover:bg-gray-100 rounded-lg transition"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-          
-          {!showDeleteConfirm && <div className="flex-1" />}
+            )}
+            
+            {/* Delete confirmation */}
+            {showDeleteConfirm && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-red-600">Delete this task?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDelete?.(task.id)
+                    onClose()
+                  }}
+                  className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition"
+                >
+                  Yes, delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-3 py-1.5 text-gray-600 text-sm font-medium hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
           
           <div className="flex items-center gap-3">
             <button
@@ -3579,6 +3640,9 @@ export default function Home() {
   const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set())
   const [teamViewMode, setTeamViewMode] = useState<'compact' | 'comfortable'>('compact')
   
+  // Search state (Feature #1)
+  const [searchQuery, setSearchQuery] = useState('')
+  
   // DnD sensors - must be before early return
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -3628,12 +3692,26 @@ export default function Home() {
     }
   }
   
-  // Get tasks filtered by global workflow
+  // Get tasks filtered by global workflow and search query
   const getGlobalFilteredTasks = () => {
     // Always exclude archived tasks from the main view
-    const activeTasks = tasks.filter(t => !t.archived)
-    if (globalWorkflow === 'all') return activeTasks
-    return activeTasks.filter(t => t.workflow === globalWorkflow || t.subWorkflow === globalWorkflow)
+    let result = tasks.filter(t => !t.archived)
+    
+    // Apply workflow filter
+    if (globalWorkflow !== 'all') {
+      result = result.filter(t => t.workflow === globalWorkflow || t.subWorkflow === globalWorkflow)
+    }
+    
+    // Apply search filter (searches title and description)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      result = result.filter(t => 
+        t.title.toLowerCase().includes(query) || 
+        t.description.toLowerCase().includes(query)
+      )
+    }
+    
+    return result
   }
 
   const filteredTasks = getGlobalFilteredTasks()
@@ -4181,6 +4259,32 @@ export default function Home() {
           <p className="text-gray-500 text-sm hidden sm:block">Manage all workflows and events</p>
         </div>
         
+        {/* Search Bar */}
+        <div className="flex-1 max-w-md mx-4 hidden sm:block">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+        
         {/* User Profile - compact on mobile */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-sm">
@@ -4196,6 +4300,32 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </button>
+        </div>
+      </div>
+      
+      {/* Mobile Search Bar */}
+      <div className="mb-3 sm:hidden">
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       
@@ -5271,6 +5401,9 @@ export default function Home() {
           onClose={() => setEditingTask(null)}
           onSave={handleSaveTask}
           onDelete={deleteTask}
+          onDuplicate={async (duplicatedTask) => {
+            await createTask(duplicatedTask)
+          }}
           workflows={workflows}
           teamMembers={teamMembers}
         />
