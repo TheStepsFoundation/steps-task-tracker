@@ -324,33 +324,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [supabase, isDemo])
 
   // Week capacity/notes
-  const setWeekCapacity = useCallback((memberId: number, weekStart: string, hours: number) => {
+  const setWeekCapacity = useCallback(async (memberId: number, weekStart: string, hours: number) => {
     setWeekCapacities(prev => ({
       ...prev,
       [weekStart]: { ...prev[weekStart], [memberId]: hours }
     }))
     
     if (supabase && !isDemo) {
-      supabase.from('week_capacities').upsert({
+      const { error } = await supabase.from('week_capacities').upsert({
         week_start: weekStart,
         member_id: memberId,
         hours,
       }, { onConflict: 'week_start,member_id' })
+      if (error) console.error('Failed to save week capacity:', error)
     }
   }, [supabase, isDemo])
 
-  const setWeekNote = useCallback((memberId: number, weekStart: string, note: string) => {
+  const setWeekNote = useCallback(async (memberId: number, weekStart: string, note: string) => {
     setWeekNotes(prev => ({
       ...prev,
       [weekStart]: { ...prev[weekStart], [memberId]: note }
     }))
     
     if (supabase && !isDemo) {
-      supabase.from('week_notes').upsert({
+      const { error } = await supabase.from('week_notes').upsert({
         week_start: weekStart,
         member_id: memberId,
         note,
       }, { onConflict: 'week_start,member_id' })
+      if (error) console.error('Failed to save week note:', error)
     }
   }, [supabase, isDemo])
 
