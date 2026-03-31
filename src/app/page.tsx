@@ -4631,6 +4631,24 @@ export default function Home() {
     setWeekNote,
   } = useData()
 
+  // Wrapper for task updates with undo support
+  const updateTaskWithUndo = async (updatedTask: Task) => {
+    const previousTask = tasks.find(t => t.id === updatedTask.id)
+    if (previousTask) {
+      setLastAction({ type: 'update', task: { ...previousTask } })
+    }
+    await updateTaskInDb(updatedTask)
+  }
+  
+  // Undo last action
+  const undoLastAction = async () => {
+    if (!lastAction) return
+    if (lastAction.type === 'update') {
+      await updateTaskInDb(lastAction.task)
+    }
+    setLastAction(null)
+  }
+
   // Wrapper to create task AND send Discord notification
   const createTaskWithNotification = async (task: Task) => {
     const createdTask = await createTask(task)
@@ -4823,6 +4841,9 @@ export default function Home() {
   
   // Today's Focus filter - shows only overdue and due today
   const [todayFocus, setTodayFocus] = useState(false)
+  
+  // Undo functionality - store last action for reversal
+  const [lastAction, setLastAction] = useState<{ type: 'update' | 'delete'; task: Task } | null>(null)
   
   // List view filters & sorting
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -5478,7 +5499,7 @@ export default function Home() {
     
     // Note: activityLog stored locally (would need DB migration for persistence)
     const taskToSave = { ...updatedTask, activityLog }
-    await updateTaskInDb(taskToSave as Task)
+    await updateTaskWithUndo(taskToSave as Task)
   }
 
   // Toggle ALL subtask completions for a specific member
@@ -5845,6 +5866,25 @@ export default function Home() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
+        {/* Undo toast */}
+        {lastAction && (
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800 text-white rounded-lg px-4 py-2 shadow-xl flex items-center gap-3 z-50">
+            <span className="text-sm">Task updated</span>
+            <button
+              onClick={undoLastAction}
+              className="text-sm font-medium text-purple-400 hover:text-purple-300"
+            >
+              Undo
+            </button>
+            <button
+              onClick={() => setLastAction(null)}
+              className="text-gray-400 hover:text-white ml-2"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        
         {/* Multi-select toolbar (Feature #14: Bulk Edit) */}
         {selectedTaskIds.size > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white rounded-xl px-4 py-3 shadow-2xl flex items-center gap-3 z-40 max-w-[95vw] overflow-x-auto">
@@ -6024,36 +6064,53 @@ export default function Home() {
                 </div>
                 
                 <div className="space-y-3">
-                  {getTasksByStatus(status).map(task => (
-                    <div key={task.id} className="relative">
-                      {(isMultiSelectMode || selectedTaskIds.size > 0) && (
-                        <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-10">
-                          <input
-                            type="checkbox"
-                            checked={selectedTaskIds.has(task.id)}
-                            onChange={() => toggleTaskSelection(task.id)}
-                            className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                  {getTasksByStatus(status).length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <div className="text-2xl mb-2">
+                        {status === 'todo' && '📝'}
+                        {status === 'in-progress' && '🚀'}
+                        {status === 'review' && '👀'}
+                        {status === 'done' && '🎉'}
+                      </div>
+                      <p className="text-sm">
+                        {status === 'todo' && 'No tasks to do — nice!'}
+                        {status === 'in-progress' && 'Nothing in progress — drag a task here'}
+                        {status === 'review' && 'Nothing to review'}
+                        {status === 'done' && 'Complete tasks to see them here'}
+                      </p>
+                    </div>
+                  ) : (
+                    getTasksByStatus(status).map(task => (
+                      <div key={task.id} className="relative">
+                        {(isMultiSelectMode || selectedTaskIds.size > 0) && (
+                          <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedTaskIds.has(task.id)}
+                              onChange={() => toggleTaskSelection(task.id)}
+                              className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                            />
+                          </div>
+                        )}
+                        <div className={isMultiSelectMode || selectedTaskIds.size > 0 ? 'ml-5' : ''}>
+                          <DraggableTaskCard
+                            task={task}
+                            onClick={() => isMultiSelectMode ? toggleTaskSelection(task.id) : setEditingTask(task)}
+                            workflows={workflows}
+                            teamMembers={teamMembers}
+                            labels={labels}
+                            onMoveToStatus={async (t, newStatus) => {
+                              let updatedTask = { ...t, status: newStatus }
+                              if (newStatus === 'done') {
+                                updatedTask.subtasks = updatedTask.subtasks.map(st => ({ ...st, completed: true }))
+                              }
+                              await updateTaskInDb(updatedTask)
+                            }}
                           />
                         </div>
-                      )}
-                      <div className={isMultiSelectMode || selectedTaskIds.size > 0 ? 'ml-5' : ''}>
-                        <DraggableTaskCard
-                          task={task}
-                          onClick={() => isMultiSelectMode ? toggleTaskSelection(task.id) : setEditingTask(task)}
-                          workflows={workflows}
-                          teamMembers={teamMembers}
-                          labels={labels}
-                          onMoveToStatus={async (t, newStatus) => {
-                            let updatedTask = { ...t, status: newStatus }
-                            if (newStatus === 'done') {
-                              updatedTask.subtasks = updatedTask.subtasks.map(st => ({ ...st, completed: true }))
-                            }
-                            await updateTaskInDb(updatedTask)
-                          }}
-                        />
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </DroppableColumn>
             ))}
