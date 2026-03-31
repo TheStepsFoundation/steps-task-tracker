@@ -71,6 +71,19 @@ CREATE TABLE task_collaborators (
   UNIQUE(task_id, member_id)
 );
 
+-- Activity Logs (task history)
+CREATE TABLE activity_logs (
+  id SERIAL PRIMARY KEY,
+  task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+  user_name TEXT NOT NULL,
+  action TEXT NOT NULL,
+  old_value TEXT,
+  new_value TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_activity_logs_task ON activity_logs(task_id);
+
 -- Subtasks
 CREATE TABLE subtasks (
   id SERIAL PRIMARY KEY,
