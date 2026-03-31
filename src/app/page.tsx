@@ -4715,6 +4715,31 @@ export default function Home() {
     setWeekNote,
   } = useData()
 
+  // Wrapper to create task AND send Discord notification
+  const createTaskWithNotification = async (task: Task) => {
+    await createTask(task)
+    
+    // Send Discord notification if assignee is set
+    if (task.assignee && getDiscordWebhookUrl()) {
+      const assignee = teamMembers.find(m => m.id === task.assignee)
+      if (assignee) {
+        const collaboratorMembers = task.collaborators
+          ?.map(cid => teamMembers.find(m => m.id === cid))
+          .filter(Boolean)
+          .map(m => ({ name: m!.name, discordId: m!.discordId }))
+        
+        notifyTaskAssigned({
+          title: task.title,
+          assignee: assignee.name,
+          assigneeDiscordId: assignee.discordId,
+          collaborators: collaboratorMembers,
+          dueDate: task.dueDate,
+          priority: task.priority,
+        }, typeof window !== 'undefined' ? window.location.href : undefined)
+      }
+    }
+  }
+
   // ALL useState hooks MUST be before any early returns
   const [view, setView] = useState<'board' | 'team' | 'list' | 'workload' | 'calendar' | 'gantt'>('board')
   
@@ -5530,14 +5555,14 @@ export default function Home() {
   const handleCreateWorkflow = async (newWorkflow: Workflow, newTasks: Task[]) => {
     await createWorkflow(newWorkflow)
     for (const task of newTasks) {
-      await createTask(task)
+      await createTaskWithNotification(task)
     }
     setGlobalWorkflow(newWorkflow.id)
   }
 
   const handleAddTasksFromMeeting = async (newTasks: Task[]) => {
     for (const task of newTasks) {
-      await createTask(task)
+      await createTaskWithNotification(task)
     }
   }
 
@@ -7399,7 +7424,7 @@ export default function Home() {
           onSave={handleSaveTask}
           onDelete={deleteTask}
           onDuplicate={async (duplicatedTask) => {
-            await createTask(duplicatedTask)
+            await createTaskWithNotification(duplicatedTask)
           }}
           workflows={workflows}
           teamMembers={teamMembers}
@@ -7449,7 +7474,7 @@ export default function Home() {
       {showAddTaskModal && (
         <AddTaskModal
           onClose={() => setShowAddTaskModal(false)}
-          onSave={async (newTask) => await createTask(newTask)}
+          onSave={async (newTask) => await createTaskWithNotification(newTask)}
           workflows={workflows}
           defaultWorkflow={globalWorkflow !== 'all' ? globalWorkflow : null}
           teamMembers={teamMembers}
