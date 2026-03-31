@@ -305,16 +305,20 @@ function DraggableTaskCard({
   viewingMemberId,
   onToggleComplete,
   onMoveToStatus,
+  onQuickComplete,
+  currentUserId,
   labels = [],
 }: { 
   task: Task
   onClick: () => void
   showStatus?: boolean
   workflows: Workflow[]
-  teamMembers: { id: number; name: string; role: string; avatar: string }[]
+  teamMembers: { id: number; name: string; role: string; avatar: string; discordId?: string }[]
   viewingMemberId?: number // The member whose section this card is in (for Team view)
   onToggleComplete?: (task: Task, memberId: number) => void // For subtask completion in Team view
   onMoveToStatus?: (task: Task, status: Status) => void // Mobile move button
+  onQuickComplete?: (task: Task) => void // Quick complete current user's subtasks
+  currentUserId?: number // Current logged-in user's team member ID
   labels?: Label[]
 }) {
   const [showMoveMenu, setShowMoveMenu] = useState(false)
@@ -517,6 +521,27 @@ function DraggableTaskCard({
           )}
         </div>
       </div>
+      
+      {/* Quick complete button - only show if user has incomplete subtasks */}
+      {currentUserId && onQuickComplete && (() => {
+        const userSubtasks = task.subtasks.filter(st => st.personId === currentUserId)
+        const incompleteCount = userSubtasks.filter(st => !st.completed).length
+        if (incompleteCount === 0) return null
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onQuickComplete(task)
+            }}
+            className="absolute bottom-2 right-2 p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100"
+            title={`Complete your ${incompleteCount} subtask${incompleteCount > 1 ? 's' : ''}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </button>
+        )
+      })()}
     </div>
   )
 }
@@ -5497,7 +5522,29 @@ export default function Home() {
       }
     }
     
-    // Note: activityLog stored locally (would need DB migration for persistence)
+    // Persist activity logs to database
+    if (activityLog.length > 0 && updatedTask.id) {
+      try {
+        await fetch('https://rvspshqltnyormiqaidx.supabase.co/rest/v1/activity_logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2c3BzaHFsdG55b3JtaXFhaWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTY3ODMsImV4cCI6MjA4OTI3Mjc4M30.Z6fHXjRaGNXpOIYKShXiPchEt4xJz7TO3j1ENfSe7Og',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2c3BzaHFsdG55b3JtaXFhaWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTY3ODMsImV4cCI6MjA4OTI3Mjc4M30.Z6fHXjRaGNXpOIYKShXiPchEt4xJz7TO3j1ENfSe7Og',
+          },
+          body: JSON.stringify(activityLog.map(log => ({
+            task_id: updatedTask.id,
+            user_name: log.user,
+            action: log.action,
+            old_value: log.oldValue || null,
+            new_value: log.newValue || null,
+          }))),
+        })
+      } catch (e) {
+        console.error('Failed to save activity log:', e)
+      }
+    }
+    
     const taskToSave = { ...updatedTask, activityLog }
     await updateTaskWithUndo(taskToSave as Task)
   }
@@ -6099,6 +6146,22 @@ export default function Home() {
                             workflows={workflows}
                             teamMembers={teamMembers}
                             labels={labels}
+                            currentUserId={currentUserMemberId || undefined}
+                            onQuickComplete={async (t) => {
+                              // Complete only current user's subtasks
+                              if (!currentUserMemberId) return
+                              const updatedSubtasks = t.subtasks.map(st => 
+                                st.personId === currentUserMemberId 
+                                  ? { ...st, completed: true, completedAt: new Date().toISOString() }
+                                  : st
+                              )
+                              const allComplete = updatedSubtasks.every(st => st.completed)
+                              await updateTaskWithUndo({
+                                ...t,
+                                subtasks: updatedSubtasks,
+                                status: allComplete ? 'done' : t.status
+                              })
+                            }}
                             onMoveToStatus={async (t, newStatus) => {
                               let updatedTask = { ...t, status: newStatus }
                               if (newStatus === 'done') {
