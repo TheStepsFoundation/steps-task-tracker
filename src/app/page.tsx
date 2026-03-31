@@ -467,10 +467,12 @@ function DraggableTaskCard({
         )}
         {(() => {
           const dueDateStatus = getDueDateStatus(task.dueDate)
+          // Don't show warning styling if task is done
+          const showWarning = task.status !== 'done'
           return (
-            <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${dueDateColors[dueDateStatus]}`}>
-              {dueDateStatus === 'overdue' && '⚠️ '}
-              {dueDateStatus === 'today' && '📅 '}
+            <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${showWarning ? dueDateColors[dueDateStatus] : ''}`}>
+              {showWarning && dueDateStatus === 'overdue' && '⚠️ '}
+              {showWarning && dueDateStatus === 'today' && '📅 '}
               {new Date(task.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
             </span>
           )
