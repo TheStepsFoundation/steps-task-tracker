@@ -454,7 +454,22 @@ function DraggableTaskCard({
       </div>
 
       <h3 className="font-medium text-gray-900 mb-2 pr-8">{task.title}</h3>
-      <p className="text-sm text-gray-500 mb-3 line-clamp-2">{task.description}</p>
+      <p className="text-sm text-gray-500 mb-2 line-clamp-2">{task.description}</p>
+      
+      {/* Subtask progress */}
+      {task.subtasks.length > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-green-500 transition-all duration-300"
+              style={{ width: `${(task.subtasks.filter(st => st.completed).length / task.subtasks.length) * 100}%` }}
+            />
+          </div>
+          <span className="text-xs text-gray-500 whitespace-nowrap">
+            {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+          </span>
+        </div>
+      )}
       
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${priorityColors[task.priority]}`}>
@@ -645,12 +660,18 @@ function TaskModal({
         <div className="bg-white rounded-xl p-6 max-w-sm shadow-2xl">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Unsaved Changes</h3>
           <p className="text-gray-600 mb-4">You have unsaved changes. Would you like to save them?</p>
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 justify-end flex-wrap">
             <button
               onClick={() => { setShowUnsavedPrompt(false); onClose(); }}
-              className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
+              className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg transition"
             >
               Discard
+            </button>
+            <button
+              onClick={() => setShowUnsavedPrompt(false)}
+              className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition"
+            >
+              Continue Editing
             </button>
             <button
               onClick={() => { handleSave(); }}
@@ -4800,6 +4821,9 @@ export default function Home() {
   // Global workflow filter (applies to all views)
   const [globalWorkflow, setGlobalWorkflow] = useState<string>('all')
   
+  // Today's Focus filter - shows only overdue and due today
+  const [todayFocus, setTodayFocus] = useState(false)
+  
   // List view filters & sorting
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
@@ -4811,7 +4835,7 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   
   // Board view sorting
-  const [boardSortBy, setBoardSortBy] = useState<'none' | 'dueDate' | 'priority' | 'assignee'>('none')
+  const [boardSortBy, setBoardSortBy] = useState<'none' | 'dueDate' | 'priority' | 'assignee'>('dueDate')
   
   // Workload popup state: { memberId, intensity } or null
   const [workloadPopup, setWorkloadPopup] = useState<{ memberId: number; intensity: Intensity | 'unspecified' } | null>(null)
@@ -4907,6 +4931,18 @@ export default function Home() {
         t.title.toLowerCase().includes(query) || 
         t.description.toLowerCase().includes(query)
       )
+    }
+    
+    // Apply Today's Focus filter - only overdue and due today, exclude done
+    if (todayFocus) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      result = result.filter(t => {
+        if (t.status === 'done') return false
+        const dueDate = new Date(t.dueDate)
+        dueDate.setHours(0, 0, 0, 0)
+        return dueDate <= today
+      })
     }
     
     return result
@@ -5748,8 +5784,37 @@ export default function Home() {
           </>
         )}
         
-        {/* Right side - New Workflow & Parse Notes */}
+        {/* Right side - Today's Focus, Overdue Badge, New Workflow & Parse Notes */}
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          {/* Overdue counter badge */}
+          {(() => {
+            const overdueCount = tasks.filter(t => {
+              if (t.archived || t.status === 'done') return false
+              const due = new Date(t.dueDate)
+              const today = new Date()
+              due.setHours(0, 0, 0, 0)
+              today.setHours(0, 0, 0, 0)
+              return due < today
+            }).length
+            return overdueCount > 0 ? (
+              <span className="px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
+                {overdueCount} overdue
+              </span>
+            ) : null
+          })()}
+          
+          {/* Today's Focus toggle */}
+          <button
+            onClick={() => setTodayFocus(!todayFocus)}
+            className={`px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition flex items-center gap-1 ${
+              todayFocus 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            🎯 <span className="hidden sm:inline">Today's</span> Focus
+          </button>
+          
           <span className="text-xs sm:text-sm text-gray-400 mr-1 sm:mr-2 hidden sm:inline">
             {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
           </span>
