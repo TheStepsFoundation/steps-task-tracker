@@ -436,13 +436,8 @@ function DraggableTaskCard({
         </button>
       )}
 
-      {/* Workflow badges + blocked indicator + labels */}
+      {/* Workflow badges */}
       <div className="flex items-center gap-1 mb-2 flex-wrap">
-        {task.blockedBy && task.blockedBy.length > 0 && (
-          <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded bg-red-100 text-red-700 whitespace-nowrap" title="Blocked by other tasks">
-            🔒 Blocked
-          </span>
-        )}
         {workflow && (
           <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${workflow.color}`}>
             {workflow.short}
@@ -455,18 +450,6 @@ function DraggableTaskCard({
               {subWorkflow.short}
             </span>
           </>
-        )}
-        {/* Custom Labels */}
-        {task.labels?.slice(0, 2).map(labelId => {
-          const label = labels.find(l => l.id === labelId)
-          return label ? (
-            <span key={label.id} className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded text-white whitespace-nowrap ${label.color}`}>
-              {label.name}
-            </span>
-          ) : null
-        })}
-        {task.labels && task.labels.length > 2 && (
-          <span className="text-xs text-gray-400">+{task.labels.length - 2}</span>
         )}
       </div>
 
@@ -898,96 +881,6 @@ function TaskModal({
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
               />
             </div>
-          </div>
-
-          {/* Blocked By - Task Dependencies */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Blocked By (Dependencies)</label>
-            <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
-              {tasks.filter(t => t.id !== editedTask.id && t.status !== 'done').length === 0 ? (
-                <p className="p-3 text-sm text-gray-400">No other active tasks</p>
-              ) : (
-                tasks
-                  .filter(t => t.id !== editedTask.id && t.status !== 'done')
-                  .map(t => (
-                    <label 
-                      key={t.id} 
-                      className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editedTask.blockedBy?.includes(t.id) || false}
-                        onChange={(e) => {
-                          const currentBlocked = editedTask.blockedBy || []
-                          if (e.target.checked) {
-                            setEditedTask({ ...editedTask, blockedBy: [...currentBlocked, t.id] })
-                          } else {
-                            setEditedTask({ ...editedTask, blockedBy: currentBlocked.filter(id => id !== t.id) })
-                          }
-                        }}
-                        className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                      />
-                      <span className="text-sm text-gray-700 truncate flex-1">{t.title}</span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[t.status]}`}>
-                        {statusLabels[t.status]}
-                      </span>
-                    </label>
-                  ))
-              )}
-            </div>
-            {editedTask.blockedBy && editedTask.blockedBy.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">
-                ⚠️ This task is blocked by {editedTask.blockedBy.length} task(s)
-              </p>
-            )}
-          </div>
-
-          {/* Labels */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Labels</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {labels.map(label => {
-                const isSelected = editedTask.labels?.includes(label.id) || false
-                return (
-                  <button
-                    key={label.id}
-                    type="button"
-                    onClick={() => {
-                      const currentLabels = editedTask.labels || []
-                      if (isSelected) {
-                        setEditedTask({ ...editedTask, labels: currentLabels.filter(id => id !== label.id) })
-                      } else {
-                        setEditedTask({ ...editedTask, labels: [...currentLabels, label.id] })
-                      }
-                    }}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition ${
-                      isSelected 
-                        ? `${label.color} text-white ring-2 ring-offset-1 ring-purple-400` 
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {label.name}
-                  </button>
-                )
-              })}
-            </div>
-            {onAddLabel && (
-              <button
-                type="button"
-                onClick={() => {
-                  const name = prompt('Enter label name:')
-                  if (name) {
-                    const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-pink-500', 'bg-cyan-500', 'bg-indigo-500']
-                    const color = colors[Math.floor(Math.random() * colors.length)]
-                    const newId = onAddLabel(name, color)
-                    setEditedTask({ ...editedTask, labels: [...(editedTask.labels || []), newId] })
-                  }
-                }}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-              >
-                + Create new label
-              </button>
-            )}
           </div>
 
           <div>
@@ -7404,24 +7297,6 @@ export default function Home() {
                               {task.title}
                             </span>
                           </div>
-                          {/* Dependency arrows */}
-                          {task.blockedBy?.map(blockerId => {
-                            const blocker = filteredTasks.find(t => t.id === blockerId)
-                            if (!blocker) return null
-                            const blockerEnd = new Date(blocker.dueDate)
-                            const blockerOffset = Math.max(0, (blockerEnd.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24)) * dayWidth
-                            return (
-                              <div
-                                key={blockerId}
-                                className="absolute top-3 h-0.5 bg-red-400"
-                                style={{
-                                  left: `${blockerOffset}px`,
-                                  width: `${Math.max(0, startOffset - blockerOffset)}px`,
-                                }}
-                                title={`Blocked by: ${blocker.title}`}
-                              />
-                            )
-                          })}
                         </div>
                       </div>
                     </div>
