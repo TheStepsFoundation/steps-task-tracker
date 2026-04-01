@@ -5224,25 +5224,45 @@ export default function Home() {
     return results
   }
   
-  // Get capacity for a member for a specific week
-  // Also checks overlapping weeks if exact match not found (for rolling/fixed view consistency)
+  // Get capacity for a member for a specific period
+  // Calculates based on daily rates: each stored week's capacity / 7 = daily rate
+  // For days not covered by stored capacity, uses default (10h/week = ~1.43h/day)
   const getMemberCapacity = (memberId: number, weekStart: string): number => {
-    // First try exact match
-    if (weekCapacities[weekStart]?.[memberId] !== undefined) {
-      return weekCapacities[weekStart][memberId]
-    }
+    const DEFAULT_WEEKLY = 10
+    const DEFAULT_DAILY = DEFAULT_WEEKLY / 7
     
-    // Check weeks that might overlap (within 7 days before/after)
-    const targetDate = new Date(weekStart)
-    for (const storedWeek of Object.keys(weekCapacities)) {
-      const storedDate = new Date(storedWeek)
-      const daysDiff = Math.abs((targetDate.getTime() - storedDate.getTime()) / (1000 * 60 * 60 * 24))
-      if (daysDiff < 7 && weekCapacities[storedWeek]?.[memberId] !== undefined) {
-        return weekCapacities[storedWeek][memberId]
+    const periodStart = new Date(weekStart)
+    periodStart.setHours(0, 0, 0, 0)
+    const periodEnd = new Date(periodStart)
+    periodEnd.setDate(periodEnd.getDate() + 7)
+    
+    let totalHours = 0
+    
+    // For each day in the view period
+    for (let day = new Date(periodStart); day < periodEnd; day.setDate(day.getDate() + 1)) {
+      let dailyRate = DEFAULT_DAILY
+      
+      // Check if this day is covered by any stored capacity
+      for (const storedWeek of Object.keys(weekCapacities)) {
+        const storedStart = new Date(storedWeek)
+        storedStart.setHours(0, 0, 0, 0)
+        const storedEnd = new Date(storedStart)
+        storedEnd.setDate(storedEnd.getDate() + 7)
+        
+        // If this day falls within the stored week
+        if (day >= storedStart && day < storedEnd) {
+          const storedCapacity = weekCapacities[storedWeek]?.[memberId]
+          if (storedCapacity !== undefined) {
+            dailyRate = storedCapacity / 7
+            break
+          }
+        }
       }
+      
+      totalHours += dailyRate
     }
     
-    return 10 // Default 10h
+    return Math.round(totalHours * 10) / 10 // Round to 1 decimal
   }
   
   // Set capacity for a member for a specific week
