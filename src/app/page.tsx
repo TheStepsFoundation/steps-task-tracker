@@ -4881,7 +4881,7 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   
   // Board view sorting
-  const [boardSortBy, setBoardSortBy] = useState<'none' | 'dueDate' | 'priority' | 'assignee'>('dueDate')
+  const [boardSortBy, setBoardSortBy] = useState<'none' | 'dueDate' | 'priority' | 'assignee' | 'createdAt'>('dueDate')
   
   // Workload popup state: { memberId, intensity } or null
   const [workloadPopup, setWorkloadPopup] = useState<{ memberId: number; intensity: Intensity | 'unspecified' } | null>(null)
@@ -4979,15 +4979,17 @@ export default function Home() {
       )
     }
     
-    // Apply Today's Focus filter - only overdue and due today, exclude done
+    // Apply Today's Focus filter - overdue and due within 7 days, exclude done
     if (todayFocus) {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
+      const nextWeek = new Date(today)
+      nextWeek.setDate(nextWeek.getDate() + 7)
       result = result.filter(t => {
         if (t.status === 'done') return false
         const dueDate = new Date(t.dueDate)
         dueDate.setHours(0, 0, 0, 0)
-        return dueDate <= today
+        return dueDate <= nextWeek // Overdue or due within 7 days
       })
     }
     
@@ -5011,6 +5013,8 @@ export default function Home() {
           return priorityOrder[a.priority] - priorityOrder[b.priority]
         case 'assignee':
           return (a.assignee || 999) - (b.assignee || 999)
+        case 'createdAt':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() // Newest first
         default:
           return 0
       }
@@ -6133,13 +6137,14 @@ export default function Home() {
             <span className="text-xs sm:text-sm text-gray-500">Sort:</span>
             <select
               value={boardSortBy}
-              onChange={(e) => setBoardSortBy(e.target.value as 'none' | 'dueDate' | 'priority' | 'assignee')}
+              onChange={(e) => setBoardSortBy(e.target.value as 'none' | 'dueDate' | 'priority' | 'assignee' | 'createdAt')}
               className="text-xs sm:text-sm border border-gray-200 rounded-lg px-2 py-1 sm:px-3 sm:py-1.5 bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
             >
-              <option value="none">Default</option>
               <option value="dueDate">Due Date</option>
+              <option value="createdAt">Created</option>
               <option value="priority">Priority</option>
               <option value="assignee">Assignee</option>
+              <option value="none">None</option>
             </select>
           </div>
           <div className="flex md:grid md:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 snap-x snap-mandatory md:snap-none">
