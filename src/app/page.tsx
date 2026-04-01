@@ -5221,8 +5221,24 @@ export default function Home() {
   }
   
   // Get capacity for a member for a specific week
+  // Also checks overlapping weeks if exact match not found (for rolling/fixed view consistency)
   const getMemberCapacity = (memberId: number, weekStart: string): number => {
-    return weekCapacities[weekStart]?.[memberId] ?? 10 // Default 10h
+    // First try exact match
+    if (weekCapacities[weekStart]?.[memberId] !== undefined) {
+      return weekCapacities[weekStart][memberId]
+    }
+    
+    // Check weeks that might overlap (within 7 days before/after)
+    const targetDate = new Date(weekStart)
+    for (const storedWeek of Object.keys(weekCapacities)) {
+      const storedDate = new Date(storedWeek)
+      const daysDiff = Math.abs((targetDate.getTime() - storedDate.getTime()) / (1000 * 60 * 60 * 24))
+      if (daysDiff < 7 && weekCapacities[storedWeek]?.[memberId] !== undefined) {
+        return weekCapacities[storedWeek][memberId]
+      }
+    }
+    
+    return 10 // Default 10h
   }
   
   // Set capacity for a member for a specific week
@@ -5232,8 +5248,24 @@ export default function Home() {
   }
   
   // Get/set availability note for a member for a specific week
+  // Also checks overlapping weeks if exact match not found (for rolling/fixed view consistency)
   const getMemberNote = (memberId: number, weekStart: string): string => {
-    return weekNotes[weekStart]?.[memberId] ?? ''
+    // First try exact match
+    if (weekNotes[weekStart]?.[memberId]) {
+      return weekNotes[weekStart][memberId]
+    }
+    
+    // Check weeks that might overlap (within 7 days before/after)
+    const targetDate = new Date(weekStart)
+    for (const storedWeek of Object.keys(weekNotes)) {
+      const storedDate = new Date(storedWeek)
+      const daysDiff = Math.abs((targetDate.getTime() - storedDate.getTime()) / (1000 * 60 * 60 * 24))
+      if (daysDiff < 7 && weekNotes[storedWeek]?.[memberId]) {
+        return weekNotes[storedWeek][memberId]
+      }
+    }
+    
+    return ''
   }
   
   const handleSetMemberNote = (memberId: number, weekStart: string, note: string) => {
