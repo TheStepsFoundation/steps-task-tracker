@@ -24,6 +24,7 @@ import {
 } from '@dnd-kit/core'
 import { useData } from '@/lib/data-provider'
 import { SubtaskCompletionModal } from '@/components/SubtaskCompletionModal'
+import { QuickCompleteModal } from '@/components/QuickCompleteModal'
 
 // Workflow color options
 const WORKFLOW_COLORS = [
@@ -4841,6 +4842,7 @@ export default function Home() {
   }, [])
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [quickCompleteTask, setQuickCompleteTask] = useState<Task | null>(null)
   const [showNewWorkflowModal, setShowNewWorkflowModal] = useState(false)
   const [showMeetingNotesModal, setShowMeetingNotesModal] = useState(false)
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
@@ -6234,20 +6236,9 @@ export default function Home() {
                             teamMembers={teamMembers}
                             labels={labels}
                             currentUserId={currentUserMemberId || undefined}
-                            onQuickComplete={async (t) => {
-                              // Complete only current user's subtasks
-                              if (!currentUserMemberId) return
-                              const updatedSubtasks = t.subtasks.map(st => 
-                                st.personId === currentUserMemberId 
-                                  ? { ...st, completed: true, completedAt: new Date().toISOString() }
-                                  : st
-                              )
-                              const allComplete = updatedSubtasks.every(st => st.completed)
-                              await updateTaskWithUndo({
-                                ...t,
-                                subtasks: updatedSubtasks,
-                                status: allComplete ? 'done' : t.status
-                              })
+                            onQuickComplete={(t) => {
+                              // Show quick complete modal instead of instant complete
+                              setQuickCompleteTask(t)
                             }}
                             onMoveToStatus={async (t, newStatus) => {
                               let updatedTask = { ...t, status: newStatus }
@@ -7639,6 +7630,51 @@ export default function Home() {
           tasks={tasks}
           labels={labels}
           onAddLabel={addLabel}
+        />
+      )}
+
+      {/* Quick Complete Modal */}
+      {quickCompleteTask && currentUserMemberId && (
+        <QuickCompleteModal
+          taskTitle={quickCompleteTask.title}
+          subtasks={quickCompleteTask.subtasks
+            .filter(st => st.personId === currentUserMemberId && !st.completed)
+            .map(st => ({
+              id: st.id,
+              personId: st.personId,
+              description: st.description,
+              intensity: st.intensity,
+              completed: st.completed
+            }))}
+          onConfirm={async (completions) => {
+            // Update subtasks with completion data
+            const updatedSubtasks = quickCompleteTask.subtasks.map(st => {
+              const completion = completions.find(c => c.subtaskId === st.id)
+              if (completion) {
+                return {
+                  ...st,
+                  completed: true,
+                  actualHours: completion.actualHours,
+                  intensity: completion.newIntensity
+                }
+              }
+              return st
+            })
+            
+            // Check if all subtasks are now complete
+            const allComplete = updatedSubtasks.every(st => st.completed)
+            
+            const updatedTask = {
+              ...quickCompleteTask,
+              subtasks: updatedSubtasks,
+              // Auto-complete task if all subtasks done
+              status: allComplete ? 'done' as const : quickCompleteTask.status
+            }
+            
+            await updateTaskInDb(updatedTask)
+            setQuickCompleteTask(null)
+          }}
+          onCancel={() => setQuickCompleteTask(null)}
         />
       )}
 
