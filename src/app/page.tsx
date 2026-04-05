@@ -5750,7 +5750,7 @@ export default function Home() {
 
       {/* Tagline */}
       <div className="text-center mb-2">
-        <p className="text-xs tracking-widest uppercase text-purple-600 dark:text-purple-400 font-medium italic">Vertus non origo</p>
+        <p className="text-xs tracking-widest uppercase text-purple-600 dark:text-purple-400 font-medium italic">Virtus non origo</p>
       </div>
 
       {/* Header */}
