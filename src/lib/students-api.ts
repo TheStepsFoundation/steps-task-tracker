@@ -216,4 +216,3 @@ export async function fetchStudent(id: string): Promise<{ student: StudentRow | 
   if (aErr) throw aErr
   return { student: (sData as StudentRow) ?? null, applications: (aData as ApplicationRow[]) ?? [] }
 }
-                                                                            

@@ -252,4 +252,3 @@ begin
   raise notice 'applications:   %', v_applications;
   raise notice 'participation:  %', v_participation;
 end $$;
-                             
