@@ -7,10 +7,10 @@ import {
   ATTRIBUTION_SOURCES,
   StudentRow,
   ApplicationRow,
+  EnrichedStudent,
   StudentUpdate,
   ApplicationUpdate,
-  fetchStudent,
-  enrich,
+  fetchEnrichedStudent,
   updateStudent,
   upsertApplication,
   deleteApplication,
@@ -22,22 +22,28 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
   const { id } = params
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [student, setStudent] = useState<StudentRow | null>(null)
-  const [apps, setApps] = useState<ApplicationRow[]>([])
+  const [enriched, setEnriched] = useState<EnrichedStudent | null>(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<StudentUpdate>({})
   const [saving, setSaving] = useState(false)
   const [rowSaving, setRowSaving] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
+  const student: StudentRow | null = enriched
+  const apps: ApplicationRow[] = enriched?.applications ?? []
+
+  async function reload() {
+    const row = await fetchEnrichedStudent(id)
+    setEnriched(row)
+  }
+
   useEffect(() => {
     let active = true
     setLoading(true)
-    fetchStudent(id)
-      .then(({ student, applications }) => {
+    fetchEnrichedStudent(id)
+      .then(row => {
         if (!active) return
-        setStudent(student)
-        setApps(applications)
+        setEnriched(row)
         setLoading(false)
       })
       .catch(err => {
@@ -74,8 +80,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
     if (!student) return
     setSaving(true)
     try {
-      const updated = await updateStudent(student.id, draft)
-      setStudent(updated)
+      await updateStudent(student.id, draft)
+      await reload()
       setEditing(false)
       flash('Saved')
     } catch (e: any) {
@@ -90,11 +96,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
     const existing = apps.find(a => a.event_id === eventId)
     setRowSaving(eventId)
     try {
-      const row = await upsertApplication(student.id, eventId, patch, existing?.id)
-      setApps(prev => {
-        const others = prev.filter(a => a.event_id !== eventId)
-        return [...others, row]
-      })
+      await upsertApplication(student.id, eventId, patch, existing?.id)
+      await reload()
       flash('Updated')
     } catch (e: any) {
       setError(e?.message ?? 'Failed to update application')
@@ -108,7 +111,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
     setRowSaving(appId)
     try {
       await deleteApplication(appId)
-      setApps(prev => prev.filter(a => a.id !== appId))
+      await reload()
       flash('Deleted')
     } catch (e: any) {
       setError(e?.message ?? 'Failed to delete')
@@ -119,9 +122,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
 
   if (loading) return <div className="max-w-5xl mx-auto p-8 text-gray-500">Loading…</div>
   if (error) return <div className="max-w-5xl mx-auto p-8 text-red-600">{error}</div>
-  if (!student) return <div className="max-w-5xl mx-auto p-8 text-gray-500">Student not found.</div>
+  if (!student || !enriched) return <div className="max-w-5xl mx-auto p-8 text-gray-500">Student not found.</div>
 
-  const enriched = enrich(student, apps.map(a => ({ ...a, student_id: student.id })))
   const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim() || student.personal_email || 'Unnamed'
 
   return (
@@ -143,6 +145,12 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
         <div className="flex items-center gap-2">
           <Badge label={`${enriched.attended_count} attended`} tone="emerald" />
           {enriched.no_show_count > 0 && <Badge label={`${enriched.no_show_count} no-show`} tone="amber" />}
+          {enriched.bonus_total !== 0 && (
+            <Badge
+              label={`Bonus ${enriched.bonus_total > 0 ? '+' : ''}${enriched.bonus_total}`}
+              tone={enriched.bonus_total > 0 ? 'emerald' : 'amber'}
+            />
+          )}
           <Badge label={`Score ${enriched.engagement_score}`} tone="indigo" />
           {!editing ? (
             <button onClick={startEdit} className="ml-2 px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Edit</button>

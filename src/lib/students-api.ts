@@ -188,6 +188,19 @@ export async function deleteApplication(id: string): Promise<void> {
   invalidateStudentsCache()
 }
 
+export async function fetchEnrichedStudent(id: string): Promise<EnrichedStudent | null> {
+  const { data, error } = await supabase
+    .from('students_enriched')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const row = data as EnrichedStudent
+  if (!row.applications) row.applications = []
+  return row
+}
+
 export async function fetchStudent(id: string): Promise<{ student: StudentRow | null; applications: ApplicationRow[] }> {
   const { data: sData, error: sErr } = await supabase
     .from('students')
@@ -203,3 +216,4 @@ export async function fetchStudent(id: string): Promise<{ student: StudentRow | 
   if (aErr) throw aErr
   return { student: (sData as StudentRow) ?? null, applications: (aData as ApplicationRow[]) ?? [] }
 }
+                                                                            
