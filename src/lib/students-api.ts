@@ -57,8 +57,6 @@ export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
     const passed = ev ? new Date(ev.date) < today : false
     if (passed && a.status === 'accepted' && !a.attended) no_show_count++
   }
-  // score = attended*2 + (accepted actually-attended would be double-counted, so score it per application:
-  // attended -> +2, accepted-not-attended (past) -> -1, accepted-not-attended (future) -> +1, else 0
   let engagement_score = 0
   for (const a of mine) {
     const ev = EVENT_BY_ID[a.event_id]
@@ -80,7 +78,6 @@ export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
 }
 
 export async function fetchAllStudentsAndApps(): Promise<{ students: StudentRow[]; applications: ApplicationRow[] }> {
-  // paginate students
   const students: StudentRow[] = []
   let from = 0
   const size = 1000
@@ -130,4 +127,43 @@ export async function upsertApplication(
   eventId: string,
   patch: ApplicationUpdate,
   existingId?: string,
-): Promise<ApplicationRo
+): Promise<ApplicationRow> {
+  if (existingId) {
+    const { data, error } = await supabase
+      .from('applications')
+      .update(patch)
+      .eq('id', existingId)
+      .select('id,student_id,event_id,status,attended,submitted_at,attribution_source')
+      .single()
+    if (error) throw error
+    return data as ApplicationRow
+  }
+  const { data, error } = await supabase
+    .from('applications')
+    .insert({ student_id: studentId, event_id: eventId, status: patch.status ?? 'submitted', ...patch })
+    .select('id,student_id,event_id,status,attended,submitted_at,attribution_source')
+    .single()
+  if (error) throw error
+  return data as ApplicationRow
+}
+
+export async function deleteApplication(id: string): Promise<void> {
+  const { error } = await supabase.from('applications').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function fetchStudent(id: string): Promise<{ student: StudentRow | null; applications: ApplicationRow[] }> {
+  const { data: sData, error: sErr } = await supabase
+    .from('students')
+    .select('id,first_name,last_name,personal_email,school_name_raw,year_group,free_school_meals,parental_income_band,first_generation_uni,subscribed_to_mailing,notes,created_at')
+    .eq('id', id)
+    .maybeSingle()
+  if (sErr) throw sErr
+  const { data: aData, error: aErr } = await supabase
+    .from('applications')
+    .select('id,student_id,event_id,status,attended,submitted_at,attribution_source')
+    .eq('student_id', id)
+    .order('submitted_at', { ascending: true })
+  if (aErr) throw aErr
+  return { student: (sData as StudentRow) ?? null, applications: (aData as ApplicationRow[]) ?? [] }
+}
