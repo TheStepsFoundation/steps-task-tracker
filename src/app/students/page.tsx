@@ -158,7 +158,7 @@ export default function StudentsDashboard() {
       )}
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         {loading ? (
           <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading students…</div>
         ) : error ? (
@@ -166,9 +166,9 @@ export default function StudentsDashboard() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-gray-500 dark:text-gray-400">No students match.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-260px)] rounded-lg">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400">
+              <thead className="bg-gray-50 dark:bg-gray-800/80 backdrop-blur text-gray-600 dark:text-gray-400 sticky top-0 z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
                 <tr>
                   <Th>Name</Th>
                   <Th>Email</Th>
