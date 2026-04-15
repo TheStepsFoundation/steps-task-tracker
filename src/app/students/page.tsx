@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { EVENTS, EnrichedStudent, enrich, fetchAllStudentsAndApps } from '@/lib/students-api'
+import { EVENTS, EnrichedStudent, fetchAllStudentsEnriched } from '@/lib/students-api'
 
 type ViewKey = 'all' | 'attended3' | 'noshow2' | 'byevent' | 'subscribed'
 
@@ -19,10 +19,9 @@ export default function StudentsDashboard() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    fetchAllStudentsAndApps()
-      .then(({ students: sList, applications }) => {
+    fetchAllStudentsEnriched()
+      .then(enriched => {
         if (!active) return
-        const enriched = sList.map(s => enrich(s, applications))
         setStudents(enriched)
         setLoading(false)
       })
@@ -214,13 +213,21 @@ export default function StudentsDashboard() {
   )
 }
 
-function renderEventCell(app: { status: string; attended: boolean | null } | undefined) {
+function renderEventCell(app: { status: string; attended: boolean | null; bonus_points?: number | null; bonus_reason?: string | null } | undefined) {
   if (!app) return <span className="text-gray-300 dark:text-gray-700">—</span>
-  if (app.attended) return <span title="Attended" className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-  if (app.status === 'accepted') return <span title="Accepted / no-show" className="inline-block w-2 h-2 rounded-full bg-amber-400" />
-  if (app.status === 'rejected') return <span title="Rejected" className="inline-block w-2 h-2 rounded-full bg-gray-400" />
-  if (app.status === 'submitted') return <span title="Submitted" className="inline-block w-2 h-2 rounded-full bg-sky-400" />
-  return <span className="text-gray-300 dark:text-gray-700">·</span>
+  let dot: JSX.Element
+  if (app.attended) dot = <span title="Attended" className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+  else if (app.status === 'accepted') dot = <span title="Accepted / no-show" className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+  else if (app.status === 'rejected') dot = <span title="Rejected" className="inline-block w-2 h-2 rounded-full bg-gray-400" />
+  else if (app.status === 'submitted') dot = <span title="Submitted" className="inline-block w-2 h-2 rounded-full bg-sky-400" />
+  else dot = <span className="text-gray-300 dark:text-gray-700">·</span>
+  const bp = app.bonus_points || 0
+  if (bp === 0) return dot
+  const tip = app.bonus_reason || (bp > 0 ? '+1 bonus' : '-1 bonus')
+  const mark = bp > 0
+    ? <span title={tip} className="ml-0.5 text-[10px] leading-none text-amber-500">★</span>
+    : <span title={tip} className="ml-0.5 text-[10px] leading-none text-red-500">▼</span>
+  return <span className="inline-flex items-center">{dot}{mark}</span>
 }
 
 function Kpi({ label, value, accent, warn }: { label: string; value: number; accent?: boolean; warn?: boolean }) {

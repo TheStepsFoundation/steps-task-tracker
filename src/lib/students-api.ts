@@ -32,6 +32,8 @@ export type ApplicationRow = {
   attended: boolean | null
   submitted_at: string | null
   attribution_source: string | null
+  bonus_points: number | null
+  bonus_reason: string | null
 }
 
 export type EnrichedStudent = StudentRow & {
@@ -42,17 +44,23 @@ export type EnrichedStudent = StudentRow & {
   submitted_count: number
   rejected_count: number
   engagement_score: number
+  bonus_total: number
 }
 
+// Legacy client-side enrichment kept for the profile page (and as a fallback).
+// The dashboard now uses the students_enriched SQL view which computes the
+// same values server-side.
 export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
   const mine = apps.filter(a => a.student_id === s.id)
   const today = new Date()
   let attended_count = 0, accepted_count = 0, no_show_count = 0, submitted_count = 0, rejected_count = 0
+  let bonus_total = 0
   for (const a of mine) {
     if (a.attended) attended_count++
     if (a.status === 'accepted') accepted_count++
     if (a.status === 'submitted') submitted_count++
     if (a.status === 'rejected') rejected_count++
+    bonus_total += a.bonus_points || 0
     const ev = EVENT_BY_ID[a.event_id]
     const passed = ev ? new Date(ev.date) < today : false
     if (passed && a.status === 'accepted' && !a.attended) no_show_count++
@@ -64,6 +72,7 @@ export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
     if (a.attended) engagement_score += 2
     else if (a.status === 'accepted' && passed) engagement_score -= 1
     else if (a.status === 'accepted' && !passed) engagement_score += 1
+    engagement_score += a.bonus_points || 0
   }
   return {
     ...s,
@@ -74,42 +83,54 @@ export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
     submitted_count,
     rejected_count,
     engagement_score,
+    bonus_total,
   }
 }
 
-export async function fetchAllStudentsAndApps(): Promise<{ students: StudentRow[]; applications: ApplicationRow[] }> {
-  const students: StudentRow[] = []
+// --- Module-level cache ------------------------------------------------------
+// The enriched dashboard query returns ~2k rows; cache for 60s and invalidate
+// on any write so repeated navigations feel instant.
+const CACHE_TTL_MS = 60_000
+let enrichedCache: { data: EnrichedStudent[]; at: number } | null = null
+
+export function invalidateStudentsCache() {
+  enrichedCache = null
+}
+
+export async function fetchAllStudentsEnriched(opts?: { forceRefresh?: boolean }): Promise<EnrichedStudent[]> {
+  if (!opts?.forceRefresh && enrichedCache && Date.now() - enrichedCache.at < CACHE_TTL_MS) {
+    return enrichedCache.data
+  }
+  const rows: EnrichedStudent[] = []
   let from = 0
   const size = 1000
   while (true) {
     const { data, error } = await supabase
-      .from('students')
-      .select('id,first_name,last_name,personal_email,school_name_raw,year_group,free_school_meals,parental_income_band,first_generation_uni,subscribed_to_mailing,notes,created_at')
+      .from('students_enriched')
+      .select('*')
       .range(from, from + size - 1)
     if (error) throw error
     if (!data || data.length === 0) break
-    students.push(...(data as StudentRow[]))
+    rows.push(...(data as EnrichedStudent[]))
     if (data.length < size) break
     from += size
   }
-  const applications: ApplicationRow[] = []
-  from = 0
-  while (true) {
-    const { data, error } = await supabase
-      .from('applications')
-      .select('id,student_id,event_id,status,attended,submitted_at,attribution_source')
-      .range(from, from + size - 1)
-    if (error) throw error
-    if (!data || data.length === 0) break
-    applications.push(...(data as ApplicationRow[]))
-    if (data.length < size) break
-    from += size
-  }
+  enrichedCache = { data: rows, at: Date.now() }
+  return rows
+}
+
+// Kept for backward compatibility; now delegates to the enriched view.
+export async function fetchAllStudentsAndApps(): Promise<{ students: StudentRow[]; applications: ApplicationRow[] }> {
+  const enriched = await fetchAllStudentsEnriched()
+  const students: StudentRow[] = enriched.map(({ applications: _a, attended_count: _ac, accepted_count: _acc, no_show_count: _n, submitted_count: _s, rejected_count: _r, engagement_score: _es, bonus_total: _bt, ...s }) => s)
+  const applications: ApplicationRow[] = enriched.flatMap(e => e.applications)
   return { students, applications }
 }
 
 export type StudentUpdate = Partial<Omit<StudentRow, 'id' | 'created_at'>>
-export type ApplicationUpdate = Partial<Pick<ApplicationRow, 'status' | 'attended' | 'submitted_at' | 'attribution_source'>>
+export type ApplicationUpdate = Partial<Pick<ApplicationRow,
+  'status' | 'attended' | 'submitted_at' | 'attribution_source' | 'bonus_points' | 'bonus_reason'
+>>
 
 export async function updateStudent(id: string, patch: StudentUpdate): Promise<StudentRow> {
   const { data, error } = await supabase
@@ -119,6 +140,7 @@ export async function updateStudent(id: string, patch: StudentUpdate): Promise<S
     .select('id,first_name,last_name,personal_email,school_name_raw,year_group,free_school_meals,parental_income_band,first_generation_uni,subscribed_to_mailing,notes,created_at')
     .single()
   if (error) throw error
+  invalidateStudentsCache()
   return data as StudentRow
 }
 
@@ -133,23 +155,26 @@ export async function upsertApplication(
       .from('applications')
       .update(patch)
       .eq('id', existingId)
-      .select('id,student_id,event_id,status,attended,submitted_at,attribution_source')
+      .select('id,student_id,event_id,status,attended,submitted_at,attribution_source,bonus_points,bonus_reason')
       .single()
     if (error) throw error
+    invalidateStudentsCache()
     return data as ApplicationRow
   }
   const { data, error } = await supabase
     .from('applications')
     .insert({ student_id: studentId, event_id: eventId, status: patch.status ?? 'submitted', ...patch })
-    .select('id,student_id,event_id,status,attended,submitted_at,attribution_source')
+    .select('id,student_id,event_id,status,attended,submitted_at,attribution_source,bonus_points,bonus_reason')
     .single()
   if (error) throw error
+  invalidateStudentsCache()
   return data as ApplicationRow
 }
 
 export async function deleteApplication(id: string): Promise<void> {
   const { error } = await supabase.from('applications').delete().eq('id', id)
   if (error) throw error
+  invalidateStudentsCache()
 }
 
 export async function fetchStudent(id: string): Promise<{ student: StudentRow | null; applications: ApplicationRow[] }> {
@@ -161,7 +186,7 @@ export async function fetchStudent(id: string): Promise<{ student: StudentRow | 
   if (sErr) throw sErr
   const { data: aData, error: aErr } = await supabase
     .from('applications')
-    .select('id,student_id,event_id,status,attended,submitted_at,attribution_source')
+    .select('id,student_id,event_id,status,attended,submitted_at,attribution_source,bonus_points,bonus_reason')
     .eq('student_id', id)
     .order('submitted_at', { ascending: true })
   if (aErr) throw aErr

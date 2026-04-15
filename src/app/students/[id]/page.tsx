@@ -206,6 +206,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
               <Th>Attended</Th>
               <Th>Submitted</Th>
               <Th>Source</Th>
+              <Th>Bonus</Th>
+              <Th>Reason</Th>
               <Th />
             </tr>
           </thead>
@@ -260,6 +262,29 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
                       }}
                       placeholder="—"
                       className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs w-32"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      value={String(app?.bonus_points ?? 0)}
+                      onChange={ev => saveRow(e.id, { bonus_points: Number(ev.target.value) })}
+                      className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs"
+                    >
+                      <option value="0">—</option>
+                      <option value="1">+1</option>
+                      <option value="-1">-1</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
+                    <input
+                      type="text"
+                      defaultValue={app?.bonus_reason ?? ''}
+                      onBlur={ev => {
+                        const v = ev.target.value
+                        if ((app?.bonus_reason ?? '') !== v) saveRow(e.id, { bonus_reason: v || null })
+                      }}
+                      placeholder="reason…"
+                      className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs w-40"
                     />
                   </td>
                   <td className="px-3 py-2 text-right">
