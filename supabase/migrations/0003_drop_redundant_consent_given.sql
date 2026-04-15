@@ -22,8 +22,22 @@
 -- the DPIA — not per-row consent.
 -- =============================================================================
 
+-- applications_wider view (from 0002) references consent_given — drop it
+-- first, drop the column, then recreate the view without the column.
+drop view if exists public.applications_wider;
+
 alter table public.applications
   drop column if exists consent_given;
 
-comment on column public.applications.consent_text_version is
-  'Version tag of the privacy-notice / lawful-basis wording in effect on the form at time of submission. Not a consent capture — submission itself is sufficient for the "processing this application" purpose under legitimate interests. Use values like "v1.0" for new forms or "legacy_backfill_v1" for historically imported rows.';
+create view public.applications_wider
+  with (security_invoker = false) as
+select
+  id,
+  student_id,
+  event_id,
+  submitted_at,
+  channel,
+  status,
+  consent_text_version,
+  reviewed_at,
+  created_
