@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, MouseEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth, getUserDisplayName } from '@/lib/auth-provider'
 import { useTheme } from '@/lib/theme-provider'
@@ -5792,6 +5793,14 @@ export default function Home() {
             {getUserDisplayName(user?.email).slice(0, 2).toUpperCase()}
           </div>
           <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:block">{getUserDisplayName(user?.email)}</span>
+          {/* Student Database */}
+          <Link
+            href="/students"
+            className="px-2.5 py-1.5 text-sm font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition"
+            title="Student Database"
+          >
+            Students
+          </Link>
           {/* Theme Toggle */}
           <button
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
