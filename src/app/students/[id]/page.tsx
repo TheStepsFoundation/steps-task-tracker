@@ -172,7 +172,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             <Field label="Email" value={student.personal_email} />
             <Field label="School" value={student.school_name_raw} />
             <Field label="Year group" value={student.year_group} />
-            <Field label="Income band" value={student.parental_income_band} />
+            <Field label="Income band" value={incomeLabel(student.parental_income_band)} />
             <Field label="Free school meals" value={boolLabel(student.free_school_meals)} />
             <Field label="First-gen uni" value={boolLabel(student.first_generation_uni)} />
             <Field label="Mailing list" value={boolLabel(student.subscribed_to_mailing)} />
@@ -184,7 +184,19 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             <Input label="Email" value={draft.personal_email ?? ''} onChange={v => setDraft(d => ({ ...d, personal_email: v }))} type="email" />
             <Input label="School" value={draft.school_name_raw ?? ''} onChange={v => setDraft(d => ({ ...d, school_name_raw: v }))} />
             <Input label="Year group" value={draft.year_group ?? ''} onChange={v => setDraft(d => ({ ...d, year_group: v }))} />
-            <Input label="Income band" value={draft.parental_income_band ?? ''} onChange={v => setDraft(d => ({ ...d, parental_income_band: v }))} />
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Income band</label>
+              <select
+                value={draft.parental_income_band ?? ''}
+                onChange={e => setDraft(d => ({ ...d, parental_income_band: e.target.value || null }))}
+                className="w-full px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="">Unknown</option>
+                <option value="under_40k">Under £40k</option>
+                <option value="over_40k">£40k or more</option>
+                <option value="prefer_na">Prefer not to say</option>
+              </select>
+            </div>
             <TriCheckbox label="Free school meals" value={draft.free_school_meals} onChange={v => setDraft(d => ({ ...d, free_school_meals: v }))} />
             <TriCheckbox label="First-gen uni" value={draft.first_generation_uni} onChange={v => setDraft(d => ({ ...d, first_generation_uni: v }))} />
             <TriCheckbox label="Mailing list" value={draft.subscribed_to_mailing} onChange={v => setDraft(d => ({ ...d, subscribed_to_mailing: v }))} />
@@ -318,7 +330,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       <div className="flex flex-wrap gap-2">
         {student.free_school_meals && <Flag>Free school meals</Flag>}
         {student.first_generation_uni && <Flag>First-gen uni</Flag>}
-        {student.parental_income_band && <Flag>Income: {student.parental_income_band}</Flag>}
+        {student.parental_income_band && <Flag>Income: {incomeLabel(student.parental_income_band)}</Flag>}
         {student.subscribed_to_mailing ? <Flag tone="green">On mailing list</Flag> : <Flag tone="gray">Not subscribed</Flag>}
       </div>
     </main>
@@ -394,4 +406,12 @@ function Flag({ children, tone = 'blue' }: { children: React.ReactNode; tone?: '
     gray: 'bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700',
   }
   return <span className={`px-2.5 py-1 rounded-md text-xs border ${map[tone]}`}>{children}</span>
+}
+
+function incomeLabel(code: string | null | undefined): string | null {
+  if (!code) return null
+  if (code === 'under_40k') return 'Under £40k'
+  if (code === 'over_40k') return '£40k or more'
+  if (code === 'prefer_na') return 'Prefer not to say'
+  return code
 }

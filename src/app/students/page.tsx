@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { EVENTS, EnrichedStudent, fetchAllStudentsEnriched, ATTRIBUTION_SOURCES } from '@/lib/students-api'
+import { EVENTS, EnrichedStudent, fetchAllStudentsEnriched } from '@/lib/students-api'
 
 type SortKey =
   | 'engagement' | 'attended' | 'accepted' | 'no_show' | 'submitted'
@@ -25,17 +25,29 @@ const SORT_OPTIONS: { value: SortKey; label: string; defaultDir: SortDir }[] = [
   { value: 'year', label: 'Year group', defaultDir: 'asc' },
 ]
 
-const INCOME_BANDS = ['under_20k', '20k_40k', '40k_60k', '60k_80k', 'over_80k', 'prefer_not_to_say']
+const INCOME_BANDS: { value: string; label: string }[] = [
+  { value: 'under_40k', label: 'Under £40k' },
+  { value: 'over_40k',  label: '£40k or more' },
+  { value: 'prefer_na', label: 'Prefer not to say' },
+]
+
+type SmiMin = 0 | 1 | 2 | 3
+// A student's social-mobility indicator count: free school meals + first-gen-uni + low-income (<£40k)
+function smiCount(s: { free_school_meals: boolean | null; first_generation_uni: boolean | null; parental_income_band: string | null }): number {
+  let n = 0
+  if (s.free_school_meals === true) n++
+  if (s.first_generation_uni === true) n++
+  if (s.parental_income_band === 'under_40k') n++
+  return n
+}
 
 type Filters = {
   search: string
   yearGroups: string[]
-  schoolContains: string
   fsm: TriBool
   firstGen: TriBool
-  mailing: TriBool
   incomeBands: string[]
-  sources: string[]
+  smiMin: SmiMin
   eventStatus: Record<string, EventStatus>
   minAttended: number
   minEngagement: number
@@ -44,12 +56,10 @@ type Filters = {
 const defaultFilters = (): Filters => ({
   search: '',
   yearGroups: [],
-  schoolContains: '',
   fsm: 'any',
   firstGen: 'any',
-  mailing: 'any',
   incomeBands: [],
-  sources: [],
+  smiMin: 0,
   eventStatus: Object.fromEntries(EVENTS.map(e => [e.id, 'any' as EventStatus])),
   minAttended: 0,
   minEngagement: 0,
@@ -84,19 +94,17 @@ export default function StudentsDashboard() {
     attended1plus: students.filter(s => s.attended_count >= 1).length,
     attended3plus: students.filter(s => s.attended_count >= 3).length,
     noshow2plus: students.filter(s => s.no_show_count >= 2).length,
-    subscribed: students.filter(s => s.subscribed_to_mailing).length,
+    smi2plus: students.filter(s => smiCount(s) >= 2).length,
   }), [students])
 
   const activeFilterCount = useMemo(() => {
     let n = 0
     if (filters.search.trim()) n++
     if (filters.yearGroups.length) n++
-    if (filters.schoolContains.trim()) n++
     if (filters.fsm !== 'any') n++
     if (filters.firstGen !== 'any') n++
-    if (filters.mailing !== 'any') n++
     if (filters.incomeBands.length) n++
-    if (filters.sources.length) n++
+    if (filters.smiMin > 0) n++
     for (const id of Object.keys(filters.eventStatus)) if (filters.eventStatus[id] !== 'any') n++
     if (filters.minAttended > 0) n++
     if (filters.minEngagement > 0) n++
@@ -106,22 +114,16 @@ export default function StudentsDashboard() {
   const filtered = useMemo(() => {
     const f = filters
     const q = f.search.trim().toLowerCase()
-    const schoolQ = f.schoolContains.trim().toLowerCase()
     let list = students.filter(s => {
       if (q) {
         const hay = `${s.first_name || ''} ${s.last_name || ''} ${s.personal_email || ''} ${s.school_name_raw || ''}`.toLowerCase()
         if (!hay.includes(q)) return false
       }
       if (f.yearGroups.length && (!s.year_group || !f.yearGroups.includes(s.year_group))) return false
-      if (schoolQ && !(s.school_name_raw || '').toLowerCase().includes(schoolQ)) return false
       if (!matchTri(f.fsm, s.free_school_meals)) return false
       if (!matchTri(f.firstGen, s.first_generation_uni)) return false
-      if (!matchTri(f.mailing, s.subscribed_to_mailing)) return false
       if (f.incomeBands.length && (!s.parental_income_band || !f.incomeBands.includes(s.parental_income_band))) return false
-      if (f.sources.length) {
-        const ok = s.applications.some(a => a.attribution_source && f.sources.includes(a.attribution_source))
-        if (!ok) return false
-      }
+      if (f.smiMin > 0 && smiCount(s) < f.smiMin) return false
       for (const ev of EVENTS) {
         const want = f.eventStatus[ev.id]
         if (!want || want === 'any') continue
@@ -148,7 +150,7 @@ export default function StudentsDashboard() {
 
   const setEventStatus = (id: string, v: EventStatus) =>
     setFilters(f => ({ ...f, eventStatus: { ...f.eventStatus, [id]: v } }))
-  const toggleArr = (key: 'yearGroups' | 'incomeBands' | 'sources', v: string) =>
+  const toggleArr = (key: 'yearGroups' | 'incomeBands', v: string) =>
     setFilters(f => ({ ...f, [key]: f[key].includes(v) ? f[key].filter(x => x !== v) : [...f[key], v] }))
 
   return (
@@ -186,7 +188,7 @@ export default function StudentsDashboard() {
         <Kpi label="Attended 1+" value={totals.attended1plus} />
         <Kpi label="Attended 3+" value={totals.attended3plus} accent />
         <Kpi label="No-shows 2+" value={totals.noshow2plus} warn />
-        <Kpi label="Mailing list" value={totals.subscribed} />
+        <Kpi label="SMI 2+" value={totals.smi2plus} accent />
       </div>
 
       {panelOpen && (
@@ -249,12 +251,11 @@ export default function StudentsDashboard() {
                 />
               </div>
               <div>
-                <Label>School contains</Label>
-                <input
-                  value={filters.schoolContains}
-                  onChange={e => setFilters(f => ({ ...f, schoolContains: e.target.value }))}
-                  placeholder="e.g. Bexley, Grammar, sixth…"
-                  className="w-full px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                <Label>Parental income</Label>
+                <ChipList
+                  options={INCOME_BANDS}
+                  selected={filters.incomeBands}
+                  onToggle={v => toggleArr('incomeBands', v)}
                 />
               </div>
               <div>
@@ -265,51 +266,41 @@ export default function StudentsDashboard() {
                 <Label>First-gen university</Label>
                 <TriToggle value={filters.firstGen} onChange={v => setFilters(f => ({ ...f, firstGen: v }))} />
               </div>
-              <div>
-                <Label>On mailing list</Label>
-                <TriToggle value={filters.mailing} onChange={v => setFilters(f => ({ ...f, mailing: v }))} />
-              </div>
-              <div>
-                <Label>Parental income band</Label>
-                <ChipList
-                  options={INCOME_BANDS.map(b => ({ value: b, label: b.replace(/_/g, ' ') }))}
-                  selected={filters.incomeBands}
-                  onToggle={v => toggleArr('incomeBands', v)}
-                />
+              <div className="md:col-span-2">
+                <Label>Social mobility indicators (FSM + first-gen + low income)</Label>
+                <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  {([0, 1, 2, 3] as SmiMin[]).map((n, i) => (
+                    <button
+                      key={n}
+                      onClick={() => setFilters(f => ({ ...f, smiMin: n }))}
+                      className={`px-2.5 py-1 text-xs ${i > 0 ? 'border-l border-gray-200 dark:border-gray-700' : ''} ${filters.smiMin === n ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}
+                    >{n === 0 ? 'Any' : `At least ${n}`}</button>
+                  ))}
+                </div>
               </div>
             </div>
           </Segment>
 
-          {/* Attribution + thresholds */}
-          <Segment title="Source &amp; thresholds">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Thresholds */}
+          <Segment title="Thresholds">
+            <div className="grid grid-cols-2 gap-2 max-w-md">
               <div>
-                <Label>Attribution source (any application)</Label>
-                <ChipList
-                  options={ATTRIBUTION_SOURCES.map(s => ({ value: s.value, label: s.label }))}
-                  selected={filters.sources}
-                  onToggle={v => toggleArr('sources', v)}
+                <Label>Min attended</Label>
+                <input
+                  type="number" min={0}
+                  value={filters.minAttended}
+                  onChange={e => setFilters(f => ({ ...f, minAttended: Math.max(0, Number(e.target.value) || 0) }))}
+                  className="w-full px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label>Min attended</Label>
-                  <input
-                    type="number" min={0}
-                    value={filters.minAttended}
-                    onChange={e => setFilters(f => ({ ...f, minAttended: Math.max(0, Number(e.target.value) || 0) }))}
-                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                  />
-                </div>
-                <div>
-                  <Label>Min engagement</Label>
-                  <input
-                    type="number"
-                    value={filters.minEngagement}
-                    onChange={e => setFilters(f => ({ ...f, minEngagement: Number(e.target.value) || 0 }))}
-                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                  />
-                </div>
+              <div>
+                <Label>Min engagement</Label>
+                <input
+                  type="number"
+                  value={filters.minEngagement}
+                  onChange={e => setFilters(f => ({ ...f, minEngagement: Number(e.target.value) || 0 }))}
+                  className="w-full px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                />
               </div>
             </div>
           </Segment>
