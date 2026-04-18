@@ -43,3 +43,16 @@ When changing schema, update all three:
 ## Event shorthand
 
 Used throughout workflow code: `#1` Starting Point, `#2` Oxbridge, `#3` Degree Apprenticeship, `#4` Great Lock-In. Abbreviations: `SCH` (Schools), `PTN` (Partnerships), `SS`, `ENG`. New modules should respect the same shorthand.
+
+## CRITICAL: File access workflow
+
+**Never read or copy files from the FUSE mount.** The FUSE mount (the local path under `Claude Projects/`) frequently serves truncated or stale file contents, which causes broken syntax and silent corruption.
+
+**Always do this instead:**
+1. Clone fresh from GitHub to `/tmp/intranet-push` (or similar) at the start of every session.
+2. Read all existing code from the clone.
+3. Write new/changed files directly into the clone.
+4. Commit and push from the clone.
+5. If the local mount needs updating, rsync *from* the clone *to* the mount — never the other direction.
+
+This is a non-negotiable rule. It applies every session, regardless of how simple the change seems.
