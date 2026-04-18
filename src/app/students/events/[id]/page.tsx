@@ -25,6 +25,8 @@ type Applicant = {
   reviewed_by: string | null
   reviewer_name: string | null
   reviewed_at: string | null
+  rsvp_confirmed: boolean | null // null = no RSVP row, true/false from application_rsvp
+  rsvp_confirmed_at: string | null
 }
 
 const STATUSES = [
@@ -37,6 +39,13 @@ const STATUSES = [
 ]
 
 const STATUS_MAP = Object.fromEntries(STATUSES.map(s => [s.code, s]))
+
+// Notify-able statuses for combined actions
+const NOTIFY_STATUSES = [
+  { code: 'accepted', label: 'Accept & Notify', templateType: 'acceptance', color: 'bg-emerald-600 hover:bg-emerald-700' },
+  { code: 'rejected', label: 'Reject & Notify', templateType: 'rejection', color: 'bg-red-600 hover:bg-red-700' },
+  { code: 'waitlist', label: 'Waitlist & Notify', templateType: 'waitlist', color: 'bg-amber-600 hover:bg-amber-700' },
+]
 
 type StatusFilter = 'all' | string
 
@@ -77,6 +86,9 @@ export default function EventDetailPage() {
   const [emailStep, setEmailStep] = useState<'pick' | 'preview' | 'sending' | 'done'>('pick')
   const [sendProgress, setSendProgress] = useState({ sent: 0, failed: 0, total: 0 })
 
+  // Combined action: status to apply after emails are queued
+  const [notifyAction, setNotifyAction] = useState<string | null>(null)
+
   // Fetch event
   useEffect(() => {
     let active = true
@@ -102,7 +114,8 @@ export default function EventDetailPage() {
           id, student_id, status, submitted_at, attended, reviewed_by, reviewed_at,
           students!inner(first_name, last_name, personal_email, year_group, school_id,
             schools(name)
-          )
+          ),
+          application_rsvp(confirmed, confirmed_at)
         `)
         .eq('event_id', eventId)
         .is('deleted_at', null)
@@ -132,6 +145,7 @@ export default function EventDetailPage() {
 
     const mapped: Applicant[] = (data ?? []).map((row: any) => {
       const s = row.students
+      const rsvp = row.application_rsvp
       return {
         id: row.id,
         student_id: row.student_id,
@@ -146,6 +160,8 @@ export default function EventDetailPage() {
         reviewed_by: row.reviewed_by,
         reviewer_name: row.reviewed_by ? (reviewerMap[row.reviewed_by] ?? null) : null,
         reviewed_at: row.reviewed_at,
+        rsvp_confirmed: rsvp ? rsvp.confirmed : null,
+        rsvp_confirmed_at: rsvp?.confirmed_at ?? null,
       }
     })
 
@@ -319,8 +335,17 @@ export default function EventDetailPage() {
     setTemplates((data ?? []) as any[])
   }, [])
 
-  const openCompose = () => {
-    loadTemplates()
+  const openCompose = (action?: string) => {
+    setNotifyAction(action ?? null)
+    loadTemplates().then(() => {
+      // If this is a combined action, auto-select matching template
+      if (action) {
+        const matchType = NOTIFY_STATUSES.find(n => n.code === action)?.templateType
+        if (matchType) {
+          // Will be applied once templates load — see effect below
+        }
+      }
+    })
     setShowCompose(true)
     setEmailStep('pick')
     setSelectedTemplate('')
@@ -329,11 +354,26 @@ export default function EventDetailPage() {
     setSendProgress({ sent: 0, failed: 0, total: 0 })
   }
 
+  // Auto-apply template when templates load for a combined action
+  useEffect(() => {
+    if (!notifyAction || templates.length === 0) return
+    const matchType = NOTIFY_STATUSES.find(n => n.code === notifyAction)?.templateType
+    if (!matchType) return
+    // Find a matching template (prefer event-specific, fall back to global)
+    const eventMatch = templates.find(t => t.type === matchType && t.event_id === eventId)
+    const globalMatch = templates.find(t => t.type === matchType && !t.event_id)
+    const match = eventMatch ?? globalMatch
+    if (match && !selectedTemplate) {
+      setSelectedTemplate(match.id)
+      setEmailSubject(match.subject)
+      setEmailBody(match.body_html)
+    }
+  }, [templates, notifyAction, eventId, selectedTemplate])
+
   const applyTemplate = (templateId: string) => {
     const tpl = templates.find(t => t.id === templateId)
     if (!tpl) return
     setSelectedTemplate(templateId)
-    // We'll fill merge fields in preview — just set raw template for now
     setEmailSubject(tpl.subject)
     setEmailBody(tpl.body_html)
   }
@@ -342,24 +382,32 @@ export default function EventDetailPage() {
     return text
       .replace(/\{\{first_name\}\}/g, applicant.first_name)
       .replace(/\{\{last_name\}\}/g, applicant.last_name)
+      .replace(/\{\{full_name\}\}/g, `${applicant.first_name} ${applicant.last_name}`)
+      .replace(/\{\{email\}\}/g, applicant.personal_email ?? '')
       .replace(/\{\{event_name\}\}/g, event?.name ?? '')
       .replace(/\{\{event_date\}\}/g, event?.event_date
-        ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+        ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
         : 'TBC')
       .replace(/\{\{event_location\}\}/g, event?.location ?? 'TBC')
       .replace(/\{\{event_time\}\}/g, [event?.time_start, event?.time_end].filter(Boolean).join(' – ') || 'TBC')
+      .replace(/\{\{dress_code\}\}/g, event?.dress_code ?? '')
+      .replace(/\{\{portal_link\}\}/g, 'https://the-steps-foundation-intranet.vercel.app/student-portal')
+      .replace(/\{\{rsvp_link\}\}/g, 'https://the-steps-foundation-intranet.vercel.app/student-portal')
   }
 
   const getRecipients = () => {
     return applicants.filter(a => selected.has(a.id) && a.personal_email)
   }
 
-  const queueEmails = async () => {
+  const sendEmails = async () => {
     const recipients = getRecipients()
     if (recipients.length === 0) return
 
     setEmailStep('sending')
     setSendProgress({ sent: 0, failed: 0, total: recipients.length })
+
+    const now = new Date().toISOString()
+    const emailLogIds: { appId: string; logId: string }[] = []
 
     for (const recipient of recipients) {
       const renderedSubject = fillMergeFields(emailSubject, recipient)
@@ -367,7 +415,7 @@ export default function EventDetailPage() {
 
       try {
         // Insert into email_log
-        await supabase.from('email_log').insert({
+        const { data: logRow } = await supabase.from('email_log').insert({
           student_id: recipient.student_id,
           event_id: eventId,
           template_id: selectedTemplate || null,
@@ -375,9 +423,13 @@ export default function EventDetailPage() {
           from_email: 'hello@thestepsfoundation.com',
           subject: renderedSubject,
           body_html: renderedBody,
-          status: 'queued',
+          status: 'pending',
           sent_by: (teamMember as any)?.auth_uuid ?? null,
-        })
+        }).select('id').single()
+
+        if (logRow) {
+          emailLogIds.push({ appId: recipient.id, logId: logRow.id })
+        }
 
         setSendProgress(prev => ({ ...prev, sent: prev.sent + 1 }))
       } catch {
@@ -385,8 +437,60 @@ export default function EventDetailPage() {
       }
     }
 
+    // If this is a combined action, update statuses now and link to email_log
+    if (notifyAction) {
+      const ids = recipients.map(r => r.id)
+
+      // Log status history for each, linking to email_log
+      for (const recipient of recipients) {
+        if (recipient.status !== notifyAction) {
+          const logEntry = emailLogIds.find(e => e.appId === recipient.id)
+          await supabase.from('application_status_history').insert({
+            application_id: recipient.id,
+            old_status: recipient.status,
+            new_status: notifyAction,
+            changed_by: teamMember?.auth_uuid ?? null,
+            email_log_id: logEntry?.logId ?? null,
+          })
+        }
+      }
+
+      // Bulk update application statuses
+      await supabase
+        .from('applications')
+        .update({
+          status: notifyAction,
+          reviewed_by: teamMember?.auth_uuid ?? null,
+          reviewed_at: now,
+          updated_by: teamMember?.auth_uuid ?? null,
+          updated_at: now,
+        } as any)
+        .in('id', ids)
+
+      // Optimistic update
+      setApplicants(prev => prev.map(a =>
+        ids.includes(a.id) ? {
+          ...a,
+          status: notifyAction,
+          reviewed_by: teamMember?.auth_uuid ?? null,
+          reviewer_name: teamMember?.name ?? null,
+          reviewed_at: now,
+        } : a
+      ))
+    }
+
     setEmailStep('done')
   }
+
+  // ---------------------------------------------------------------------------
+  // RSVP helpers
+  // ---------------------------------------------------------------------------
+
+  const rsvpStats = useMemo(() => {
+    const accepted = applicants.filter(a => a.status === 'accepted')
+    const confirmed = accepted.filter(a => a.rsvp_confirmed === true)
+    return { accepted: accepted.length, confirmed: confirmed.length }
+  }, [applicants])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -452,6 +556,12 @@ export default function EventDetailPage() {
               <div className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{acceptedCount}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Accepted</div>
             </div>
+            {rsvpStats.accepted > 0 && (
+              <div className="text-center">
+                <div className="text-2xl font-semibold text-purple-600 dark:text-purple-400">{rsvpStats.confirmed}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">RSVPs</div>
+              </div>
+            )}
             <div className="text-center">
               <div className="text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{attendedCount}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Attended</div>
@@ -498,9 +608,24 @@ export default function EventDetailPage() {
 
           {/* Bulk actions */}
           {selected.size > 0 && (
-            <div className="mt-3 flex items-center gap-2 text-sm">
-              <span className="text-gray-600 dark:text-gray-400">{selected.size} selected</span>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-gray-600 dark:text-gray-400 font-medium">{selected.size} selected</span>
               <span className="text-gray-300 dark:text-gray-600">|</span>
+
+              {/* Combined status + notify actions */}
+              {NOTIFY_STATUSES.map(ns => (
+                <button
+                  key={ns.code}
+                  onClick={() => openCompose(ns.code)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium text-white transition-colors ${ns.color}`}
+                >
+                  {ns.label}
+                </button>
+              ))}
+
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+
+              {/* Status-only changes (no email) */}
               {STATUSES.filter(s => s.code !== 'withdrew').map(s => (
                 <button
                   key={s.code}
@@ -510,11 +635,14 @@ export default function EventDetailPage() {
                   → {s.label}
                 </button>
               ))}
+
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+
               <button
-                onClick={openCompose}
+                onClick={() => openCompose()}
                 className="px-2.5 py-1 rounded text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
               >
-                Email selected
+                Email only
               </button>
               <button
                 onClick={() => setSelected(new Set())}
@@ -551,10 +679,10 @@ export default function EventDetailPage() {
                   <th className="p-3 hidden lg:table-cell">School</th>
                   <th className="p-3 hidden lg:table-cell">Year</th>
                   <th className="p-3">Status</th>
+                  <th className="p-3">RSVP</th>
                   <th className="p-3 hidden md:table-cell">Submitted</th>
                   <th className="p-3">Attended</th>
                   <th className="p-3 hidden lg:table-cell">Reviewer</th>
-                  <th className="p-3 hidden lg:table-cell">Reviewed</th>
                 </tr>
               </thead>
               <tbody>
@@ -606,6 +734,22 @@ export default function EventDetailPage() {
                           ))}
                         </select>
                       </td>
+                      <td className="p-3">
+                        {app.status === 'accepted' ? (
+                          app.rsvp_confirmed === true ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                              Confirmed
+                            </span>
+                          ) : (
+                            <span className="text-xs text-amber-600 dark:text-amber-400">Pending</span>
+                          )
+                        ) : (
+                          <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
+                        )}
+                      </td>
                       <td className="p-3 hidden md:table-cell text-gray-500 dark:text-gray-400">
                         {new Date(app.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
                       </td>
@@ -630,11 +774,6 @@ export default function EventDetailPage() {
                       <td className="p-3 hidden lg:table-cell text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
                         {app.reviewer_name ?? '—'}
                       </td>
-                      <td className="p-3 hidden lg:table-cell text-gray-500 dark:text-gray-400">
-                        {app.reviewed_at
-                          ? new Date(app.reviewed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
-                          : '—'}
-                      </td>
                     </tr>
                   )
                 })}
@@ -646,9 +785,10 @@ export default function EventDetailPage() {
         {/* Footer with pagination */}
         <div className="p-3 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
           <span>
-            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            Showing {filtered.length > 0 ? page * PAGE_SIZE + 1 : 0}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
             {filtered.length !== applicants.length && ` (${applicants.length} total)`}
             {' · '}{attendedCount} attended · {applicants.length - attendedCount} no-show
+            {rsvpStats.accepted > 0 && ` · ${rsvpStats.confirmed}/${rsvpStats.accepted} RSVPs`}
           </span>
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
@@ -687,7 +827,8 @@ export default function EventDetailPage() {
           )}
         </div>
       </div>
-    {/* Email Compose Modal */}
+
+      {/* Email Compose Modal */}
       {showCompose && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 w-full max-w-2xl max-h-[85vh] flex flex-col">
@@ -695,17 +836,24 @@ export default function EventDetailPage() {
             <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {emailStep === 'done' ? 'Emails queued' : emailStep === 'sending' ? 'Sending…' : 'Compose email'}
+                  {emailStep === 'done'
+                    ? 'Emails sent'
+                    : emailStep === 'sending'
+                    ? 'Sending…'
+                    : notifyAction
+                    ? `${NOTIFY_STATUSES.find(n => n.code === notifyAction)?.label ?? 'Notify'}`
+                    : 'Compose email'}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {getRecipients().length} recipient{getRecipients().length !== 1 ? 's' : ''} selected
+                  {getRecipients().length} recipient{getRecipients().length !== 1 ? 's' : ''}
+                  {notifyAction && ` — status will change to "${STATUS_MAP[notifyAction]?.label ?? notifyAction}"`}
                   {getRecipients().length < selected.size && (
                     <span className="text-amber-600 dark:text-amber-400"> ({selected.size - getRecipients().length} without email — skipped)</span>
                   )}
                 </p>
               </div>
               {emailStep !== 'sending' && (
-                <button onClick={() => setShowCompose(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <button onClick={() => { setShowCompose(false); setNotifyAction(null) }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -754,7 +902,7 @@ export default function EventDetailPage() {
                       value={emailBody}
                       onChange={e => setEmailBody(e.target.value)}
                       rows={8}
-                      placeholder="<p>Dear {{first_name}},</p>"
+                      placeholder="<p>Hey {{first_name}},</p>"
                       className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-mono"
                     />
                   </div>
@@ -762,10 +910,10 @@ export default function EventDetailPage() {
                   {/* Merge field hints */}
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     <span className="font-medium">Merge fields: </span>
-                    {['{{first_name}}', '{{last_name}}', '{{event_name}}', '{{event_date}}', '{{event_location}}', '{{event_time}}'].map((f, i) => (
+                    {['{{first_name}}', '{{last_name}}', '{{full_name}}', '{{event_name}}', '{{event_date}}', '{{event_location}}', '{{event_time}}', '{{dress_code}}', '{{portal_link}}', '{{rsvp_link}}'].map((f, i, arr) => (
                       <span key={f}>
                         <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{f}</code>
-                        {i < 5 ? ', ' : ''}
+                        {i < arr.length - 1 ? ', ' : ''}
                       </span>
                     ))}
                   </div>
@@ -778,7 +926,7 @@ export default function EventDetailPage() {
                     Preview with first recipient: <strong>{getRecipients()[0]?.first_name} {getRecipients()[0]?.last_name}</strong>
                   </div>
                   <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">From: hello@thestepsfoundation.com</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">From: Events - The Steps Foundation &lt;hello@thestepsfoundation.com&gt;</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">To: {getRecipients()[0]?.personal_email}</div>
                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
                       {getRecipients()[0] ? fillMergeFields(emailSubject, getRecipients()[0]) : emailSubject}
@@ -790,6 +938,11 @@ export default function EventDetailPage() {
                       }}
                     />
                   </div>
+                  {notifyAction && (
+                    <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-800 dark:text-amber-300">
+                      After sending, all {getRecipients().length} selected applicant{getRecipients().length !== 1 ? 's' : ''} will be marked as <strong>{STATUS_MAP[notifyAction]?.label ?? notifyAction}</strong>.
+                    </div>
+                  )}
                 </>
               )}
 
@@ -797,7 +950,7 @@ export default function EventDetailPage() {
                 <div className="text-center py-6">
                   <div className="text-4xl mb-3">&#9993;</div>
                   <div className="text-sm text-gray-600 dark:text-gray-300">
-                    Queuing {sendProgress.sent + sendProgress.failed} / {sendProgress.total}…
+                    Processing {sendProgress.sent + sendProgress.failed} / {sendProgress.total}…
                   </div>
                   <div className="w-48 mx-auto mt-3 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                     <div
@@ -812,15 +965,20 @@ export default function EventDetailPage() {
                 <div className="text-center py-6">
                   <div className="text-4xl mb-3">&#10003;</div>
                   <div className="text-sm text-gray-900 dark:text-gray-100 font-medium">
-                    {sendProgress.sent} email{sendProgress.sent !== 1 ? 's' : ''} queued successfully
+                    {sendProgress.sent} email{sendProgress.sent !== 1 ? 's' : ''} queued for sending
                   </div>
                   {sendProgress.failed > 0 && (
                     <div className="text-sm text-red-600 dark:text-red-400 mt-1">
                       {sendProgress.failed} failed to queue
                     </div>
                   )}
+                  {notifyAction && (
+                    <div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
+                      Statuses updated to {STATUS_MAP[notifyAction]?.label ?? notifyAction}
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Emails are queued and will be sent from hello@thestepsfoundation.com
+                    Emails will be sent from hello@thestepsfoundation.com
                   </p>
                 </div>
               )}
@@ -831,7 +989,7 @@ export default function EventDetailPage() {
               {emailStep === 'pick' && (
                 <>
                   <button
-                    onClick={() => setShowCompose(false)}
+                    onClick={() => { setShowCompose(false); setNotifyAction(null) }}
                     className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     Cancel
@@ -854,16 +1012,23 @@ export default function EventDetailPage() {
                     Back
                   </button>
                   <button
-                    onClick={queueEmails}
-                    className="px-4 py-1.5 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                    onClick={sendEmails}
+                    className={`px-4 py-1.5 text-sm rounded-md text-white ${
+                      notifyAction
+                        ? NOTIFY_STATUSES.find(n => n.code === notifyAction)?.color ?? 'bg-emerald-600 hover:bg-emerald-700'
+                        : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
                   >
-                    Send to {getRecipients().length} recipient{getRecipients().length !== 1 ? 's' : ''}
+                    {notifyAction
+                      ? `${NOTIFY_STATUSES.find(n => n.code === notifyAction)?.label ?? 'Send'} (${getRecipients().length})`
+                      : `Send to ${getRecipients().length} recipient${getRecipients().length !== 1 ? 's' : ''}`
+                    }
                   </button>
                 </>
               )}
               {emailStep === 'done' && (
                 <button
-                  onClick={() => { setShowCompose(false); setSelected(new Set()) }}
+                  onClick={() => { setShowCompose(false); setNotifyAction(null); setSelected(new Set()) }}
                   className="px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
                 >
                   Done

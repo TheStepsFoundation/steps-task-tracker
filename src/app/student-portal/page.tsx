@@ -16,12 +16,15 @@ type ApplicationRow = {
   event_id: string
   status: string
   created_at: string
-  event_name?: string
-}
-
-// Known events for display names
-const EVENT_NAMES: Record<string, string> = {
-  'b5e7f8a1-3c9d-4b2e-8f1a-6d7c8e9f0a1b': 'Man Group Office Visit',
+  event_name: string
+  event_date: string | null
+  event_location: string | null
+  event_time_start: string | null
+  event_time_end: string | null
+  event_dress_code: string | null
+  event_capacity: number | null
+  rsvp_confirmed: boolean | null
+  rsvp_confirmed_at: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -53,6 +56,7 @@ export default function PortalPage() {
   const [student, setStudent] = useState<StudentSelf | null>(null)
   const [applications, setApplications] = useState<ApplicationRow[]>([])
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [rsvpLoading, setRsvpLoading] = useState<string | null>(null) // application id being RSVP'd
 
   // Check for existing session on mount
   useEffect(() => {
@@ -75,24 +79,77 @@ export default function PortalPage() {
     const self = await lookupSelf()
     setStudent(self)
 
-    // Load applications
+    // Load applications with event details and RSVP status
     if (self) {
       const { data } = await supabase
         .from('applications')
-        .select('id, event_id, status, created_at')
+        .select(`
+          id, event_id, status, created_at,
+          events(name, event_date, location, time_start, time_end, dress_code, capacity),
+          application_rsvp(confirmed, confirmed_at)
+        `)
         .eq('student_id', self.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (data) {
         setApplications(
-          data.map((a: ApplicationRow) => ({
-            ...a,
-            event_name: EVENT_NAMES[a.event_id] || 'Event',
+          data.map((a: any) => ({
+            id: a.id,
+            event_id: a.event_id,
+            status: a.status,
+            created_at: a.created_at,
+            event_name: a.events?.name ?? 'Event',
+            event_date: a.events?.event_date ?? null,
+            event_location: a.events?.location ?? null,
+            event_time_start: a.events?.time_start ?? null,
+            event_time_end: a.events?.time_end ?? null,
+            event_dress_code: a.events?.dress_code ?? null,
+            event_capacity: a.events?.capacity ?? null,
+            rsvp_confirmed: a.application_rsvp?.confirmed ?? null,
+            rsvp_confirmed_at: a.application_rsvp?.confirmed_at ?? null,
           }))
         )
       }
     }
   }, [])
+
+  // --- RSVP ---
+  const handleRsvp = async (applicationId: string) => {
+    setRsvpLoading(applicationId)
+    try {
+      const now = new Date().toISOString()
+
+      // Check if RSVP row exists
+      const { data: existing } = await supabase
+        .from('application_rsvp')
+        .select('id')
+        .eq('application_id', applicationId)
+        .maybeSingle()
+
+      if (existing) {
+        await supabase
+          .from('application_rsvp')
+          .update({ confirmed: true, confirmed_at: now, updated_at: now })
+          .eq('application_id', applicationId)
+      } else {
+        await supabase
+          .from('application_rsvp')
+          .insert({ application_id: applicationId, confirmed: true, confirmed_at: now })
+      }
+
+      // Update local state
+      setApplications(prev => prev.map(a =>
+        a.id === applicationId
+          ? { ...a, rsvp_confirmed: true, rsvp_confirmed_at: now }
+          : a
+      ))
+    } catch (err) {
+      console.error('RSVP error:', err)
+    } finally {
+      setRsvpLoading(null)
+    }
+  }
 
   // --- Email submit ---
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -157,17 +214,21 @@ export default function PortalPage() {
   const StatusBadge = ({ status }: { status: string }) => {
     const styles: Record<string, string> = {
       submitted: 'bg-blue-100 text-blue-700',
+      shortlisted: 'bg-violet-100 text-violet-700',
       under_review: 'bg-yellow-100 text-yellow-700',
       accepted: 'bg-green-100 text-green-700',
       waitlisted: 'bg-orange-100 text-orange-700',
       rejected: 'bg-red-100 text-red-700',
+      waitlist: 'bg-orange-100 text-orange-700',
     }
     const labels: Record<string, string> = {
-      submitted: 'Submitted',
+      submitted: 'Under Review',
+      shortlisted: 'Under Review',
       under_review: 'Under Review',
       accepted: 'Accepted',
       waitlisted: 'Waitlisted',
       rejected: 'Not Successful',
+      waitlist: 'Waitlisted',
     }
     return (
       <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
@@ -381,14 +442,72 @@ export default function PortalPage() {
           ) : (
             <div className="space-y-3">
               {applications.map((app) => (
-                <div key={app.id} className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{app.event_name}</p>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      Applied {new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
+                <div key={app.id} className="bg-white rounded-xl border border-gray-200 p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">{app.event_name}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {app.event_date
+                          ? new Date(app.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                          : 'Date TBC'}
+                        {app.event_location && ` · ${app.event_location}`}
+                      </p>
+                      {app.event_time_start && (
+                        <p className="text-sm text-gray-500">
+                          {app.event_time_start}{app.event_time_end ? ` – ${app.event_time_end}` : ''}
+                          {app.event_dress_code && ` · Dress code: ${app.event_dress_code}`}
+                        </p>
+                      )}
+                    </div>
+                    <StatusBadge status={app.status} />
                   </div>
-                  <StatusBadge status={app.status} />
+
+                  {/* RSVP section for accepted applications */}
+                  {app.status === 'accepted' && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      {app.rsvp_confirmed ? (
+                        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg px-4 py-3">
+                          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div>
+                            <span className="font-medium">Attendance confirmed</span>
+                            {app.rsvp_confirmed_at && (
+                              <span className="text-green-600 ml-1">
+                                on {new Date(app.rsvp_confirmed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-purple-50 rounded-lg px-4 py-3">
+                          <p className="text-sm text-purple-800 mb-3">
+                            You&rsquo;ve been accepted! Please confirm your attendance so we can save your spot.
+                          </p>
+                          <button
+                            onClick={() => handleRsvp(app.id)}
+                            disabled={rsvpLoading === app.id}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {rsvpLoading === app.id ? (
+                              <><Spinner className="h-4 w-4" /> Confirming...</>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Confirm Attendance
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-400 mt-3">
+                    Applied {new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
                 </div>
               ))}
             </div>
