@@ -74,7 +74,6 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       first_generation_uni: student.first_generation_uni,
       subscribed_to_mailing: student.subscribed_to_mailing,
       school_type: student.school_type,
-      bursary_90plus: student.bursary_90plus,
       notes: student.notes,
     })
     setEditing(true)
@@ -192,7 +191,6 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             <Field label="First-gen uni" value={boolLabel(student.first_generation_uni)} />
             <Field label="Mailing list" value={boolLabel(student.subscribed_to_mailing)} />
             <Field label="School type" value={schoolTypeLabel(student.school_type)} />
-            <Field label="90%+ bursary" value={boolLabel(student.bursary_90plus)} />
             <Field label="Eligibility" value={enriched.eligibility} />
           </div>
         ) : (
@@ -244,7 +242,6 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
                 <option value="private">Private</option>
               </select>
             </div>
-            <TriCheckbox label="90%+ bursary" value={draft.bursary_90plus} onChange={v => setDraft(d => ({ ...d, bursary_90plus: v }))} />
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Notes</label>
               <textarea
