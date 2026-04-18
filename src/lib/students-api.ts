@@ -5,6 +5,7 @@ export const EVENTS: { id: string; name: string; short: string; date: string }[]
   { id: '303a13ff-b33a-41d5-bdd0-8e5b5538b5a3', name: 'Oxbridge Interview Workshop', short: 'Oxb', date: '2025-12-07' },
   { id: 'd29dc7cf-2336-44ee-994e-9a917bc837d3', name: 'Degree Apprenticeship Masterclass', short: 'DA', date: '2026-02-07' },
   { id: 'dbcaf8b1-8bb0-4e09-8c73-43f1b75c7094', name: 'The Great Lock-In', short: 'Lock-In', date: '2026-03-21' },
+  { id: 'b5e7f8a1-3c9d-4b2e-8f1a-6d7c8e9f0a1b', name: 'Man Group Office Visit', short: 'MG', date: '2026-07-08' },
 ]
 
 export const EVENT_BY_ID = Object.fromEntries(EVENTS.map(e => [e.id, e]))
@@ -15,7 +16,7 @@ export const ATTRIBUTION_SOURCES: { value: string; label: string }[] = [
   { value: 'linkedin',          label: 'LinkedIn' },
   { value: 'instagram',         label: 'Instagram direct' },
   { value: 'email',             label: 'Email' },
-  { value: 'teacher_newsletter',label: 'Teacher newsletter' },
+  { value: 'teacher_newsletter',label: 'School / teacher' },
   { value: 'other',             label: 'Other' },
   { value: 'unknown',           label: 'Unknown' },
 ]

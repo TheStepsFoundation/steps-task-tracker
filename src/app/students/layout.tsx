@@ -1,32 +1,30 @@
 'use client'
 
 import Link from 'next/link'
-import { useAuth, getUserDisplayName } from '@/lib/auth-provider'
+import { useAuth } from '@/lib/auth-provider'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function StudentsLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, signOut, isAllowedEmail } = useAuth()
+  const { user, loading, signOut, isTeamMember, teamMember } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (loading) return
-    if (!user) {
-      router.push('/login')
-      return
-    }
-    if (user.email && !isAllowedEmail(user.email)) {
+    if (!user || !isTeamMember) {
       router.push('/login')
     }
-  }, [user, loading, isAllowedEmail, router])
+  }, [user, loading, isTeamMember, router])
 
-  if (loading || !user) {
+  if (loading || !user || !isTeamMember) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-gray-500 dark:text-gray-400">Loading…</div>
       </div>
     )
   }
+
+  const displayName = teamMember?.name || user.email?.split('@')[0] || 'Unknown'
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -42,7 +40,7 @@ export default function StudentsLayout({ children }: { children: React.ReactNode
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden sm:block text-sm text-gray-600 dark:text-gray-400">{getUserDisplayName(user.email)}</span>
+            <span className="hidden sm:block text-sm text-gray-600 dark:text-gray-400">{displayName}</span>
             <button
               onClick={() => signOut().then(() => router.push('/login'))}
               className="text-sm px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"

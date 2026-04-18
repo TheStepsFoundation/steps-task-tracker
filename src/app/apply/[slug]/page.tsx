@@ -1,0 +1,875 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useParams } from 'next/navigation'
+import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
+import {
+  sendOtp, verifyOtp, lookupSelf, hasExistingApplication,
+  submitApplication, upgradeToPassword, signOutStudent,
+  type StudentSelf, type ApplicationSubmission,
+} from '@/lib/apply-api'
+
+// ---------------------------------------------------------------------------
+// Event registry — maps slug to event metadata + form config
+// ---------------------------------------------------------------------------
+
+const EVENTS: Record<string, {
+  id: string; name: string; date: string; location: string; time: string; capacity: string
+}> = {
+  'man-group-office-visit': {
+    id: 'b5e7f8a1-3c9d-4b2e-8f1a-6d7c8e9f0a1b',
+    name: 'Man Group Office Visit',
+    date: 'Wednesday 8 July 2026',
+    location: 'Riverbank House, 2 Swan Lane, London EC4R 3AD',
+    time: '~09:30 – 15:30',
+    capacity: '20–25',
+  },
+}
+
+const A_LEVEL_SUBJECTS = [
+  'Mathematics', 'Further Mathematics', 'Biology', 'Chemistry', 'Physics',
+  'Computer Science', 'Economics', 'Business Studies', 'Politics', 'History',
+  'Geography', 'Psychology', 'Sociology', 'Religious Studies',
+  'English Literature', 'English Language', 'Spanish', 'French',
+  'Art/Design', 'Drama', 'Physical Education', 'Media/Film Studies',
+]
+
+const MAN_GROUP_INTERESTS = [
+  { value: 'quant_investing', label: 'Quantitative Investing — using maths, data and computers to trade (Man AHL / Numeric)' },
+  { value: 'discretionary_investing', label: 'Discretionary Investing — expert humans researching companies and markets (Man GLG)' },
+  { value: 'private_markets', label: 'Private Markets — investing in companies and lending directly (Man Varagon / GPM)' },
+  { value: 'tech_engineering', label: 'Technology & Engineering — the software, systems and infrastructure behind it all' },
+  { value: 'research_data_science', label: 'Research & Data Science — analysing markets, economics and alternative data' },
+  { value: 'business_operations', label: 'Business Operations & Corporate Functions — risk, compliance, legal, HR, operations' },
+]
+
+const ATTRIBUTION_OPTIONS = [
+  { value: 'email_invite', label: 'Email invite' },
+  { value: 'school_teacher', label: 'School / teacher' },
+  { value: 'previous_steps_event', label: 'Attended a previous Steps Foundation event' },
+  { value: 'previous_steps_application', label: 'Applied to a previous Steps Foundation event' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'friend_word_of_mouth', label: 'Friend / word of mouth' },
+  { value: 'other', label: 'Other' },
+]
+
+const SCHOOL_TYPE_OPTIONS = [
+  { value: 'state', label: 'State non-selective school' },
+  { value: 'grammar', label: 'State selective / grammar school' },
+  { value: 'independent', label: 'Independent (fee-paying) school' },
+  { value: 'independent_bursary', label: 'Independent (fee-paying) school with >90% bursary/scholarship' },
+]
+
+// ---------------------------------------------------------------------------
+// Steps
+// ---------------------------------------------------------------------------
+
+type Step = 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'success'
+
+// ---------------------------------------------------------------------------
+// Page Component
+// ---------------------------------------------------------------------------
+
+export default function ApplyPage() {
+  const params = useParams()
+  const slug = params.slug as string
+  const event = EVENTS[slug]
+
+  const [step, setStep] = useState<Step>('email')
+  const [email, setEmail] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [existingStudent, setExistingStudent] = useState<StudentSelf | null>(null)
+  const [alreadyApplied, setAlreadyApplied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // Form state — details step
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [school, setSchool] = useState<SchoolPickerValue>({ schoolId: null, schoolNameRaw: null })
+  const [yearGroup, setYearGroup] = useState<number | ''>('')
+  const [schoolType, setSchoolType] = useState('')
+  const [freeSchoolMeals, setFreeSchoolMeals] = useState('')
+  const [firstGenUni, setFirstGenUni] = useState('')
+  const [householdIncome, setHouseholdIncome] = useState('')
+  const [additionalContext, setAdditionalContext] = useState('')
+
+  // Form state — application step
+  const [gcseResults, setGcseResults] = useState('')
+  const [aLevelSubjects, setALevelSubjects] = useState<string[]>([])
+  const [predictedGrades, setPredictedGrades] = useState('')
+  const [ibPredictions, setIbPredictions] = useState('')
+  const [manGroupInterests, setManGroupInterests] = useState<string[]>([])
+  const [questionForPro, setQuestionForPro] = useState('')
+  const [attribution, setAttribution] = useState('')
+  const [consentGiven, setConsentGiven] = useState(false)
+
+  // Success step
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [passwordSaved, setPasswordSaved] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  // Pre-fill form when we get existing student data
+  const prefill = useCallback((s: StudentSelf) => {
+    if (s.first_name) setFirstName(s.first_name)
+    if (s.last_name) setLastName(s.last_name)
+    if (s.school_id || s.school_name_raw) {
+      setSchool({ schoolId: s.school_id, schoolNameRaw: s.school_name_raw })
+    }
+    if (s.year_group) setYearGroup(s.year_group)
+    if (s.school_type) {
+      // Map back: if independent + bursary, use independent_bursary
+      setSchoolType(s.school_type)
+    }
+    if (s.free_school_meals === true) setFreeSchoolMeals('yes')
+    else if (s.free_school_meals === false) setFreeSchoolMeals('no')
+    // Note: 'previously' is stored as true in the DB — granularity is lost on re-prefill.
+    // This is acceptable for Phase 1; the raw_response JSONB preserves the original answer.
+    if (s.first_generation_uni !== null) setFirstGenUni(s.first_generation_uni ? 'yes' : 'no')
+    if (s.parental_income_band) {
+      if (['under_20k', '20_40k'].includes(s.parental_income_band)) setHouseholdIncome('yes')
+      else if (s.parental_income_band === 'prefer_na') setHouseholdIncome('prefer_not_to_say')
+      else setHouseholdIncome('no')
+    }
+  }, [])
+
+  // --- Handlers ---
+
+  const handleSendOtp = async () => {
+    if (!email.trim()) return
+    setLoading(true)
+    setError(null)
+    const { error: err } = await sendOtp(email)
+    setLoading(false)
+    if (err) { setError(err); return }
+    setStep('otp')
+  }
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length < 6) return
+    setLoading(true)
+    setError(null)
+    const { error: err } = await verifyOtp(email, otpCode)
+    if (err) { setLoading(false); setError(err); return }
+
+    // Lookup existing student
+    const student = await lookupSelf()
+    if (student) {
+      setExistingStudent(student)
+      prefill(student)
+      // Check if already applied to this event
+      const applied = await hasExistingApplication(event.id)
+      if (applied) {
+        setAlreadyApplied(true)
+      }
+    }
+    setLoading(false)
+    setStep('details')
+  }
+
+  const handleDetailsNext = () => {
+    setError(null)
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Please enter your first and last name.')
+      return
+    }
+    if (!school.schoolId && !school.schoolNameRaw) {
+      setError('Please select or enter your school.')
+      return
+    }
+    if (!yearGroup) {
+      setError('Please select your year group.')
+      return
+    }
+    if (!schoolType) {
+      setError('Please select your school type.')
+      return
+    }
+    if (!freeSchoolMeals) {
+      setError('Please answer the Free School Meals question.')
+      return
+    }
+    if (!firstGenUni) {
+      setError('Please answer the first generation question.')
+      return
+    }
+    if (!householdIncome) {
+      setError('Please answer the household income question.')
+      return
+    }
+    setStep('application')
+  }
+
+  const handleSubmit = async () => {
+    setError(null)
+    if (!gcseResults.trim()) { setError('Please enter your GCSE results.'); return }
+    if (aLevelSubjects.length === 0) { setError('Please select at least one A-Level subject.'); return }
+    if (!predictedGrades.trim()) { setError('Please enter your predicted grades.'); return }
+    if (manGroupInterests.length === 0) { setError('Please select at least one area of interest.'); return }
+    if (manGroupInterests.length > 3) { setError('Please select up to 3 areas of interest.'); return }
+    if (!questionForPro.trim()) { setError('Please enter a question for Man Group professionals.'); return }
+    if (!attribution) { setError('Please tell us how you heard about this opportunity.'); return }
+    if (!consentGiven) { setError('Please accept the privacy notice to continue.'); return }
+
+    setStep('submitting')
+
+    const submission: ApplicationSubmission = {
+      firstName,
+      lastName,
+      email,
+      schoolId: school.schoolId,
+      schoolNameRaw: school.schoolNameRaw,
+      yearGroup: yearGroup as number,
+      schoolType,
+      freeSchoolMeals: (freeSchoolMeals === 'yes' || freeSchoolMeals === 'previously') ? true : freeSchoolMeals === 'no' ? false : null,
+      firstGenerationUni: firstGenUni === 'yes' ? true : firstGenUni === 'no' ? false : null,
+      householdIncomeUnder40k: householdIncome,
+      additionalContext,
+      gcseResults,
+      aLevelSubjects,
+      predictedGrades,
+      ibPredictions,
+      manGroupInterests,
+      questionForProfessional: questionForPro,
+      attributionSource: attribution,
+      consentGiven: true,
+      freeSchoolMealsRaw: freeSchoolMeals,
+    }
+
+    const result = await submitApplication(event.id, submission)
+    if (result.error) {
+      setError(result.error)
+      setStep('application')
+      return
+    }
+    setStep('success')
+  }
+
+  const handlePasswordUpgrade = async () => {
+    setPasswordError(null)
+    if (password.length < 6) { setPasswordError('Password must be at least 6 characters.'); return }
+    if (password !== passwordConfirm) { setPasswordError('Passwords do not match.'); return }
+    setLoading(true)
+    const { error: err } = await upgradeToPassword(password)
+    setLoading(false)
+    if (err) { setPasswordError(err); return }
+    setPasswordSaved(true)
+  }
+
+  // --- 404 ---
+  if (!event) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Event not found</h1>
+          <p className="text-gray-600">This application link doesn&apos;t match any open event.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // --- Render ---
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 text-sm font-medium px-3 py-1 rounded-full mb-4">
+          The Steps Foundation
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{event.name}</h1>
+        <p className="text-gray-500 text-sm">
+          {event.date} &middot; {event.time} &middot; {event.capacity} places
+        </p>
+        <p className="text-gray-500 text-sm">{event.location}</p>
+      </div>
+
+      {/* Progress */}
+      {step !== 'success' && step !== 'submitting' && (
+        <div className="flex items-center gap-2 mb-8 justify-center">
+          {(['email', 'otp', 'details', 'application'] as Step[]).map((s, i) => (
+            <div key={s} className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                step === s ? 'bg-purple-600 text-white' :
+                (['email', 'otp', 'details', 'application'].indexOf(step) > i)
+                  ? 'bg-purple-200 text-purple-700' : 'bg-gray-200 text-gray-500'
+              }`}>
+                {i + 1}
+              </div>
+              {i < 3 && <div className={`w-8 h-0.5 ${
+                (['email', 'otp', 'details', 'application'].indexOf(step) > i)
+                  ? 'bg-purple-300' : 'bg-gray-200'
+              }`} />}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Error banner */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* STEP 1: Email */}
+      {/* ================================================================= */}
+      {step === 'email' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Let&apos;s get started</h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Enter your email address. We&apos;ll send you a verification code.
+            {' '}If you&apos;ve applied to a Steps event before, we&apos;ll pre-fill your details.
+          </p>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email address
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
+            placeholder="you@example.com"
+            autoFocus
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition mb-4"
+          />
+          <button
+            onClick={handleSendOtp}
+            disabled={loading || !email.trim()}
+            className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? <Spinner /> : null}
+            {loading ? 'Sending code...' : 'Continue'}
+          </button>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* STEP 2: OTP Verification */}
+      {/* ================================================================= */}
+      {step === 'otp' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Check your inbox</h2>
+          <p className="text-gray-500 text-sm mb-6">
+            We&apos;ve sent a 6-digit code to <strong className="text-gray-700">{email}</strong>.
+            {' '}Check your spam folder if you don&apos;t see it.
+          </p>
+          <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">
+            Verification code
+          </label>
+          <input
+            id="otp"
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={otpCode}
+            onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+            onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
+            placeholder="000000"
+            autoFocus
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition text-center text-2xl tracking-[0.3em] font-mono mb-4"
+          />
+          <button
+            onClick={handleVerifyOtp}
+            disabled={loading || otpCode.length < 6}
+            className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? <Spinner /> : null}
+            {loading ? 'Verifying...' : 'Verify'}
+          </button>
+          <button
+            onClick={() => { setStep('email'); setOtpCode(''); setError(null) }}
+            className="w-full mt-3 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+          >
+            Use a different email
+          </button>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* STEP 3: Your Details */}
+      {/* ================================================================= */}
+      {step === 'details' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          {existingStudent && (
+            <div className="mb-6 p-4 bg-purple-50 border border-purple-100 rounded-xl text-purple-700 text-sm">
+              Welcome back! We&apos;ve pre-filled your details from your last application.
+              Please review and update anything that&apos;s changed.
+            </div>
+          )}
+
+          {alreadyApplied && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
+              You&apos;ve already submitted an application for this event. Submitting again will not be possible.
+            </div>
+          )}
+
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">About you</h2>
+
+          {/* Name */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                First name <span className="text-red-400">*</span>
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                Last name <span className="text-red-400">*</span>
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+              />
+            </div>
+          </div>
+
+          {/* Email (read-only) */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              disabled
+              className="w-full px-4 py-2.5 border border-gray-100 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed"
+            />
+          </div>
+
+          {/* School */}
+          <div className="mb-4">
+            <label htmlFor="school" className="block text-sm font-medium text-gray-700 mb-1">
+              Current school / sixth form college <span className="text-red-400">*</span>
+            </label>
+            <SchoolPicker
+              value={school}
+              onChange={setSchool}
+              placeholder="Search for your school…"
+              id="school"
+            />
+          </div>
+
+          {/* Year group */}
+          <div className="mb-6">
+            <label htmlFor="yearGroup" className="block text-sm font-medium text-gray-700 mb-1">
+              Year group <span className="text-red-400">*</span>
+            </label>
+            <select
+              id="yearGroup"
+              value={yearGroup}
+              onChange={e => setYearGroup(e.target.value ? Number(e.target.value) : '')}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white"
+            >
+              <option value="">Select…</option>
+              <option value={12}>Year 12</option>
+              <option value={13}>Year 13</option>
+              <option value={14}>Gap year</option>
+            </select>
+          </div>
+
+          {/* --- Contextual & Socioeconomic --- */}
+          <div className="border-t border-gray-100 pt-6 mb-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Contextual information</h3>
+            <p className="text-gray-500 text-xs mb-4">
+              This helps us ensure our events reach students from underrepresented backgrounds.
+            </p>
+
+            {/* School type */}
+            <fieldset className="mb-4">
+              <legend className="block text-sm font-medium text-gray-700 mb-2">
+                What type of school do you currently attend? <span className="text-red-400">*</span>
+              </legend>
+              {SCHOOL_TYPE_OPTIONS.map(opt => (
+                <label key={opt.value} className="flex items-start gap-3 py-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="schoolType"
+                    value={opt.value}
+                    checked={schoolType === opt.value}
+                    onChange={e => setSchoolType(e.target.value)}
+                    className="mt-0.5 accent-purple-600"
+                  />
+                  <span className="text-sm text-gray-700">{opt.label}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            {/* First gen */}
+            <fieldset className="mb-4">
+              <legend className="block text-sm font-medium text-gray-700 mb-2">
+                Are you in the first generation of your family to attend university? <span className="text-red-400">*</span>
+              </legend>
+              {[{ v: 'yes', l: 'Yes' }, { v: 'no', l: 'No' }].map(opt => (
+                <label key={opt.v} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                  <input type="radio" name="firstGen" value={opt.v} checked={firstGenUni === opt.v}
+                    onChange={e => setFirstGenUni(e.target.value)} className="accent-purple-600" />
+                  <span className="text-sm text-gray-700">{opt.l}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            {/* Household income */}
+            <fieldset className="mb-4">
+              <legend className="block text-sm font-medium text-gray-700 mb-2">
+                Is your average household income less than £40,000? <span className="text-red-400">*</span>
+              </legend>
+              {[{ v: 'yes', l: 'Yes' }, { v: 'no', l: 'No' }, { v: 'prefer_not_to_say', l: 'Prefer not to say' }].map(opt => (
+                <label key={opt.v} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                  <input type="radio" name="income" value={opt.v} checked={householdIncome === opt.v}
+                    onChange={e => setHouseholdIncome(e.target.value)} className="accent-purple-600" />
+                  <span className="text-sm text-gray-700">{opt.l}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            {/* FSM */}
+            <fieldset className="mb-4">
+              <legend className="block text-sm font-medium text-gray-700 mb-2">
+                Are you eligible for Free School Meals? <span className="text-red-400">*</span>
+              </legend>
+              {[
+                { v: 'yes', l: 'Currently eligible' },
+                { v: 'previously', l: 'Previously eligible' },
+                { v: 'no', l: 'Not eligible' },
+              ].map(opt => (
+                <label key={opt.v} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                  <input type="radio" name="fsm" value={opt.v}
+                    checked={freeSchoolMeals === opt.v}
+                    onChange={e => setFreeSchoolMeals(e.target.value)}
+                    className="accent-purple-600" />
+                  <span className="text-sm text-gray-700">{opt.l}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            {/* Additional context */}
+            <div>
+              <label htmlFor="additionalContext" className="block text-sm font-medium text-gray-700 mb-1">
+                Any additional contextual information?
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                E.g. young carer, extenuating circumstances, school disruption, etc.
+              </p>
+              <textarea
+                id="additionalContext"
+                value={additionalContext}
+                onChange={e => setAdditionalContext(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition resize-none"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleDetailsNext}
+            disabled={alreadyApplied}
+            className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {alreadyApplied ? 'Already applied' : 'Continue'}
+          </button>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* STEP 4: Your Application */}
+      {/* ================================================================= */}
+      {step === 'application' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">Your application</h2>
+
+          {/* --- Academic section --- */}
+          <h3 className="text-base font-semibold text-gray-900 mb-1">Academic information</h3>
+          <p className="text-gray-500 text-xs mb-4">
+            Don&apos;t worry — lower grades don&apos;t hurt at all. We want to help you reach your potential.
+          </p>
+
+          <div className="mb-4">
+            <label htmlFor="gcse" className="block text-sm font-medium text-gray-700 mb-1">
+              Achieved GCSE results (grades only, e.g. 99876…) <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="gcse"
+              type="text"
+              value={gcseResults}
+              onChange={e => setGcseResults(e.target.value)}
+              placeholder="e.g. 999887766"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+            />
+          </div>
+
+          {/* A-Level subjects */}
+          <fieldset className="mb-4">
+            <legend className="block text-sm font-medium text-gray-700 mb-2">
+              Which A-Level subjects do you study? <span className="text-red-400">*</span>
+            </legend>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {A_LEVEL_SUBJECTS.map(subj => (
+                <label key={subj} className="flex items-center gap-2 py-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={aLevelSubjects.includes(subj)}
+                    onChange={e => {
+                      if (e.target.checked) setALevelSubjects(prev => [...prev, subj])
+                      else setALevelSubjects(prev => prev.filter(s => s !== subj))
+                    }}
+                    className="accent-purple-600"
+                  />
+                  <span className="text-sm text-gray-700">{subj}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="mb-4">
+            <label htmlFor="predicted" className="block text-sm font-medium text-gray-700 mb-1">
+              Current predicted A-Level grades (e.g. A*AB) <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="predicted"
+              type="text"
+              value={predictedGrades}
+              onChange={e => setPredictedGrades(e.target.value)}
+              placeholder="e.g. A*AB"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="ib" className="block text-sm font-medium text-gray-700 mb-1">
+              If you do the IB, share your HL and SL predictions
+            </label>
+            <textarea
+              id="ib"
+              value={ibPredictions}
+              onChange={e => setIbPredictions(e.target.value)}
+              rows={2}
+              placeholder="Optional"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition resize-none"
+            />
+          </div>
+
+          {/* --- Interests section --- */}
+          <div className="border-t border-gray-100 pt-6 mb-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Your interests</h3>
+            <p className="text-gray-500 text-xs mb-4">
+              Man Group will use this section to tailor the speaker lineup and Q&amp;As to what you most want to learn.
+            </p>
+
+            <fieldset className="mb-4">
+              <legend className="block text-sm font-medium text-gray-700 mb-2">
+                Which parts of Man Group&apos;s work interest you most? (up to 3) <span className="text-red-400">*</span>
+              </legend>
+              {MAN_GROUP_INTERESTS.map(opt => (
+                <label key={opt.value} className="flex items-start gap-3 py-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={manGroupInterests.includes(opt.value)}
+                    onChange={e => {
+                      if (e.target.checked && manGroupInterests.length < 3) {
+                        setManGroupInterests(prev => [...prev, opt.value])
+                      } else if (!e.target.checked) {
+                        setManGroupInterests(prev => prev.filter(v => v !== opt.value))
+                      }
+                    }}
+                    disabled={!manGroupInterests.includes(opt.value) && manGroupInterests.length >= 3}
+                    className="mt-0.5 accent-purple-600"
+                  />
+                  <span className="text-sm text-gray-700">{opt.label}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            <div className="mb-4">
+              <label htmlFor="question" className="block text-sm font-medium text-gray-700 mb-1">
+                What&apos;s one question you&apos;d love a Man Group professional to answer? <span className="text-red-400">*</span>
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                Specific and honest beats clever. The best questions will be shared with Man Group to shape the sessions.
+              </p>
+              <textarea
+                id="question"
+                value={questionForPro}
+                onChange={e => setQuestionForPro(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition resize-none"
+              />
+            </div>
+          </div>
+
+          {/* --- Attribution + consent --- */}
+          <div className="border-t border-gray-100 pt-6 mb-6">
+            <fieldset className="mb-6">
+              <legend className="block text-sm font-medium text-gray-700 mb-2">
+                How did you hear about this opportunity? <span className="text-red-400">*</span>
+              </legend>
+              {ATTRIBUTION_OPTIONS.map(opt => (
+                <label key={opt.value} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                  <input type="radio" name="attribution" value={opt.value}
+                    checked={attribution === opt.value}
+                    onChange={e => setAttribution(e.target.value)}
+                    className="accent-purple-600" />
+                  <span className="text-sm text-gray-700">{opt.label}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            {/* Consent */}
+            <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consentGiven}
+                onChange={e => setConsentGiven(e.target.checked)}
+                className="mt-0.5 accent-purple-600"
+              />
+              <span className="text-sm text-gray-600">
+                I consent to The Steps Foundation processing my data for the purpose of
+                delivering this event and for aggregate impact reporting. I understand I can
+                contact <span className="font-medium">hello@thestepsfoundation.com</span> to
+                request access to, correction, or deletion of my data at any time.
+              </span>
+            </label>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => { setStep('details'); setError(null) }}
+              className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!consentGiven}
+              className="flex-1 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Submit application
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* SUBMITTING */}
+      {/* ================================================================= */}
+      {step === 'submitting' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 text-center">
+          <Spinner large />
+          <p className="text-gray-600 mt-4">Submitting your application…</p>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* STEP 5: Success + Password Upgrade */}
+      {/* ================================================================= */}
+      {step === 'success' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Application submitted!</h2>
+            <p className="text-gray-500 text-sm">
+              Thanks for applying to the {event.name}. We&apos;ll review your application and
+              be in touch via email with next steps.
+            </p>
+          </div>
+
+          {/* Password upgrade */}
+          {!passwordSaved ? (
+            <div className="border-t border-gray-100 pt-6">
+              <h3 className="text-base font-semibold text-gray-900 mb-1">
+                Speed up future applications
+              </h3>
+              <p className="text-gray-500 text-sm mb-4">
+                Create a password so you can sign in instantly next time — no verification code needed.
+                This is completely optional.
+              </p>
+
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                  {passwordError}
+                </div>
+              )}
+
+              <div className="space-y-3 mb-4">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Create a password (min 6 characters)"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                />
+                <input
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={e => setPasswordConfirm(e.target.value)}
+                  placeholder="Confirm password"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => signOutStudent()}
+                  className="px-6 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium"
+                >
+                  No thanks
+                </button>
+                <button
+                  onClick={handlePasswordUpgrade}
+                  disabled={loading || password.length < 6}
+                  className="flex-1 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading ? <Spinner /> : null}
+                  Save password
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="border-t border-gray-100 pt-6 text-center">
+              <p className="text-green-600 font-medium mb-2">Password saved!</p>
+              <p className="text-gray-500 text-sm">
+                Next time, you can sign in with your email and password at{' '}
+                <strong className="text-gray-700">{email}</strong>.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <p className="text-center text-xs text-gray-400 mt-8">
+        <em>Virtus non origo</em> — Character, not origin
+      </p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Spinner component
+// ---------------------------------------------------------------------------
+
+function Spinner({ large }: { large?: boolean }) {
+  const size = large ? 'h-8 w-8' : 'h-5 w-5'
+  return (
+    <svg className={`animate-spin ${size} text-current`} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    </svg>
+  )
+}

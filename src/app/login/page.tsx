@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [checkingHash, setCheckingHash] = useState(true)
   const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
-  const { signIn, signUp, signInWithGoogle, isAllowedEmail, user } = useAuth()
+  const { signIn, signUp, signInWithGoogle, user, isTeamMember, loading: authLoading } = useAuth()
 
   // Check for OAuth tokens in URL hash (from Google redirect)
   useEffect(() => {
@@ -36,24 +36,17 @@ export default function LoginPage() {
     handleHashTokens()
   }, [router])
 
-  // If user is already logged in, redirect to home
+  // If user is already logged in AND is a team member, redirect to home
   useEffect(() => {
-    if (user) {
+    if (!authLoading && user && isTeamMember) {
       router.push('/')
     }
-  }, [user, router])
+  }, [user, authLoading, isTeamMember, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
-
-    // Check whitelist first
-    if (!isAllowedEmail(email)) {
-      setMessage({ type: 'error', text: 'This email is not authorized to access the task tracker.' })
-      setLoading(false)
-      return
-    }
 
     if (isSignUp) {
       const { error } = await signUp(email, password)

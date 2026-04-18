@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, MouseEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useAuth, getUserDisplayName } from '@/lib/auth-provider'
+import { useAuth } from '@/lib/auth-provider'
 import { useTheme } from '@/lib/theme-provider'
 import { getDiscordWebhookUrl, setDiscordWebhookUrl, notifyTaskAssigned, notifyTaskCompleted } from '@/lib/discord-webhook'
 import {
@@ -4634,7 +4634,7 @@ function TemplateManagerModal({
 
 export default function Home() {
   const router = useRouter()
-  const { user, loading: authLoading, signOut } = useAuth()
+  const { user, loading: authLoading, signOut, teamMember } = useAuth()
   const { theme, resolvedTheme, setTheme } = useTheme()
   
   // Data from Supabase (or demo mode)
@@ -5790,9 +5790,9 @@ export default function Home() {
         {/* User Profile - compact on mobile */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-sm">
-            {getUserDisplayName(user?.email).slice(0, 2).toUpperCase()}
+            {(teamMember?.name || user?.email?.split('@')[0] || '??').slice(0, 2).toUpperCase()}
           </div>
-          <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:block">{getUserDisplayName(user?.email)}</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:block">{teamMember?.name || user?.email?.split('@')[0] || 'Unknown'}</span>
           {/* Student Database */}
           <Link
             href="/students"

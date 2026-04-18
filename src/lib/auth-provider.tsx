@@ -1,68 +1,109 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
-// Whitelist of allowed emails
-const ALLOWED_EMAILS = [
-  'favour.oluwanusin@gmail.com',
-  'jandoit@hotmail.com',
-  'daniyaal.anawar10@gmail.com',
-  'sam@revishaan.com',
-  'earlxavierfornillos@gmail.com',
-  'adityamuthukumar05@gmail.com',
-  'ric.serrao39@gmail.com',
-]
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type TeamMember = {
+  id: number
+  name: string
+  role: string
+  email: string
+}
 
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  /** The team_members row for the current user, or null if not a team member. */
+  teamMember: TeamMember | null
+  /** True only after we've checked team_members and the user IS a team member. */
+  isTeamMember: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string) => Promise<{ error: string | null }>
   signInWithGoogle: () => Promise<{ error: string | null }>
   signOut: () => Promise<void>
-  isAllowedEmail: (email: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [teamMember, setTeamMember] = useState<TeamMember | null>(null)
+
+  // Check if authenticated user is in team_members table.
+  // This is the single source of truth — no hardcoded allowlist.
+  const checkTeamMembership = useCallback(async (email: string | undefined): Promise<TeamMember | null> => {
+    if (!email) return null
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('id, name, role, email')
+      .eq('email', email.toLowerCase())
+      .limit(1)
+      .maybeSingle()
+    if (error || !data) return null
+    return data as TeamMember
+  }, [])
+
+  // Handle auth state changes — runs on initial load and every sign-in/out
+  const handleAuthChange = useCallback(async (newSession: Session | null) => {
+    setSession(newSession)
+    const newUser = newSession?.user ?? null
+    setUser(newUser)
+
+    if (newUser?.email) {
+      const tm = await checkTeamMembership(newUser.email)
+      setTeamMember(tm)
+
+      // If someone signs in (Google or otherwise) and they're NOT a team member,
+      // AND we're on an admin page (not /apply), sign them out immediately.
+      // The /apply pages handle their own auth via OTP — students are not team members.
+      if (!tm && typeof window !== 'undefined' && !window.location.pathname.startsWith('/apply')) {
+        await supabase.auth.signOut()
+        setUser(null)
+        setSession(null)
+        setTeamMember(null)
+      }
+    } else {
+      setTeamMember(null)
+    }
+
+    setLoading(false)
+  }, [checkTeamMembership])
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      handleAuthChange(session)
     })
 
-    // Listen for auth changes
+    // Listen for auth changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
-        setLoading(false)
+      async (_event, session) => {
+        await handleAuthChange(session)
       }
     )
 
     return () => subscription.unsubscribe()
-  }, [])
-
-  const isAllowedEmail = (email: string): boolean => {
-    return ALLOWED_EMAILS.includes(email.toLowerCase())
-  }
+  }, [handleAuthChange])
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     const normalizedEmail = email.toLowerCase().trim()
-    
-    // Check whitelist
-    if (!isAllowedEmail(normalizedEmail)) {
-      return { error: 'This email is not authorized to access the task tracker.' }
+
+    // Check team_members BEFORE attempting sign-in
+    const tm = await checkTeamMembership(normalizedEmail)
+    if (!tm) {
+      return { error: 'This email is not authorised to access the intranet. Contact a team admin if you should have access.' }
     }
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -79,10 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string): Promise<{ error: string | null }> => {
     const normalizedEmail = email.toLowerCase().trim()
-    
-    // Check whitelist
-    if (!isAllowedEmail(normalizedEmail)) {
-      return { error: 'This email is not authorized to access the task tracker.' }
+
+    // Check team_members BEFORE allowing sign-up
+    const tm = await checkTeamMembership(normalizedEmail)
+    if (!tm) {
+      return { error: 'This email is not authorised to access the intranet. Contact a team admin if you should have access.' }
     }
 
     const { error } = await supabase.auth.signUp({
@@ -98,15 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {
+    // We can't pre-check team_members for OAuth because the email isn't known
+    // until after the redirect. handleAuthChange will auto-sign-out non-members.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: typeof window !== 'undefined' 
-          ? `${window.location.origin}/auth/callback`
+        redirectTo: typeof window !== 'undefined'
+          ? `${window.location.origin}/login`
           : undefined,
-        queryParams: {
-          prompt: 'select_account',  // Always show account picker
-        },
       },
     })
 
@@ -119,46 +160,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut()
+    setUser(null)
+    setSession(null)
+    setTeamMember(null)
   }
 
+  const isTeamMember = !!teamMember
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signInWithGoogle, signOut, isAllowedEmail }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        teamMember,
+        isTeamMember,
+        signIn,
+        signUp,
+        signInWithGoogle,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext)
   if (context === undefined) {
-    // Return safe defaults during SSR or before provider mounts
+    // Safe defaults when used outside provider (SSR or tests)
     return {
       user: null,
       session: null,
       loading: true,
-      signIn: async () => ({ error: 'Auth not ready' }),
-      signUp: async () => ({ error: 'Auth not ready' }),
-      signInWithGoogle: async () => ({ error: 'Auth not ready' }),
+      teamMember: null,
+      isTeamMember: false,
+      signIn: async () => ({ error: 'Auth provider not initialised' }),
+      signUp: async () => ({ error: 'Auth provider not initialised' }),
+      signInWithGoogle: async () => ({ error: 'Auth provider not initialised' }),
       signOut: async () => {},
-      isAllowedEmail: () => false,
     }
   }
   return context
-}
-
-// Helper to get user display name from email
-export function getUserDisplayName(email: string | undefined): string {
-  if (!email) return 'Unknown'
-  
-  const emailToName: Record<string, string> = {
-    'favour.oluwanusin@gmail.com': "God'sFavour",
-    'jandoit@hotmail.com': 'Jin',
-    'daniyaal.anawar10@gmail.com': 'Daniyaal',
-    'sam@revishaan.com': 'Sam',
-    'earlxavierfornillos@gmail.com': 'Earl',
-    'adityamuthukumar05@gmail.com': 'Aditya',
-    'ric.serrao39@gmail.com': 'Ricardo',
-  }
-  
-  return emailToName[email.toLowerCase()] || email.split('@')[0]
 }
