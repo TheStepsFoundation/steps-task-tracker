@@ -5737,8 +5737,36 @@ export default function Home() {
     )
   }
 
+  const displayName = teamMember?.name || user?.email?.split('@')[0] || 'Unknown'
+
   return (
-    <main className="min-h-screen p-3 sm:p-6 bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      {/* Nav Header — matches Students layout */}
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="font-semibold text-gray-900 dark:text-gray-100">
+              Steps <span className="text-purple-600 dark:text-purple-400">Task Tracker</span>
+            </Link>
+            <nav className="hidden sm:flex items-center gap-1 text-sm">
+              <Link href="/hub" className="px-3 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">Hub</Link>
+              <Link href="/" className="px-3 py-1.5 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Dashboard</Link>
+              <Link href="/students" className="px-3 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">Students</Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:block text-sm text-gray-600 dark:text-gray-400">{displayName}</span>
+            <button
+              onClick={() => signOut().then(() => router.push('/login'))}
+              className="text-sm px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="p-3 sm:p-6">
       {/* Demo mode banner */}
       {isDemo && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800 text-sm">
@@ -5749,15 +5777,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* Tagline */}
-      <div className="text-center mb-2">
-        <p className="text-xs tracking-widest uppercase text-purple-600 dark:text-purple-400 font-medium italic">Virtus non origo</p>
-      </div>
-
       {/* Header */}
       <div className="flex justify-between items-center gap-2 mb-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white truncate">Task Tracker</h1>
+          <p className="text-xs tracking-widest uppercase text-purple-600 dark:text-purple-400 font-medium italic">Virtus non origo</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm hidden sm:block">Manage all workflows and events</p>
         </div>
         
@@ -5789,26 +5812,8 @@ export default function Home() {
         
         {/* User Profile - compact on mobile */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-sm">
-            {(teamMember?.name || user?.email?.split('@')[0] || '??').slice(0, 2).toUpperCase()}
-          </div>
-          <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:block">{teamMember?.name || user?.email?.split('@')[0] || 'Unknown'}</span>
-          {/* Hub */}
-          <Link
-            href="/hub"
-            className="px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
-            title="Back to Hub"
-          >
-            Hub
-          </Link>
-          {/* Student Database */}
-          <Link
-            href="/students"
-            className="px-2.5 py-1.5 text-sm font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition"
-            title="Student Database"
-          >
-            Students
-          </Link>
+
+
           {/* Theme Toggle */}
           <button
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
@@ -5846,15 +5851,7 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
-          <button
-            onClick={() => signOut()}
-            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-            title="Sign out"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </button>
+
         </div>
       </div>
       
@@ -7841,5 +7838,6 @@ export default function Home() {
         <p>Click card to edit • Drag the ⋮⋮ handle to move</p>
       </div>
     </main>
+    </div>
   )
 }
