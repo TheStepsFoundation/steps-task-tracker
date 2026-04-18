@@ -26,7 +26,7 @@ export default function LoginPage() {
         
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
-          router.push('/')
+          router.push('/hub')
           return
         }
       }
@@ -39,7 +39,7 @@ export default function LoginPage() {
   // If user is already logged in AND is a team member, redirect to home
   useEffect(() => {
     if (!authLoading && user && isTeamMember) {
-      router.push('/')
+      router.push('/hub')
     }
   }, [user, authLoading, isTeamMember, router])
 
@@ -66,7 +66,7 @@ export default function LoginPage() {
           setMessage({ type: 'error', text: error })
         }
       } else {
-        router.push('/')
+        router.push('/hub')
       }
     }
 
@@ -94,13 +94,11 @@ export default function LoginPage() {
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
+            <span className="text-3xl font-bold text-white tracking-tight">SF</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Steps Task Tracker</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Steps Foundation</h1>
           <p className="text-gray-500 mt-2">
-            {isSignUp ? 'Create your account' : 'Sign in to manage tasks'}
+            {isSignUp ? 'Create your account' : 'Sign in to the team intranet'}
           </p>
         </div>
 

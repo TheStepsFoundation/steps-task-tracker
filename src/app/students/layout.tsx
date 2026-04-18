@@ -35,6 +35,7 @@ export default function StudentsLayout({ children }: { children: React.ReactNode
               Steps <span className="text-indigo-600 dark:text-indigo-400">Students</span>
             </Link>
             <nav className="hidden sm:flex items-center gap-1 text-sm">
+              <Link href="/hub" className="px-3 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">Hub</Link>
               <Link href="/students" className="px-3 py-1.5 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Dashboard</Link>
               <Link href="/" className="px-3 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">Task Tracker</Link>
             </nav>

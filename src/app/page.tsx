@@ -5757,7 +5757,7 @@ export default function Home() {
       {/* Header */}
       <div className="flex justify-between items-center gap-2 mb-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white truncate">Steps Task Tracker</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white truncate">Task Tracker</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm hidden sm:block">Manage all workflows and events</p>
         </div>
         
@@ -5793,6 +5793,14 @@ export default function Home() {
             {(teamMember?.name || user?.email?.split('@')[0] || '??').slice(0, 2).toUpperCase()}
           </div>
           <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:block">{teamMember?.name || user?.email?.split('@')[0] || 'Unknown'}</span>
+          {/* Hub */}
+          <Link
+            href="/hub"
+            className="px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+            title="Back to Hub"
+          >
+            Hub
+          </Link>
           {/* Student Database */}
           <Link
             href="/students"

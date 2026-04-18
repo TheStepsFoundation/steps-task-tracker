@@ -6,8 +6,8 @@ import { Providers } from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Steps Task Tracker',
-  description: 'Team task management for The Steps Foundation',
+  title: 'Steps Foundation Intranet',
+  description: 'Internal tools for The Steps Foundation team',
 }
 
 export default function RootLayout({
