@@ -82,10 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [checkTeamMembership])
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      handleAuthChange(session)
-    })
+    // Get initial session — .catch ensures loading never stays true on failure
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => handleAuthChange(session))
+      .catch(() => setLoading(false))
 
     // Listen for auth changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
