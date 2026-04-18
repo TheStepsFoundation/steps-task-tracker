@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth-provider'
 import { supabase } from '@/lib/supabase'
 
@@ -222,6 +223,13 @@ export default function LoginPage() {
           >
             {isSignUp ? 'Already have an account? Sign in' : 'First time? Create account'}
           </button>
+        </div>
+
+        {/* Student Portal Link */}
+        <div className="mt-4 text-center">
+          <Link href="/student-portal" className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+            Student? Go to Student Portal →
+          </Link>
         </div>
 
         {/* Footer */}
