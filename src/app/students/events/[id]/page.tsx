@@ -54,6 +54,10 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true)
   const [appLoading, setAppLoading] = useState(true)
 
+  // Pagination
+  const PAGE_SIZE = 50
+  const [page, setPage] = useState(0)
+
   // Filters
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [search, setSearch] = useState('')
@@ -162,6 +166,12 @@ export default function EventDetailPage() {
     for (const a of applicants) c[a.status] = (c[a.status] || 0) + 1
     return c
   }, [applicants])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page])
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0) }, [statusFilter, search])
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -273,10 +283,12 @@ export default function EventDetailPage() {
     })
   }
   const toggleSelectAll = () => {
-    if (selected.size === filtered.length) {
-      setSelected(new Set())
+    const pageIds = paged.map(a => a.id)
+    const allPageSelected = pageIds.every(id => selected.has(id))
+    if (allPageSelected) {
+      setSelected(prev => { const n = new Set(prev); pageIds.forEach(id => n.delete(id)); return n })
     } else {
-      setSelected(new Set(filtered.map(a => a.id)))
+      setSelected(prev => { const n = new Set(prev); pageIds.forEach(id => n.add(id)); return n })
     }
   }
 
@@ -515,7 +527,7 @@ export default function EventDetailPage() {
                   <th className="p-3 w-8">
                     <input
                       type="checkbox"
-                      checked={selected.size === filtered.length && filtered.length > 0}
+                      checked={paged.length > 0 && paged.every(a => selected.has(a.id))}
                       onChange={toggleSelectAll}
                       className="rounded border-gray-300 dark:border-gray-600"
                     />
@@ -532,7 +544,7 @@ export default function EventDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(app => {
+                {paged.map(app => {
                   const badge = STATUS_MAP[app.status] ?? STATUS_MAP.submitted
                   return (
                     <tr
@@ -617,14 +629,48 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer with pagination */}
         <div className="p-3 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
           <span>
-            Showing {filtered.length} of {applicants.length} applicant{applicants.length !== 1 ? 's' : ''}
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            {filtered.length !== applicants.length && ` (${applicants.length} total)`}
+            {' · '}{attendedCount} attended · {applicants.length - attendedCount} no-show
           </span>
-          <span>
-            {attendedCount} attended · {applicants.length - attendedCount} no-show
-          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(0)}
+                disabled={page === 0}
+                className="px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                ««
+              </button>
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                ‹
+              </button>
+              <span className="px-2 text-gray-700 dark:text-gray-300">
+                Page {page + 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                ›
+              </button>
+              <button
+                onClick={() => setPage(totalPages - 1)}
+                disabled={page >= totalPages - 1}
+                className="px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                »»
+              </button>
+            </div>
+          )}
         </div>
       </div>
     {/* Email Compose Modal */}
