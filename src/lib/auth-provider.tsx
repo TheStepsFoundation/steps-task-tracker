@@ -58,28 +58,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Handle auth state changes — runs on initial load and every sign-in/out
   const handleAuthChange = useCallback(async (newSession: Session | null) => {
-    setSession(newSession)
-    const newUser = newSession?.user ?? null
-    setUser(newUser)
+    try {
+      setSession(newSession)
+      const newUser = newSession?.user ?? null
+      setUser(newUser)
 
-    if (newUser?.email) {
-      const tm = await checkTeamMembership(newUser.email)
-      setTeamMember(tm)
+      if (newUser?.email) {
+        const tm = await checkTeamMembership(newUser.email)
+        setTeamMember(tm)
 
-      // If someone signs in (Google or otherwise) and they're NOT a team member,
-      // AND we're on an admin page (not /apply), sign them out immediately.
-      // The /apply pages handle their own auth via OTP — students are not team members.
-      if (!tm && typeof window !== 'undefined' && !window.location.pathname.startsWith('/apply')) {
-        await supabase.auth.signOut()
-        setUser(null)
-        setSession(null)
+        // If someone signs in (Google or otherwise) and they're NOT a team member,
+        // AND we're on an admin page (not /apply or /student-portal), sign them out immediately.
+        // The /apply and /student-portal pages handle their own auth via OTP.
+        if (!tm && typeof window !== 'undefined'
+            && !window.location.pathname.startsWith('/apply')
+            && !window.location.pathname.startsWith('/student-portal')) {
+          await supabase.auth.signOut()
+          setUser(null)
+          setSession(null)
+          setTeamMember(null)
+        }
+      } else {
         setTeamMember(null)
       }
-    } else {
+    } catch (err) {
+      console.error('[auth] handleAuthChange error:', err)
+      // On any failure, clear state so the user lands on the login page
+      // instead of being stuck on an infinite loading screen.
       setTeamMember(null)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }, [checkTeamMembership])
 
   useEffect(() => {
@@ -91,7 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        await handleAuthChange(session)
+        try {
+          await handleAuthChange(session)
+        } catch (err) {
+          console.error('[auth] onAuthStateChange error:', err)
+          setLoading(false)
+        }
       }
     )
 
