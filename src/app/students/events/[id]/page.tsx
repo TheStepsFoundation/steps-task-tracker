@@ -47,6 +47,46 @@ const NOTIFY_STATUSES = [
   { code: 'waitlist', label: 'Waitlist & Notify', templateType: 'waitlist', color: 'bg-amber-600 hover:bg-amber-700' },
 ]
 
+
+// ---------------------------------------------------------------------------
+// Email signature — matches the real events@ Gmail signature
+// ---------------------------------------------------------------------------
+
+const EMAIL_SIGNATURE_HTML = `
+<br>
+<table style="color:rgb(34,34,34);direction:ltr;border-collapse:collapse">
+<tbody><tr><td>
+<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:508px">
+<tbody><tr><td>
+<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;line-height:1.15;color:rgb(0,0,0)">
+<tbody><tr>
+<td style="vertical-align:top;padding:0.01px 14px 0.01px 1px;width:65px;text-align:center">
+<img width="96" height="96" src="https://ci3.googleusercontent.com/mail-sig/AIorK4zj566SIaXg19TJPc3shozm3sXpXOj_fPHpzZfHvj1ymT04MAL1OKZD5_1pWWw0Uh_eZDVMNq2oQAyz" alt="The Steps Foundation">
+</td>
+<td valign="top" style="padding:0.01px 0.01px 0.01px 14px;vertical-align:top;border-left:1px solid rgb(189,189,189)">
+<table cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+<tbody>
+<tr><td style="padding:0.01px">
+<p style="margin:0.1px;line-height:19.2px;font-size:16px"><font style="color:rgb(100,100,100)" face="arial, sans-serif"><b>The Steps Foundation</b></font></p>
+<p style="margin:0.1px;line-height:19.2px"><font face="arial, sans-serif"><i style="font-size:11px;text-align:center">Virtus, non Origo. \u2013 Character, not Origin.</i></font></p>
+</td></tr>
+<tr><td>
+<table cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+<tbody><tr><td nowrap style="padding-top:14px">
+<p style="margin:1px;line-height:10.89px;font-size:11px;color:rgb(33,33,33)"><a href="mailto:events@thestepsfoundation.com" style="color:rgb(17,85,204)">events@thestepsfoundation.com</a></p>
+</td></tr></tbody>
+</table>
+</td></tr>
+</tbody></table>
+</td>
+</tr></tbody></table>
+</td></tr></tbody></table>
+</td></tr></tbody></table>
+<p style="margin:0cm;font-size:9pt;color:red;font-family:arial,sans-serif;font-style:italic;margin-top:12px">
+This message is intended only for the addressee and may contain information that is confidential or privileged. Unauthorised use is strictly prohibited and may be unlawful. If you are not the addressee, you should not read, copy, disclose or otherwise use this message, except for the purpose of delivery to the addressee. If you have received this in error, please delete it and advise The Steps Foundation.
+</p>
+`;
+
 type StatusFilter = 'all' | string
 
 // ---------------------------------------------------------------------------
@@ -422,7 +462,7 @@ export default function EventDetailPage() {
           to_email: recipient.personal_email!,
           from_email: 'events@thestepsfoundation.com',
           subject: renderedSubject,
-          body_html: renderedBody,
+          body_html: renderedBody + EMAIL_SIGNATURE_HTML,
           status: 'pending',
           sent_by: (teamMember as any)?.auth_uuid ?? null,
         }).select('id').single()
@@ -926,7 +966,7 @@ export default function EventDetailPage() {
                     Preview with first recipient: <strong>{getRecipients()[0]?.first_name} {getRecipients()[0]?.last_name}</strong>
                   </div>
                   <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">From: Events - The Steps Foundation &lt;hello@thestepsfoundation.com&gt;</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">From: Events - The Steps Foundation &lt;events@thestepsfoundation.com&gt;</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">To: {getRecipients()[0]?.personal_email}</div>
                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
                       {getRecipients()[0] ? fillMergeFields(emailSubject, getRecipients()[0]) : emailSubject}
@@ -934,7 +974,7 @@ export default function EventDetailPage() {
                     <div
                       className="prose dark:prose-invert prose-sm max-w-none"
                       dangerouslySetInnerHTML={{
-                        __html: getRecipients()[0] ? fillMergeFields(emailBody, getRecipients()[0]) : emailBody,
+                        __html: (getRecipients()[0] ? fillMergeFields(emailBody, getRecipients()[0]) : emailBody) + EMAIL_SIGNATURE_HTML,
                       }}
                     />
                   </div>
@@ -978,7 +1018,7 @@ export default function EventDetailPage() {
                     </div>
                   )}
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Emails will be sent from hello@thestepsfoundation.com
+                    Emails will be sent from events@thestepsfoundation.com
                   </p>
                 </div>
               )}
