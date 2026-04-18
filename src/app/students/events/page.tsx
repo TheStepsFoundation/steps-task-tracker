@@ -29,17 +29,19 @@ export default function EventsOverview() {
   }, [])
 
   const totals = useMemo(() => {
-    let totalApps = 0, totalAccepted = 0, totalRejected = 0
+    let totalApps = 0, totalAccepted = 0, totalRejected = 0, totalAttended = 0
     for (const e of events) {
       totalApps += e.total_applicants
       totalAccepted += e.accepted_count
       totalRejected += e.rejected_count
+      totalAttended += e.attended_count
     }
     return {
       events: events.length,
       totalApps,
       totalAccepted,
       totalRejected,
+      totalAttended,
       openEvents: events.filter(e => e.status === 'open').length,
     }
   }, [events])
@@ -157,6 +159,7 @@ function EventCard({ event }: { event: EventWithStats }) {
           <Stat label="Accepted" value={event.accepted_count} color="text-emerald-600 dark:text-emerald-400" />
           <Stat label="Rejected" value={event.rejected_count} color="text-gray-500 dark:text-gray-400" />
           <Stat label="Waitlisted" value={event.waitlisted_count} color="text-amber-600 dark:text-amber-400" />
+          <Stat label="Attended" value={event.attended_count} color="text-indigo-600 dark:text-indigo-400" />
           {event.capacity != null && event.total_applicants > 0 && (
             <div className="ml-auto hidden sm:block">
               <FillBar accepted={event.accepted_count} capacity={event.capacity} />

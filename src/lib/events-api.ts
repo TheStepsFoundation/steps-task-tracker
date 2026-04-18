@@ -28,6 +28,7 @@ export type EventWithStats = EventRow & {
   accepted_count: number
   rejected_count: number
   waitlisted_count: number
+  attended_count: number
 }
 
 // =============================================================================
@@ -80,7 +81,7 @@ export async function fetchEventsWithStats(): Promise<EventWithStats[]> {
 
   const statsMap: Record<string, {
     total: number; submitted: number; accepted: number
-    rejected: number; waitlisted: number
+    rejected: number; waitlisted: number; attended: number
   }> = {}
 
   for (const row of statsResult.data ?? []) {
@@ -90,6 +91,7 @@ export async function fetchEventsWithStats(): Promise<EventWithStats[]> {
       accepted: row.accepted_count,
       rejected: row.rejected_count,
       waitlisted: row.waitlisted_count,
+      attended: row.attended_count,
     }
   }
 
@@ -100,6 +102,7 @@ export async function fetchEventsWithStats(): Promise<EventWithStats[]> {
     accepted_count: statsMap[e.id]?.accepted ?? 0,
     rejected_count: statsMap[e.id]?.rejected ?? 0,
     waitlisted_count: statsMap[e.id]?.waitlisted ?? 0,
+    attended_count: statsMap[e.id]?.attended ?? 0,
   }))
 }
 
