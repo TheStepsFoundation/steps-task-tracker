@@ -317,3 +317,84 @@ export async function dismissUnlinkedRaw(raw: string): Promise<number> {
   invalidateStudentsCache()
   return (data as number) ?? 0
 }
+
+// === Progression tracking ====================================================
+
+export const STAGE_CODES = [
+  { code: 'y10', label: 'Year 10' },
+  { code: 'y11', label: 'Year 11' },
+  { code: 'y12', label: 'Year 12' },
+  { code: 'y13', label: 'Year 13' },
+  { code: 'gap', label: 'Gap year' },
+  { code: 'uni_y1', label: 'University Y1' },
+  { code: 'uni_y2', label: 'University Y2' },
+  { code: 'uni_y3', label: 'University Y3' },
+  { code: 'uni_y4', label: 'University Y4' },
+  { code: 'alum', label: 'Alumni' },
+] as const
+
+export const A_LEVEL_GRADES = ['A*', 'A', 'B', 'C', 'D', 'E', 'U'] as const
+
+export type ProgressionRow = {
+  id: string
+  student_id: string
+  as_of_date: string
+  current_stage: string | null
+  a_level_subjects: string[] | null
+  predicted_grades: Record<string, string> | null
+  actual_grades: Record<string, string> | null
+  firm_choice: string | null
+  insurance_choice: string | null
+  outcome: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
+const PROGRESSION_COLUMNS =
+  'id,student_id,as_of_date,current_stage,a_level_subjects,predicted_grades,actual_grades,firm_choice,insurance_choice,outcome,notes,created_at,updated_at,created_by,updated_by'
+
+export async function fetchProgressionForStudent(studentId: string): Promise<ProgressionRow[]> {
+  const { data, error } = await supabase
+    .from('progression')
+    .select(PROGRESSION_COLUMNS)
+    .eq('student_id', studentId)
+    .is('deleted_at', null)
+    .order('as_of_date', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as ProgressionRow[]
+}
+
+export type ProgressionInsert = Omit<ProgressionRow, 'id' | 'created_at' | 'updated_at'>
+export type ProgressionUpdate = Partial<Omit<ProgressionRow, 'id' | 'student_id' | 'created_at' | 'updated_at'>>
+
+export async function createProgression(insert: ProgressionInsert): Promise<ProgressionRow> {
+  const { data, error } = await supabase
+    .from('progression')
+    .insert(insert)
+    .select(PROGRESSION_COLUMNS)
+    .single()
+  if (error) throw error
+  return data as ProgressionRow
+}
+
+export async function updateProgression(id: string, patch: ProgressionUpdate): Promise<ProgressionRow> {
+  const { data, error } = await supabase
+    .from('progression')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select(PROGRESSION_COLUMNS)
+    .single()
+  if (error) throw error
+  return data as ProgressionRow
+}
+
+export async function deleteProgression(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('progression')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}

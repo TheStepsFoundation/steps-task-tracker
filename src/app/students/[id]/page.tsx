@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   EVENTS,
   ATTRIBUTION_SOURCES,
@@ -16,6 +16,16 @@ import {
   deleteApplication,
 } from '@/lib/students-api'
 import SchoolPicker from '@/components/SchoolPicker'
+import { useAuth } from '@/lib/auth-provider'
+import {
+  STAGE_CODES,
+  A_LEVEL_GRADES,
+  ProgressionRow,
+  fetchProgressionForStudent,
+  createProgression,
+  updateProgression,
+  deleteProgression,
+} from '@/lib/students-api'
 
 const STATUS_OPTIONS = ['submitted', 'shortlisted', 'accepted', 'waitlist', 'rejected', 'withdrew'] as const
 
@@ -255,6 +265,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
         )}
       </section>
 
+      <ProgressionSection studentId={student.id} />
+
       <section className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden mb-6">
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
           <h2 className="font-medium text-gray-900 dark:text-gray-100">Event history</h2>
@@ -464,4 +476,343 @@ function incomeLabel(code: string | null | undefined): string | null {
   if (code === 'over_40k') return '£40k or more'
   if (code === 'prefer_na') return 'Prefer not to say'
   return code
+}
+
+// =============================================================================
+// Progression Section
+// =============================================================================
+
+function ProgressionSection({ studentId }: { studentId: string }) {
+  const { teamMember } = useAuth()
+  const [records, setRecords] = useState<ProgressionRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Draft state for add/edit
+  const emptyDraft = {
+    current_stage: '' as string,
+    a_level_subjects: ['', '', '', ''] as string[],
+    predicted_grades: {} as Record<string, string>,
+    actual_grades: {} as Record<string, string>,
+    firm_choice: '',
+    insurance_choice: '',
+    outcome: '',
+    notes: '',
+  }
+  const [draft, setDraft] = useState(emptyDraft)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const data = await fetchProgressionForStudent(studentId)
+    setRecords(data)
+    setLoading(false)
+  }, [studentId])
+
+  useEffect(() => { load() }, [load])
+
+  function startAdd() {
+    setDraft(emptyDraft)
+    setAdding(true)
+    setEditingId(null)
+  }
+
+  function startEdit(r: ProgressionRow) {
+    const subjects = r.a_level_subjects ?? []
+    // Pad to 4 slots
+    while (subjects.length < 4) subjects.push('')
+    setDraft({
+      current_stage: r.current_stage ?? '',
+      a_level_subjects: subjects,
+      predicted_grades: r.predicted_grades ?? {},
+      actual_grades: r.actual_grades ?? {},
+      firm_choice: r.firm_choice ?? '',
+      insurance_choice: r.insurance_choice ?? '',
+      outcome: r.outcome ?? '',
+      notes: r.notes ?? '',
+    })
+    setEditingId(r.id)
+    setAdding(false)
+  }
+
+  function cancel() {
+    setAdding(false)
+    setEditingId(null)
+  }
+
+  async function save() {
+    setSaving(true)
+    const subjects = draft.a_level_subjects.filter(s => s.trim())
+    const payload = {
+      current_stage: draft.current_stage || null,
+      a_level_subjects: subjects.length > 0 ? subjects : null,
+      predicted_grades: Object.keys(draft.predicted_grades).length > 0 ? draft.predicted_grades : null,
+      actual_grades: Object.keys(draft.actual_grades).length > 0 ? draft.actual_grades : null,
+      firm_choice: draft.firm_choice || null,
+      insurance_choice: draft.insurance_choice || null,
+      outcome: draft.outcome || null,
+      notes: draft.notes || null,
+    }
+    try {
+      if (editingId) {
+        await updateProgression(editingId, {
+          ...payload,
+          updated_by: (teamMember as any)?.auth_uuid ?? null,
+        })
+      } else {
+        await createProgression({
+          student_id: studentId,
+          as_of_date: new Date().toISOString().slice(0, 10),
+          ...payload,
+          created_by: (teamMember as any)?.auth_uuid ?? null,
+          updated_by: (teamMember as any)?.auth_uuid ?? null,
+        })
+      }
+      await load()
+      cancel()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Delete this progression record?')) return
+    await deleteProgression(id)
+    await load()
+  }
+
+  function updateSubject(index: number, value: string) {
+    setDraft(d => {
+      const subs = [...d.a_level_subjects]
+      const oldName = subs[index]
+      subs[index] = value
+      // Move grades to new key
+      const pg = { ...d.predicted_grades }
+      const ag = { ...d.actual_grades }
+      if (oldName && pg[oldName]) { pg[value] = pg[oldName]; delete pg[oldName] }
+      if (oldName && ag[oldName]) { ag[value] = ag[oldName]; delete ag[oldName] }
+      return { ...d, a_level_subjects: subs, predicted_grades: pg, actual_grades: ag }
+    })
+  }
+
+  function updatePredicted(subject: string, grade: string) {
+    setDraft(d => ({ ...d, predicted_grades: { ...d.predicted_grades, [subject]: grade } }))
+  }
+
+  function updateActual(subject: string, grade: string) {
+    setDraft(d => ({ ...d, actual_grades: { ...d.actual_grades, [subject]: grade } }))
+  }
+
+  const isEditing = adding || editingId !== null
+
+  return (
+    <section className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 mb-6">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+        <div>
+          <h2 className="font-medium text-gray-900 dark:text-gray-100">Progression</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">A-levels, UCAS, outcomes</p>
+        </div>
+        {!isEditing && (
+          <button
+            onClick={startAdd}
+            className="px-3 py-1.5 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            + Add record
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">Loading…</div>
+      ) : isEditing ? (
+        <div className="p-4 space-y-4">
+          {/* Stage */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Current stage</label>
+              <select
+                value={draft.current_stage}
+                onChange={e => setDraft(d => ({ ...d, current_stage: e.target.value }))}
+                className="w-full px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="">—</option>
+                {STAGE_CODES.map(s => (
+                  <option key={s.code} value={s.code}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* A-level subjects + grades */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">A-level subjects & grades</label>
+            <div className="space-y-2">
+              {draft.a_level_subjects.map((subject, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder={`Subject ${i + 1}`}
+                    value={subject}
+                    onChange={e => updateSubject(i, e.target.value)}
+                    className="flex-1 px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  />
+                  <select
+                    value={subject ? (draft.predicted_grades[subject] ?? '') : ''}
+                    onChange={e => subject && updatePredicted(subject, e.target.value)}
+                    disabled={!subject}
+                    className="w-20 px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs"
+                  >
+                    <option value="">Pred.</option>
+                    {A_LEVEL_GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <select
+                    value={subject ? (draft.actual_grades[subject] ?? '') : ''}
+                    onChange={e => subject && updateActual(subject, e.target.value)}
+                    disabled={!subject}
+                    className="w-20 px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs"
+                  >
+                    <option value="">Actual</option>
+                    {A_LEVEL_GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* UCAS: firm + insurance */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Firm choice</label>
+              <input
+                type="text"
+                placeholder="e.g. LSE — BSc Management"
+                value={draft.firm_choice}
+                onChange={e => setDraft(d => ({ ...d, firm_choice: e.target.value }))}
+                className="w-full px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Insurance choice</label>
+              <input
+                type="text"
+                placeholder="e.g. KCL — BSc Economics"
+                value={draft.insurance_choice}
+                onChange={e => setDraft(d => ({ ...d, insurance_choice: e.target.value }))}
+                className="w-full px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Outcome */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Outcome</label>
+            <input
+              type="text"
+              placeholder="e.g. Placed at firm, Clearing to UCL, Gap year"
+              value={draft.outcome}
+              onChange={e => setDraft(d => ({ ...d, outcome: e.target.value }))}
+              className="w-full px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+            />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+            <textarea
+              rows={2}
+              placeholder="Additional context…"
+              value={draft.notes}
+              onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))}
+              className="w-full px-2 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-2">
+            <button onClick={cancel} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200">Cancel</button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="px-3 py-1.5 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : editingId ? 'Update' : 'Add record'}
+            </button>
+          </div>
+        </div>
+      ) : records.length === 0 ? (
+        <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          No progression records yet.
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {records.map(r => {
+            const stageLabel = STAGE_CODES.find(s => s.code === r.current_stage)?.label ?? r.current_stage
+            const subjects = r.a_level_subjects ?? []
+            return (
+              <div key={r.id} className="p-4">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div className="flex items-center gap-2">
+                    {r.current_stage && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                        {stageLabel}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      as of {new Date(r.as_of_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => startEdit(r)} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Edit</button>
+                    <button onClick={() => remove(r.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+                  </div>
+                </div>
+
+                {/* Subjects + grades */}
+                {subjects.length > 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">A-levels</div>
+                    <div className="flex flex-wrap gap-2">
+                      {subjects.map(sub => {
+                        const pred = r.predicted_grades?.[sub]
+                        const actual = r.actual_grades?.[sub]
+                        return (
+                          <span key={sub} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-xs">
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{sub}</span>
+                            {pred && <span className="text-gray-500 dark:text-gray-400">pred: {pred}</span>}
+                            {actual && <span className="text-emerald-600 dark:text-emerald-400">actual: {actual}</span>}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* UCAS */}
+                {(r.firm_choice || r.insurance_choice) && (
+                  <div className="mb-2 text-sm">
+                    {r.firm_choice && <div><span className="text-xs font-medium text-gray-500 dark:text-gray-400">Firm:</span> <span className="text-gray-900 dark:text-gray-100">{r.firm_choice}</span></div>}
+                    {r.insurance_choice && <div><span className="text-xs font-medium text-gray-500 dark:text-gray-400">Insurance:</span> <span className="text-gray-900 dark:text-gray-100">{r.insurance_choice}</span></div>}
+                  </div>
+                )}
+
+                {/* Outcome */}
+                {r.outcome && (
+                  <div className="mb-2 text-sm">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Outcome:</span>{' '}
+                    <span className="text-gray-900 dark:text-gray-100">{r.outcome}</span>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {r.notes && (
+                  <div className="text-sm text-gray-600 dark:text-gray-300 italic">{r.notes}</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
 }
