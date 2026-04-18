@@ -1,58 +1,52 @@
 # CLAUDE.md — Steps Foundation Intranet
 
-This repo is the **Steps Foundation Intranet**. It started as the Steps Task Tracker and has been broadened in scope: the task tracker is now one module alongside a new student database, events, campaigns, and admin modules.
-
-Repo: `github.com/TheStepsFoundation/the-steps-foundation-intranet`.
-
-## Modules
-
-- **Task Tracker** *(existing)* — 7 views (Board, Team, List, Workload, Calendar, Gantt, Today's Focus), Discord integration, workflow templates. Largely lives in `src/app/page.tsx`.
-- **Student Database** *(new, Phase 1)* — student records, cohort tracking, event attendance.
-- **Events** *(planned)* — event lifecycle management (Starting Point, Oxbridge, Degree Apprenticeship, Great Lock-In, Westminster).
-- **Campaigns** *(planned)* — outreach and partnership tracking (Man Group, Westminster, Bexley Grammar).
-- **Admin** *(planned)* — team/permissions/settings.
-
-## Design doc
-
-Phase 1 scope and module contracts: **`Steps Intranet - Phase 1 Design Doc.md`** in the TSF Google Workspace folder (`hello@thestepsfoundation.com`). Read this before starting any Phase 1 work.
-
-## Stack
-
-Next.js 14 + React 18 + TypeScript, Tailwind (dark mode via class), Supabase (Postgres + Auth, Google OAuth implicit flow), Vercel auto-deploy on push to `master`. No API routes — client-side Supabase SDK only.
-
-- Supabase project: `rvspshqltnyormiqaidx.supabase.co`
-- RLS enabled on all tables with public policies; app enforces permissioning.
-
-## Conventions (carry over from task tracker)
-
-- Dragging a task to a new assignee makes the old assignee a **collaborator**, not removed.
-- Archive ≠ done. Archived items keep their status and reappear on unarchive.
-- `createdBy` tracks authorship where present.
-- Workload defaults: 10h/person/week, 25h max, Monday-aligned weeks.
-- Google OAuth consent screen must be **External + In production**.
-- `useAuth()` must return safe defaults when context is undefined (prevents React Error #310 during SSR).
-- Do **not** reintroduce "Blocked by dependencies" or task "labels" without discussion — both were deliberately removed.
-
-## Deploy in tandem
-
-When changing schema, update all three:
-1. GitHub — push code.
-2. Supabase — run migrations.
-3. Vercel — no manual step; auto-deploys on push.
-
-## Event shorthand
-
-Used throughout workflow code: `#1` Starting Point, `#2` Oxbridge, `#3` Degree Apprenticeship, `#4` Great Lock-In. Abbreviations: `SCH` (Schools), `PTN` (Partnerships), `SS`, `ENG`. New modules should respect the same shorthand.
+Repo: `github.com/TheStepsFoundation/the-steps-foundation-intranet`
 
 ## CRITICAL: File access workflow
 
-**Never read or copy files from the FUSE mount.** The FUSE mount (the local path under `Claude Projects/`) frequently serves truncated or stale file contents, which causes broken syntax and silent corruption.
+**Never read or copy files from the FUSE mount.** The local path under `Claude Projects/` frequently serves truncated or stale contents, causing broken syntax and silent corruption.
 
-**Always do this instead:**
-1. Clone fresh from GitHub to `/tmp/intranet-push` (or similar) at the start of every session.
-2. Read all existing code from the clone.
-3. Write new/changed files directly into the clone.
-4. Commit and push from the clone.
-5. If the local mount needs updating, rsync *from* the clone *to* the mount — never the other direction.
+**Every session must:**
+1. Clone fresh from GitHub to `/tmp/intranet-push` (or similar).
+2. Read and write all code in the clone.
+3. Commit and push from the clone.
+4. If the local mount needs updating, rsync *from* the clone *to* the mount — never the reverse.
 
-This is a non-negotiable rule. It applies every session, regardless of how simple the change seems.
+This is non-negotiable regardless of how small the change is.
+
+## Stack
+
+Next.js 14 (App Router) + React 18 + TypeScript, Tailwind (dark mode via `class`), Supabase (Postgres + Auth), Vercel auto-deploy on push to `master`.
+
+- Supabase project: `rvspshqltnyormiqaidx.supabase.co`
+- RLS enabled on all tables; app enforces permissioning.
+- Client-side Supabase SDK only, except `/api/schools` (server route for school search).
+
+## Modules
+
+- **Task Tracker** — board/team/list/workload/calendar/Gantt/Today's Focus views. Lives in `src/app/page.tsx`.
+- **Student Database** — student records, school linking, eligibility, engagement scoring. `/students` + `/students/[id]` + `/students/review-schools`.
+- **Events Hub** — event overview, applicant management, email templates, status history. `/students/events` + `/students/events/[id]`. Email sending via Google Workspace MCP (`hello@thestepsfoundation.com`).
+- **Student Portal** — OTP login, application status dashboard, RSVP. `/student-portal`.
+- **Public Apply** — student-facing application forms. `/apply/[slug]`.
+- **Campaigns** *(planned)* — outreach and partnership tracking.
+- **Admin** *(planned)* — team/permissions/settings.
+
+## Deploy checklist
+
+When changing schema, update all three:
+1. Supabase — apply migration (via MCP `apply_migration` or SQL editor).
+2. GitHub — push code.
+3. Vercel — auto-deploys on push; no manual step.
+
+## Conventions
+
+- `useAuth()` must return safe defaults when context is undefined (prevents React Error #310 during SSR).
+- Google OAuth consent screen must be **External + In production**.
+- `createdBy` tracks authorship where present.
+- Task tracker: archive ≠ done; dragging reassigns but keeps old assignee as collaborator.
+- Do **not** reintroduce task "labels" or "blocked by dependencies" without discussion — both were deliberately removed.
+
+## Event shorthand
+
+`#1` Starting Point, `#2` Oxbridge, `#3` Degree Apprenticeship, `#4` Great Lock-In, `#5` Man Group Office Visit.
