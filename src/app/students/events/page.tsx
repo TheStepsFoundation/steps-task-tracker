@@ -153,7 +153,7 @@ function EventCard({ event }: { event: EventWithStats }) {
         {/* Stats bar */}
         <div className="flex items-center gap-6 text-sm">
           <Stat label="Applicants" value={event.total_applicants} />
-          <Stat label="Submitted" value={event.submitted_count} color="text-sky-600 dark:text-sky-400" />
+          <Stat label="Pending review" value={event.submitted_count} color="text-sky-600 dark:text-sky-400" />
           <Stat label="Accepted" value={event.accepted_count} color="text-emerald-600 dark:text-emerald-400" />
           <Stat label="Rejected" value={event.rejected_count} color="text-gray-500 dark:text-gray-400" />
           <Stat label="Waitlisted" value={event.waitlisted_count} color="text-amber-600 dark:text-amber-400" />
@@ -186,7 +186,7 @@ function FillBar({ accepted, capacity }: { accepted: number; capacity: number })
       <div className="w-24 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${
-            pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+            pct >= 90 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
           }`}
           style={{ width: `${pct}%` }}
         />
