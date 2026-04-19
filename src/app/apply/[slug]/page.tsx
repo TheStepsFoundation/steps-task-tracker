@@ -156,6 +156,8 @@ export default function ApplyPage() {
   const [gcseResults, setGcseResults] = useState('')
   const [qualifications, setQualifications] = useState<QualificationEntry[]>([
     { qualType: 'a_level', subject: '', grade: '' },
+    { qualType: 'a_level', subject: '', grade: '' },
+    { qualType: 'a_level', subject: '', grade: '' },
   ])
   const [attribution, setAttribution] = useState('')
   const [consentGiven, setConsentGiven] = useState(false)
@@ -238,6 +240,10 @@ export default function ApplyPage() {
     const { error: err } = await verifyOtp(email, otpCode)
     if (err) { setLoading(false); setError(err); return }
 
+    // Re-fetch form config now that student is authenticated
+    fetchEventFormConfig(event.id).then(config => {
+      setFormFields(config.fields ?? [])
+    })
     const student = await lookupSelf()
     if (student) {
       setExistingStudent(student)
