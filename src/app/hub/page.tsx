@@ -1,461 +1,119 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
+import { useAuth } from '@/lib/auth-provider'
 import { useRouter } from 'next/navigation'
-import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
-import {
-  fetchProfile, updateProfile, fetchMyApplications, fetchOpenEvents,
-  signOut, getAuthEmail,
-  type HubApplication, type HubEvent, type ProfileUpdate,
-} from '@/lib/hub-api'
-import type { StudentSelf } from '@/lib/apply-api'
+import { useEffect } from 'react'
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const SCHOOL_TYPE_OPTIONS = [
-  { value: 'state', label: 'State non-selective school' },
-  { value: 'grammar', label: 'State selective / grammar school' },
-  { value: 'independent', label: 'Independent (fee-paying) school' },
-  { value: 'independent_bursary', label: 'Independent with 90%+ bursary' },
+const modules = [
+  {
+    name: 'Task Tracker',
+    description: 'Manage workflows, assign tasks, and track progress across all events and campaigns.',
+    href: '/',
+    icon: (
+      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+    color: 'bg-purple-600',
+    hoverColor: 'hover:ring-purple-300 dark:hover:ring-purple-700',
+  },
+  {
+    name: 'Students',
+    description: 'Student database, applications, school matching, and eligibility tracking.',
+    href: '/students',
+    icon: (
+      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+      </svg>
+    ),
+    color: 'bg-indigo-600',
+    hoverColor: 'hover:ring-indigo-300 dark:hover:ring-indigo-700',
+  },
 ]
 
-const INCOME_OPTIONS = [
-  { value: 'under_40k', label: 'Yes — under £40k' },
-  { value: 'over_40k', label: 'No — £40k or more' },
-  { value: 'prefer_na', label: 'Prefer not to say' },
-]
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  submitted: { label: 'Submitted', color: 'bg-sky-100 text-sky-700' },
-  shortlisted: { label: 'Shortlisted', color: 'bg-amber-100 text-amber-700' },
-  accepted: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-700' },
-  rejected: { label: 'Not selected', color: 'bg-gray-100 text-gray-600' },
-  withdrew: { label: 'Withdrawn', color: 'bg-gray-100 text-gray-500' },
-  waitlisted: { label: 'Waitlisted', color: 'bg-purple-100 text-purple-700' },
-}
-
-function formatDate(d: string | null): string {
-  if (!d) return ''
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
-export default function StudentHub() {
+export default function HubPage() {
+  const { user, loading, signOut, isTeamMember, teamMember } = useAuth()
   const router = useRouter()
-  const [authEmail, setAuthEmail] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [profile, setProfile] = useState<StudentSelf | null>(null)
-  const [applications, setApplications] = useState<HubApplication[]>([])
-  const [openEvents, setOpenEvents] = useState<HubEvent[]>([])
 
-  // Edit mode
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState<string | null>(null)
-
-  // Editable fields
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [school, setSchool] = useState<SchoolPickerValue>({ schoolId: null, schoolNameRaw: null })
-  const [yearGroup, setYearGroup] = useState<number | ''>('')
-  const [schoolType, setSchoolType] = useState('')
-  const [freeSchoolMeals, setFreeSchoolMeals] = useState<boolean | null>(null)
-  const [incomeBand, setIncomeBand] = useState('')
-
-  const populateForm = useCallback((p: StudentSelf) => {
-    setFirstName(p.first_name ?? '')
-    setLastName(p.last_name ?? '')
-    setSchool({ schoolId: p.school_id, schoolNameRaw: p.school_name_raw })
-    setYearGroup(p.year_group ?? '')
-    setSchoolType(p.school_type ?? '')
-    setFreeSchoolMeals(p.free_school_meals)
-    setIncomeBand(p.parental_income_band ?? '')
-  }, [])
-
-  // Load everything on mount
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const email = await getAuthEmail()
-      if (!email) { router.replace('/hub/sign-in'); return }
-      if (cancelled) return
-      setAuthEmail(email)
-
-      const [prof, apps, events] = await Promise.all([
-        fetchProfile(),
-        fetchMyApplications(),
-        fetchOpenEvents(),
-      ])
-
-      if (cancelled) return
-      setProfile(prof)
-      if (prof) populateForm(prof)
-      setApplications(apps)
-
-      // Filter out events the student has already applied to
-      const appliedEventIds = new Set(apps.map(a => a.event_id))
-      setOpenEvents(events.filter(e => !appliedEventIds.has(e.id)))
-
-      setLoading(false)
-    })()
-    return () => { cancelled = true }
-  }, [router, populateForm])
-
-  const handleSave = async () => {
-    if (!profile) return
-    setSaving(true)
-    setSaveMsg(null)
-
-    const updates: ProfileUpdate = {
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      school_id: school.schoolId,
-      school_name_raw: school.schoolNameRaw,
-      year_group: yearGroup ? Number(yearGroup) : null,
-      school_type: schoolType,
-      free_school_meals: freeSchoolMeals,
-      parental_income_band: incomeBand,
+    if (loading) return
+    if (!user || !isTeamMember) {
+      router.push('/login')
     }
+  }, [user, loading, isTeamMember, router])
 
-    const { error } = await updateProfile(profile.id, updates)
-    setSaving(false)
-
-    if (error) {
-      setSaveMsg(`Error: ${error}`)
-    } else {
-      setSaveMsg('Saved!')
-      setProfile(prev => prev ? { ...prev, ...updates, personal_email: prev.personal_email } : prev)
-      setEditing(false)
-      setTimeout(() => setSaveMsg(null), 3000)
-    }
-  }
-
-  const handleSignOut = async () => {
-    await signOut()
-    router.replace('/hub/sign-in')
-  }
-
-  // --- Loading ---
-  if (loading) {
+  if (loading || !user || !isTeamMember) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Loading your hub…</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="text-gray-500 dark:text-gray-400">Loading…</div>
       </div>
     )
   }
 
-  // --- Render ---
+  const displayName = teamMember?.name || user.email?.split('@')[0] || 'Unknown'
+  const firstName = displayName.split(' ')[0]
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 text-sm font-medium px-3 py-1 rounded-full mb-2">
-            The Steps Foundation
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {profile?.first_name ? `Hey, ${profile.first_name}!` : 'Student Hub'}
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">{authEmail}</p>
-        </div>
-        <button
-          onClick={handleSignOut}
-          className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition"
-        >
-          Sign out
-        </button>
-      </div>
-
-      {/* Success banner */}
-      {saveMsg && (
-        <div className={`mb-6 p-4 rounded-xl text-sm font-medium ${saveMsg.startsWith('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-          {saveMsg}
-        </div>
-      )}
-
-      {/* ================================================================ */}
-      {/* SECTION 1: Open Events — Apply Now */}
-      {/* ================================================================ */}
-      {openEvents.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Apply now</h2>
-          <div className="space-y-3">
-            {openEvents.map(event => (
-              <a
-                key={event.id}
-                href={`/apply/${event.slug}`}
-                className="block bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-purple-200 transition group"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 group-hover:text-purple-700 transition">
-                      {event.name}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1">
-                      {event.event_date && <span>{formatDate(event.event_date)}</span>}
-                      {event.time_start && (
-                        <span>{event.time_start}{event.time_end ? ` – ${event.time_end}` : ''}</span>
-                      )}
-                      {event.location && <span>{event.location}</span>}
-                      {event.format && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          {event.format === 'in_person' ? 'In person' : event.format === 'online' ? 'Online' : event.format}
-                        </span>
-                      )}
-                    </div>
-                    {event.description && (
-                      <p className="text-sm text-gray-500 mt-2 line-clamp-2">{event.description}</p>
-                    )}
-                    {event.applications_close_at && (
-                      <p className="text-xs text-purple-600 font-medium mt-2">
-                        Applications close {new Date(event.applications_close_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </p>
-                    )}
-                  </div>
-                  <span className="flex-shrink-0 mt-1 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-xl group-hover:bg-purple-700 transition">
-                    Apply
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ================================================================ */}
-      {/* SECTION 2: My Applications */}
-      {/* ================================================================ */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">My applications</h2>
-        {applications.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-            <p className="text-gray-500 text-sm">You haven&apos;t applied to any events yet.</p>
-            {openEvents.length > 0 && (
-              <p className="text-purple-600 text-sm mt-2 font-medium">Check out the open events above!</p>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {applications.map(app => {
-              const s = STATUS_LABELS[app.status] ?? { label: app.status, color: 'bg-gray-100 text-gray-600' }
-              const isPast = app.event.event_date && new Date(app.event.event_date) < new Date()
-              return (
-                <div
-                  key={app.id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900">{app.event.name}</h3>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
-                          {s.label}
-                        </span>
-                        {isPast && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-400">
-                            Past event
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1">
-                        {app.event.event_date && <span>{formatDate(app.event.event_date)}</span>}
-                        {app.event.location && <span>{app.event.location}</span>}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-2">
-                        Applied {new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
-                    </div>
-                    {!isPast && app.status === 'submitted' && (
-                      <a
-                        href={`/apply/${app.event.slug}`}
-                        className="flex-shrink-0 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-800 font-medium border border-purple-200 rounded-xl hover:bg-purple-50 transition"
-                      >
-                        Edit
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ================================================================ */}
-      {/* SECTION 3: My Details */}
-      {/* ================================================================ */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">My details</h2>
-          {!editing && profile && (
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <span className="font-semibold text-gray-900 dark:text-gray-100">
+            Steps <span className="text-purple-600 dark:text-purple-400">Foundation</span>
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:block text-sm text-gray-600 dark:text-gray-400">{displayName}</span>
             <button
-              onClick={() => setEditing(true)}
-              className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+              onClick={() => signOut().then(() => router.push('/login'))}
+              className="text-sm px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              Edit
+              Sign out
             </button>
-          )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mb-10">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Welcome back, {firstName}
+          </h1>
+          <p className="mt-2 text-gray-500 dark:text-gray-400">
+            What would you like to work on?
+          </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          {!profile ? (
-            <p className="text-gray-500 text-sm">No profile found. Apply to an event to create your profile.</p>
-          ) : editing ? (
-            /* ---- Edit mode ---- */
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
-                  <input
-                    type="text" value={firstName}
-                    onChange={e => setFirstName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
-                  <input
-                    type="text" value={lastName}
-                    onChange={e => setLastName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                  />
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {modules.map((mod) => (
+            <Link
+              key={mod.name}
+              href={mod.href}
+              className={`group relative bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 transition-all hover:shadow-lg hover:ring-2 ${mod.hoverColor}`}
+            >
+              <div className={`${mod.color} w-12 h-12 rounded-xl flex items-center justify-center text-white mb-4`}>
+                {mod.icon}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">School</label>
-                <SchoolPicker value={school} onChange={setSchool} placeholder="Search for your school…" id="hub-school" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                {mod.name}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                {mod.description}
+              </p>
+              <div className="absolute top-6 right-6 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 dark:group-hover:text-gray-500 transition">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Year group</label>
-                <select
-                  value={yearGroup}
-                  onChange={e => setYearGroup(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white"
-                >
-                  <option value="">Select…</option>
-                  <option value={12}>Year 12</option>
-                  <option value={13}>Year 13</option>
-                  <option value={14}>Gap year</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">School type</label>
-                <select
-                  value={schoolType}
-                  onChange={e => setSchoolType(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white"
-                >
-                  <option value="">Select…</option>
-                  {SCHOOL_TYPE_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Eligible for Free School Meals?</label>
-                <div className="flex gap-4">
-                  {[
-                    { v: true, l: 'Yes' },
-                    { v: false, l: 'No' },
-                  ].map(opt => (
-                    <label key={String(opt.v)} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio" name="fsm"
-                        checked={freeSchoolMeals === opt.v}
-                        onChange={() => setFreeSchoolMeals(opt.v)}
-                        className="accent-purple-600"
-                      />
-                      <span className="text-sm text-gray-700">{opt.l}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Household income under £40k?</label>
-                <select
-                  value={incomeBand}
-                  onChange={e => setIncomeBand(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white"
-                >
-                  <option value="">Select…</option>
-                  {INCOME_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => { setEditing(false); if (profile) populateForm(profile) }}
-                  className="px-6 py-2.5 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 text-sm"
-                >
-                  {saving ? 'Saving…' : 'Save changes'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* ---- View mode ---- */
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8">
-              <Detail label="First name" value={profile.first_name} />
-              <Detail label="Last name" value={profile.last_name} />
-              <Detail label="Email" value={profile.personal_email} />
-              <Detail label="Year group" value={profile.year_group ? `Year ${profile.year_group}` : null} />
-              <Detail label="School" value={profile.school_name_raw} className="col-span-2" />
-              <Detail
-                label="School type"
-                value={SCHOOL_TYPE_OPTIONS.find(o => o.value === profile.school_type)?.label ?? profile.school_type}
-              />
-              <Detail
-                label="Free School Meals"
-                value={profile.free_school_meals === true ? 'Yes' : profile.free_school_meals === false ? 'No' : null}
-              />
-              <Detail
-                label="Household income"
-                value={INCOME_OPTIONS.find(o => o.value === profile.parental_income_band)?.label ?? profile.parental_income_band}
-              />
-            </div>
-          )}
+            </Link>
+          ))}
         </div>
-      </div>
 
-      <p className="text-center text-xs text-gray-400 mt-8">
-        <em>Virtus non origo</em> — Character, not origin
-      </p>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Helper components
-// ---------------------------------------------------------------------------
-
-function Detail({ label, value, className }: { label: string; value: string | null | undefined; className?: string }) {
-  return (
-    <div className={className}>
-      <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value || <span className="text-gray-300">—</span>}</dd>
+        <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-12">
+          <em>Virtus non origo</em> — Character, not origin
+        </p>
+      </main>
     </div>
   )
 }

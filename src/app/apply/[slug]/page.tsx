@@ -1219,7 +1219,7 @@ export default function ApplyPage() {
               Edit my application
             </button>
             <a
-              href="/hub"
+              href="/my"
               className="px-6 py-2.5 text-sm text-purple-600 hover:text-purple-800 font-medium"
             >
               Go to Student Hub
@@ -1271,7 +1271,7 @@ export default function ApplyPage() {
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition" />
               </div>
               <div className="flex gap-3">
-                <a href="/hub"
+                <a href="/my"
                   className="px-6 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium">No thanks, go to hub</a>
                 <button onClick={handlePasswordUpgrade} disabled={loading || password.length < 6}
                   className="flex-1 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
@@ -1288,7 +1288,7 @@ export default function ApplyPage() {
                 <strong className="text-gray-700">{email}</strong>.
               </p>
               <a
-                href="/hub"
+                href="/my"
                 className="inline-block px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition text-sm"
               >
                 Go to Student Hub

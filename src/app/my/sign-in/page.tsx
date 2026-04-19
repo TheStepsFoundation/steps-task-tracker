@@ -26,7 +26,7 @@ export default function HubSignInPage() {
   // Check for existing session on mount
   useState(() => {
     getExistingSession().then(s => {
-      if (s?.email) router.replace('/hub')
+      if (s?.email) router.replace('/my')
     })
   })
 
@@ -46,7 +46,7 @@ export default function HubSignInPage() {
       return
     }
     setStep('redirecting')
-    router.replace('/hub')
+    router.replace('/my')
   }
 
   // --- OTP flow ---
@@ -66,7 +66,7 @@ export default function HubSignInPage() {
     setLoading(false)
     if (err) { setError(err); return }
     setStep('redirecting')
-    router.replace('/hub')
+    router.replace('/my')
   }
 
   // ---------------------------------------------------------------------------
