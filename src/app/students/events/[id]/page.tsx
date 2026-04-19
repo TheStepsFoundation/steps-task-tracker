@@ -1095,7 +1095,7 @@ export default function EventDetailPage() {
             {applicants.length === 0 ? 'No applications yet.' : 'No applicants match your filters.'}
           </div>
         ) : (
-          <div className="flex text-sm overflow-visible" style={{ minHeight: Math.max((paged.length + 3) * 48, 240) }}>
+          <div className="flex text-sm overflow-visible" style={{ minHeight: Math.max((paged.length + 5) * 48, 336) }}>
             {/* Frozen left: checkbox + name */}
             <div className="flex-shrink-0 border-r border-gray-200 dark:border-gray-800" style={{ boxShadow: '4px 0 8px -4px rgba(0,0,0,0.08)' }}>
               <table className="text-sm">
@@ -1273,24 +1273,33 @@ export default function EventDetailPage() {
                         {/* Custom field answer columns */}
                         {customFieldCols.map(col => {
                           const val = app.customFields[col.id]
-                          // Serialize arrays/objects to readable text
+                          // Detect ranked choice (object with ordinal keys like first/second/third)
+                          const isRankedChoice = val != null && !Array.isArray(val) && typeof val === 'object'
+                            && Object.keys(val as Record<string, unknown>).some(k => k in ORDINAL)
+                          // Serialize for display
                           let display: string
+                          let popoverContent: string | null = null
                           if (val == null) {
                             display = '—'
+                          } else if (isRankedChoice) {
+                            const obj = val as Record<string, unknown>
+                            // Ordered entries for popover
+                            const orderedKeys = ['first', 'second', 'third', 'fourth', 'fifth'].filter(k => obj[k])
+                            display = orderedKeys.map(k => toTitleCase(String(obj[k]))).join(', ')
+                            popoverContent = orderedKeys.map(k => `${ORDINAL[k]}: ${toTitleCase(String(obj[k]))}`).join('\n')
                           } else if (Array.isArray(val)) {
                             display = val.map(v =>
                               typeof v === 'object' && v !== null
-                                ? Object.values(v as Record<string, unknown>).filter(Boolean).join(': ')
-                                : String(v)
+                                ? Object.values(v as Record<string, unknown>).filter(Boolean).map(x => toTitleCase(String(x))).join(': ')
+                                : toTitleCase(String(v))
                             ).join(', ')
                           } else if (typeof val === 'object') {
-                            // Ranked choice / key-value objects — show values only
                             const entries = Object.entries(val as Record<string, unknown>).filter(([, v]) => v)
-                            display = entries.map(([, v]) => String(v)).join(', ')
+                            display = entries.map(([, v]) => toTitleCase(String(v))).join(', ')
                           } else {
                             display = String(val)
                           }
-                          const isLong = display.length > 40
+                          const isLong = display.length > 40 || popoverContent != null
 
                           return (
                             <td key={col.id} className="p-3 max-w-[200px]">
@@ -1299,12 +1308,12 @@ export default function EventDetailPage() {
                               ) : (
                                 <div className="group relative">
                                   <span className="text-gray-700 dark:text-gray-300 truncate block cursor-default">
-                                    {isLong ? display.slice(0, 40) + '…' : display}
+                                    {display.length > 40 ? display.slice(0, 40) + '…' : display}
                                   </span>
                                   {isLong && (
                                     <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[280px] max-w-[400px] max-h-[200px] overflow-y-auto">
                                       <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{col.label}</div>
-                                      <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{display}</div>
+                                      <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{popoverContent ?? display}</div>
                                     </div>
                                   )}
                                 </div>
