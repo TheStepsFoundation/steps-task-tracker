@@ -14,6 +14,8 @@ import type { FormFieldConfig, FormPage } from "@/lib/events-api"
 // Types
 // ---------------------------------------------------------------------------
 
+type QualEntry = { qualType: string; subject: string; grade: string; level?: string }
+
 type Applicant = {
   id: string
   student_id: string
@@ -21,6 +23,7 @@ type Applicant = {
   last_name: string
   personal_email: string | null
   school_name: string | null
+  school_type: string | null
   year_group: number | null
   status: string
   submitted_at: string
@@ -28,8 +31,47 @@ type Applicant = {
   reviewed_by: string | null
   reviewer_name: string | null
   reviewed_at: string | null
-  rsvp_confirmed: boolean | null // null = no RSVP row, true/false from application_rsvp
+  rsvp_confirmed: boolean | null
   rsvp_confirmed_at: string | null
+  // Decision-making fields
+  bursary_90plus: boolean | null
+  free_school_meals: boolean | null
+  parental_income_band: string | null
+  qualifications: QualEntry[]
+  customFields: Record<string, unknown>
+  eligibility: 'eligible' | 'ineligible' | 'unknown'
+  gradeScore: number
+}
+
+// Grade scoring: A-Level, IB, BTEC on a common 0-12 scale
+const GRADE_POINTS: Record<string, number> = {
+  'A*': 12, 'A': 10, 'B': 8, 'C': 6, 'D': 4, 'E': 2, 'U': 0,
+  '7': 12, '6': 10, '5': 8, '4': 6, '3': 4, '2': 2, '1': 0,
+  'D*': 12, 'D': 10, 'M': 6, 'P': 2,
+}
+
+function scoreGrades(quals: QualEntry[]): number {
+  const post16 = quals.filter(q =>
+    /a.?level|ib|btec/i.test(q.qualType) || q.level === 'post-16'
+  )
+  return post16.reduce((sum, q) => sum + (GRADE_POINTS[q.grade] ?? 0), 0)
+}
+
+function computeEligibility(app: {
+  school_type: string | null
+  bursary_90plus: boolean | null
+  free_school_meals: boolean | null
+  parental_income_band: string | null
+}): 'eligible' | 'ineligible' | 'unknown' {
+  const st = app.school_type?.toLowerCase()
+  if (!st) return 'unknown'
+  if (st === 'state' || st === 'grammar') return 'eligible'
+  if (st === 'private' || st === 'independent') {
+    if (app.bursary_90plus === true) return 'eligible'
+    if (app.bursary_90plus === false) return 'ineligible'
+    return 'unknown'
+  }
+  return 'unknown'
 }
 
 const STATUSES = [
@@ -113,6 +155,7 @@ export default function EventDetailPage() {
   // Filters
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [search, setSearch] = useState('')
+  const [minGradeScore, setMinGradeScore] = useState(0)
 
   // Selection for bulk actions
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -223,8 +266,9 @@ export default function EventDetailPage() {
       const { data: batch, error } = await supabase
         .from('applications')
         .select(`
-          id, student_id, status, submitted_at, attended, reviewed_by, reviewed_at,
+          id, student_id, status, submitted_at, attended, reviewed_by, reviewed_at, raw_response,
           students!inner(first_name, last_name, personal_email, year_group, school_id,
+            school_type, bursary_90plus, free_school_meals, parental_income_band,
             schools(name)
           ),
           application_rsvp(confirmed, confirmed_at)
@@ -258,6 +302,31 @@ export default function EventDetailPage() {
     const mapped: Applicant[] = (data ?? []).map((row: any) => {
       const s = row.students
       const rsvp = row.application_rsvp
+      const raw = row.raw_response ?? {}
+
+      // Parse qualifications from raw_response
+      const quals: QualEntry[] = Array.isArray(raw.qualifications)
+        ? raw.qualifications.map((q: any) => ({
+            qualType: q.type ?? q.qualType ?? '',
+            subject: q.subject ?? '',
+            grade: q.grade ?? '',
+            level: q.level,
+          }))
+        : []
+
+      // Parse custom field answers
+      const customFields: Record<string, unknown> = {}
+      if (raw.custom_fields && typeof raw.custom_fields === 'object') {
+        Object.assign(customFields, raw.custom_fields)
+      }
+
+      const eligibility = computeEligibility({
+        school_type: s.school_type,
+        bursary_90plus: s.bursary_90plus,
+        free_school_meals: s.free_school_meals,
+        parental_income_band: s.parental_income_band,
+      })
+
       return {
         id: row.id,
         student_id: row.student_id,
@@ -265,6 +334,7 @@ export default function EventDetailPage() {
         last_name: s.last_name,
         personal_email: s.personal_email,
         school_name: s.schools?.name ?? null,
+        school_type: s.school_type ?? null,
         year_group: s.year_group,
         status: row.status,
         submitted_at: row.submitted_at,
@@ -274,6 +344,13 @@ export default function EventDetailPage() {
         reviewed_at: row.reviewed_at,
         rsvp_confirmed: rsvp ? rsvp.confirmed : null,
         rsvp_confirmed_at: rsvp?.confirmed_at ?? null,
+        bursary_90plus: s.bursary_90plus ?? null,
+        free_school_meals: s.free_school_meals ?? null,
+        parental_income_band: s.parental_income_band ?? null,
+        qualifications: quals,
+        customFields,
+        eligibility,
+        gradeScore: scoreGrades(quals),
       }
     })
 
@@ -300,8 +377,11 @@ export default function EventDetailPage() {
         (a.school_name?.toLowerCase().includes(q) ?? false)
       )
     }
+    if (minGradeScore > 0) {
+      list = list.filter(a => a.gradeScore >= minGradeScore)
+    }
     return list
-  }, [applicants, statusFilter, search])
+  }, [applicants, statusFilter, search, minGradeScore])
 
   const statusCounts = useMemo(() => {
     const c: Record<string, number> = { all: applicants.length }
@@ -313,7 +393,7 @@ export default function EventDetailPage() {
   const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page])
 
   // Reset page when filters change
-  useEffect(() => { setPage(0) }, [statusFilter, search])
+  useEffect(() => { setPage(0) }, [statusFilter, search, minGradeScore])
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -922,6 +1002,20 @@ export default function EventDetailPage() {
               onChange={e => setSearch(e.target.value)}
               className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 w-64"
             />
+
+            {/* Min grade score filter */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Min grade</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={minGradeScore || ''}
+                onChange={e => setMinGradeScore(Number(e.target.value) || 0)}
+                placeholder="0"
+                className="w-16 px-2 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              />
+            </div>
             <button
               onClick={() => setShowInvite(true)}
               className="ml-auto px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
@@ -986,37 +1080,30 @@ export default function EventDetailPage() {
             {applicants.length === 0 ? 'No applications yet.' : 'No applicants match your filters.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  <th className="p-3 w-8">
-                    <input
-                      type="checkbox"
-                      checked={paged.length > 0 && paged.every(a => selected.has(a.id))}
-                      onChange={toggleSelectAll}
-                      className="rounded border-gray-300 dark:border-gray-600"
-                    />
-                  </th>
-                  <th className="p-3">Name</th>
-                  <th className="p-3 hidden md:table-cell">Email</th>
-                  <th className="p-3 hidden lg:table-cell">School</th>
-                  <th className="p-3 hidden lg:table-cell">Year</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">RSVP</th>
-                  <th className="p-3 hidden md:table-cell">Submitted</th>
-                  <th className="p-3">Attended</th>
-                  <th className="p-3 hidden lg:table-cell">Reviewer</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paged.map(app => {
-                  const badge = STATUS_MAP[app.status] ?? STATUS_MAP.submitted
-                  return (
+          <div className="flex text-sm">
+            {/* Frozen left: checkbox + name */}
+            <div className="flex-shrink-0 border-r border-gray-200 dark:border-gray-800" style={{ boxShadow: '4px 0 8px -4px rgba(0,0,0,0.08)' }}>
+              <table className="text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    <th className="p-3 w-8">
+                      <input
+                        type="checkbox"
+                        checked={paged.length > 0 && paged.every(a => selected.has(a.id))}
+                        onChange={toggleSelectAll}
+                        className="rounded border-gray-300 dark:border-gray-600"
+                      />
+                    </th>
+                    <th className="p-3 min-w-[160px]">Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map(app => (
                     <tr
                       key={app.id}
-                      className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors ${
-                        selected.has(app.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''
+                      className={`border-b border-gray-100 dark:border-gray-800/50 transition-colors ${
+                        app.eligibility === 'ineligible' ? 'bg-red-50 dark:bg-red-900/10' :
+                        selected.has(app.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
                       }`}
                     >
                       <td className="p-3">
@@ -1030,79 +1117,172 @@ export default function EventDetailPage() {
                       <td className="p-3">
                         <Link
                           href={`/students/${app.student_id}`}
-                          className="font-medium text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400"
+                          className={`font-medium hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                            app.eligibility === 'ineligible'
+                              ? 'text-red-700 dark:text-red-400'
+                              : 'text-gray-900 dark:text-gray-100'
+                          }`}
                         >
                           {app.first_name} {app.last_name}
                         </Link>
-                      </td>
-                      <td className="p-3 hidden md:table-cell text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
-                        {app.personal_email ?? '—'}
-                      </td>
-                      <td className="p-3 hidden lg:table-cell text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
-                        {app.school_name ?? '—'}
-                      </td>
-                      <td className="p-3 hidden lg:table-cell text-gray-500 dark:text-gray-400">
-                        {app.year_group ?? '—'}
-                      </td>
-                      <td className="p-3">
-                        <select
-                          value={app.status}
-                          onChange={e => updateStatus(app.id, e.target.value)}
-                          disabled={saving.has(app.id)}
-                          className={`text-xs font-medium rounded-full px-2.5 py-0.5 border-0 cursor-pointer ${badge.color} ${
-                            saving.has(app.id) ? 'opacity-50' : ''
-                          }`}
-                        >
-                          {STATUSES.map(s => (
-                            <option key={s.code} value={s.code}>{s.label}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-3">
-                        {app.status === 'accepted' ? (
-                          app.rsvp_confirmed === true ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                              Confirmed
-                            </span>
-                          ) : (
-                            <span className="text-xs text-amber-600 dark:text-amber-400">Pending</span>
-                          )
-                        ) : (
-                          <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
+                        {app.eligibility === 'ineligible' && (
+                          <span className="ml-1.5 text-[10px] font-medium text-red-500 dark:text-red-400 uppercase">Ineligible</span>
                         )}
                       </td>
-                      <td className="p-3 hidden md:table-cell text-gray-500 dark:text-gray-400">
-                        {new Date(app.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
-                      </td>
-                      <td className="p-3 text-center">
-                        <button
-                          onClick={() => toggleAttended(app.id)}
-                          disabled={saving.has(app.id)}
-                          className={`w-5 h-5 rounded border-2 inline-flex items-center justify-center transition-colors ${
-                            app.attended
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
-                              : 'border-gray-300 dark:border-gray-600 hover:border-emerald-400'
-                          } ${saving.has(app.id) ? 'opacity-50' : ''}`}
-                          title={app.attended ? 'Attended' : 'Not attended (no-show)'}
-                        >
-                          {app.attended && (
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      </td>
-                      <td className="p-3 hidden lg:table-cell text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
-                        {app.reviewer_name ?? '—'}
-                      </td>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Scrollable right: all other columns */}
+            <div className="overflow-x-auto flex-1">
+              <table className="text-sm w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    <th className="p-3 whitespace-nowrap">School Type</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 whitespace-nowrap">Grades (Score)</th>
+                    <th className="p-3">RSVP</th>
+                    <th className="p-3">Attended</th>
+                    {customFieldCols.map(col => (
+                      <th key={col.id} className="p-3 whitespace-nowrap max-w-[200px] truncate" title={col.label}>
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map(app => {
+                    const badge = STATUS_MAP[app.status] ?? STATUS_MAP.submitted
+                    const post16 = app.qualifications.filter(q =>
+                      /a.?level|ib|btec/i.test(q.qualType) || q.level === 'post-16'
+                    )
+                    const gradeLetters = post16.map(q => q.grade).filter(Boolean).join(', ')
+
+                    return (
+                      <tr
+                        key={app.id}
+                        className={`border-b border-gray-100 dark:border-gray-800/50 transition-colors ${
+                          app.eligibility === 'ineligible' ? 'bg-red-50 dark:bg-red-900/10' :
+                          selected.has(app.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                        }`}
+                      >
+                        {/* School type */}
+                        <td className="p-3 text-gray-500 dark:text-gray-400 capitalize whitespace-nowrap">
+                          {app.school_type ?? '—'}
+                        </td>
+
+                        {/* Status */}
+                        <td className="p-3">
+                          <select
+                            value={app.status}
+                            onChange={e => updateStatus(app.id, e.target.value)}
+                            disabled={saving.has(app.id)}
+                            className={`text-xs font-medium rounded-full px-2.5 py-0.5 border-0 cursor-pointer ${badge.color} ${
+                              saving.has(app.id) ? 'opacity-50' : ''
+                            }`}
+                          >
+                            {STATUSES.map(s => (
+                              <option key={s.code} value={s.code}>{s.label}</option>
+                            ))}
+                          </select>
+                        </td>
+
+                        {/* Grades with hover popover */}
+                        <td className="p-3 whitespace-nowrap">
+                          {post16.length > 0 ? (
+                            <div className="group relative inline-block">
+                              <span className="text-gray-700 dark:text-gray-300 cursor-default">
+                                {gradeLetters}
+                                <span className="ml-1 text-xs text-gray-400">({app.gradeScore})</span>
+                              </span>
+                              {/* Hover popover */}
+                              <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[220px]">
+                                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Qualifications</div>
+                                {post16.map((q, i) => (
+                                  <div key={i} className="flex justify-between gap-4 text-xs py-0.5">
+                                    <span className="text-gray-700 dark:text-gray-300">{q.qualType}: {q.subject}</span>
+                                    <span className="font-medium text-gray-900 dark:text-gray-100">{q.grade}</span>
+                                  </div>
+                                ))}
+                                <div className="border-t border-gray-100 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between text-xs font-medium">
+                                  <span className="text-gray-500 dark:text-gray-400">Total score</span>
+                                  <span className="text-gray-900 dark:text-gray-100">{app.gradeScore}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+
+                        {/* RSVP */}
+                        <td className="p-3">
+                          {app.status === 'accepted' ? (
+                            app.rsvp_confirmed === true ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="text-xs text-amber-600 dark:text-amber-400">Pending</span>
+                            )
+                          ) : (
+                            <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+
+                        {/* Attended */}
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => toggleAttended(app.id)}
+                            disabled={saving.has(app.id)}
+                            className={`w-5 h-5 rounded border-2 inline-flex items-center justify-center transition-colors ${
+                              app.attended
+                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-emerald-400'
+                            } ${saving.has(app.id) ? 'opacity-50' : ''}`}
+                            title={app.attended ? 'Attended' : 'Not attended'}
+                          >
+                            {app.attended && (
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                        </td>
+
+                        {/* Custom field answer columns */}
+                        {customFieldCols.map(col => {
+                          const val = app.customFields[col.id]
+                          const display = val == null ? '—' : String(val)
+                          const isLong = display.length > 40
+
+                          return (
+                            <td key={col.id} className="p-3 max-w-[200px]">
+                              {isLong ? (
+                                <div className="group relative">
+                                  <span className="text-gray-700 dark:text-gray-300 truncate block cursor-default">{display.slice(0, 40)}…</span>
+                                  <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[280px] max-w-[400px] max-h-[200px] overflow-y-auto">
+                                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{col.label}</div>
+                                    <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{display}</div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-700 dark:text-gray-300">{display}</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
