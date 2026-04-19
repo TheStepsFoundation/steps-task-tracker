@@ -654,6 +654,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                         className="px-2 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
                       >
                         <option value="custom">Custom</option>
+                        <option value="invite">Invite</option>
                         <option value="acceptance">Acceptance</option>
                         <option value="rejection">Rejection</option>
                         <option value="waitlist">Waitlist</option>
