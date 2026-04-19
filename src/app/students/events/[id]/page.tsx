@@ -72,9 +72,11 @@ function computeEligibility(app: {
   if (!st) return 'unknown'
   if (st === 'state' || st === 'grammar') return 'eligible'
   if (st === 'private' || st === 'independent') {
+    // Only the explicit 90%+ bursary signal makes a fee-paying student eligible.
+    // No bursary recorded (false) OR unknown bursary (null) defaults to ineligible —
+    // we shouldn't quietly let unflagged private-school students through.
     if (app.bursary_90plus === true) return 'eligible'
-    if (app.bursary_90plus === false) return 'ineligible'
-    return 'unknown'
+    return 'ineligible'
   }
   return 'unknown'
 }
