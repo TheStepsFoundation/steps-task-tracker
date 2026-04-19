@@ -190,9 +190,9 @@ export async function submitApplication(
 
   // Map the household income answer to an income band code
   const incomeBand = submission.householdIncomeUnder40k === 'yes'
-    ? 'under_20k'  // conservative mapping — we know it's under 40k but not exactly
+    ? 'under_40k'
     : submission.householdIncomeUnder40k === 'no'
-      ? '40_60k'   // we know it's over 40k
+      ? 'over_40k'
       : 'prefer_na'
 
   // Map school type to bursary flag for backward compat
