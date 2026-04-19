@@ -277,7 +277,7 @@ export default function StudentHub() {
                     </div>
                     {!isPast && app.status === 'submitted' && (
                       <a
-                        href={`/apply/${app.event.slug}`}
+                        href={`/apply/${app.event.slug}?edit=1`}
                         className="flex-shrink-0 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-800 font-medium border border-purple-200 rounded-xl hover:bg-purple-50 transition"
                       >
                         Edit

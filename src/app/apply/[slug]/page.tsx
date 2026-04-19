@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
 import DynamicFormField, { type FieldValue, evaluateConditions } from '@/components/DynamicFormField'
 import type { FormFieldConfig, FormPage, EventRow } from '@/lib/events-api'
@@ -180,6 +180,8 @@ type Step = 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'succes
 
 export default function ApplyPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
+  const editMode = searchParams.get('edit') === '1'
   const slug = params.slug as string
   const [event, setEvent] = useState<EventRow | null>(null)
   const [eventLoading, setEventLoading] = useState(true)
@@ -304,13 +306,19 @@ export default function ApplyPage() {
         setExistingStudent(student)
         prefill(student)
         const applied = await hasExistingApplication(event!.id)
-        if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); draftRestoredRef.current = true; if (!cancelled) setStep('applied'); return }
+        if (applied) {
+          setAlreadyApplied(true)
+          await restoreApplication(event!.id)
+          draftRestoredRef.current = true
+          if (!cancelled) setStep(editMode ? 'details' : 'applied')
+          return
+        }
       }
       if (student) draftRestoredRef.current = true
       if (!cancelled) setStep(student ? 'application' : 'details')
     })
     return () => { cancelled = true }
-  }, [event?.id, prefill])
+  }, [event?.id, prefill, editMode])
 
 
   // Restore draft from localStorage after auth is established (runs once)
@@ -435,7 +443,7 @@ export default function ApplyPage() {
       setExistingStudent(student)
       prefill(student)
       const applied = await hasExistingApplication(event!.id)
-      if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); draftRestoredRef.current = true; setLoading(false); setStep('applied'); return }
+      if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); draftRestoredRef.current = true; setLoading(false); setStep(editMode ? 'details' : 'applied'); return }
     }
     if (student) draftRestoredRef.current = true
     setLoading(false)
@@ -459,7 +467,7 @@ export default function ApplyPage() {
       setExistingStudent(student)
       prefill(student)
       const applied = await hasExistingApplication(event!.id)
-      if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); draftRestoredRef.current = true; setLoading(false); setStep('applied'); return }
+      if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); draftRestoredRef.current = true; setLoading(false); setStep(editMode ? 'details' : 'applied'); return }
     }
     if (student) draftRestoredRef.current = true
     setLoading(false)
@@ -1219,7 +1227,7 @@ export default function ApplyPage() {
 
           <div className="border-t border-gray-100 pt-6 flex flex-col items-center gap-3">
             <button
-              onClick={() => setStep('application')}
+              onClick={() => setStep('details')}
               className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition text-sm"
             >
               Edit my application
