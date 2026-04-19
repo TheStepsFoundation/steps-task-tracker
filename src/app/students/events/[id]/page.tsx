@@ -200,6 +200,64 @@ export default function EventDetailPage() {
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set())
   const [colOrder, setColOrder] = useState<string[]>([])  // empty = default order
 
+  // View state persistence — load once, save on change, keyed by event ID.
+  // Survives refresh so admins don't have to re-customise the table every visit.
+  const [viewHydrated, setViewHydrated] = useState(false)
+  const viewStorageKey = `steps:event-view:${eventId}`
+
+  useEffect(() => {
+    if (!eventId) return
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(viewStorageKey) : null
+      if (raw) {
+        const v = JSON.parse(raw) as Partial<{
+          statusFilter: StatusFilter
+          yearGroupFilter: string
+          schoolTypeFilter: string
+          minGradeScore: number
+          sortKey: SortKey
+          sortDir: SortDir
+          hiddenCols: string[]
+          colOrder: string[]
+          search: string
+        }>
+        if (typeof v.statusFilter === 'string') setStatusFilter(v.statusFilter)
+        if (typeof v.yearGroupFilter === 'string') setYearGroupFilter(v.yearGroupFilter)
+        if (typeof v.schoolTypeFilter === 'string') setSchoolTypeFilter(v.schoolTypeFilter)
+        if (typeof v.minGradeScore === 'number') setMinGradeScore(v.minGradeScore)
+        if (typeof v.sortKey === 'string') setSortKey(v.sortKey)
+        if (typeof v.sortDir === 'string') setSortDir(v.sortDir)
+        if (Array.isArray(v.hiddenCols)) setHiddenCols(new Set(v.hiddenCols))
+        if (Array.isArray(v.colOrder)) setColOrder(v.colOrder)
+        if (typeof v.search === 'string') setSearch(v.search)
+      }
+    } catch {
+      // Corrupt or inaccessible storage — fall through to defaults.
+    }
+    setViewHydrated(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId])
+
+  useEffect(() => {
+    if (!viewHydrated || !eventId) return
+    try {
+      const payload = {
+        statusFilter,
+        yearGroupFilter,
+        schoolTypeFilter,
+        minGradeScore,
+        sortKey,
+        sortDir,
+        hiddenCols: Array.from(hiddenCols),
+        colOrder,
+        search,
+      }
+      window.localStorage.setItem(viewStorageKey, JSON.stringify(payload))
+    } catch {
+      // Storage full / disabled — view still works for this session.
+    }
+  }, [viewHydrated, eventId, viewStorageKey, statusFilter, yearGroupFilter, schoolTypeFilter, minGradeScore, sortKey, sortDir, hiddenCols, colOrder, search])
+
 
   // Selection for bulk actions
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -1275,7 +1333,7 @@ export default function EventDetailPage() {
                 {/* Reset */}
                 {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at' || minGradeScore > 0 || hiddenCols.size > 0 || colOrder.length > 0) && (
                   <button
-                    onClick={() => { setYearGroupFilter('all'); setSchoolTypeFilter('all'); setSortKey('submitted_at'); setSortDir('desc'); setMinGradeScore(0); setHiddenCols(new Set()); setColOrder([]) }}
+                    onClick={() => { setYearGroupFilter('all'); setSchoolTypeFilter('all'); setSortKey('submitted_at'); setSortDir('desc'); setMinGradeScore(0); setHiddenCols(new Set()); setColOrder([]); try { window.localStorage.removeItem(viewStorageKey) } catch {} }}
                     className="px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline self-end"
                   >
                     Reset all
