@@ -217,6 +217,7 @@ export type ExistingApplicationData = {
     free_school_meals_raw?: string
   } | null
   attribution_source?: string | null
+  channel?: string | null
 }
 
 export async function fetchExistingApplication(eventId: string): Promise<ExistingApplicationData | null> {
@@ -233,7 +234,7 @@ export async function fetchExistingApplication(eventId: string): Promise<Existin
 
   const { data } = await supabase
     .from('applications')
-    .select('id, raw_response, attribution_source')
+    .select('id, raw_response, attribution_source, channel')
     .eq('student_id', student.id)
     .eq('event_id', eventId)
     .maybeSingle()

@@ -285,7 +285,8 @@ export default function ApplyPage() {
     }
     if (raw.additional_context) setAdditionalContext(raw.additional_context)
     if (raw.custom_fields) setCustomFieldValues(raw.custom_fields as Record<string, FieldValue>)
-    if (app.attribution_source) setAttribution(app.attribution_source)
+    if (app.channel) setAttribution(app.channel)
+    else if (app.attribution_source) setAttribution(app.attribution_source)
   }, [])
 
   // Check for existing Supabase session on mount (e.g. page refresh after OTP)
