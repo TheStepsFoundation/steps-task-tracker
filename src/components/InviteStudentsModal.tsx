@@ -64,6 +64,75 @@ This message is intended only for the addressee and may contain information that
 `
 
 // ---------------------------------------------------------------------------
+// Curated merge-tag fields from application raw_response
+// ---------------------------------------------------------------------------
+
+const MERGE_TAG_FIELDS: Record<string, { tag: string; label: string; multiSelect?: boolean }> = {
+  // Starting Point
+  'Which sessions are you most interested in?': { tag: 'session', label: 'Session', multiSelect: true },
+  'A Level Predicted (subjects + grades)': { tag: 'a_level_predicted', label: 'A-Level Predicted' },
+  // Oxbridge
+  'course': { tag: 'course', label: 'Course' },
+  'college': { tag: 'college', label: 'College' },
+  'ox_cam': { tag: 'ox_cam', label: 'Oxford/Cambridge' },
+  // DA Masterclass
+  'stage': { tag: 'stage', label: 'Stage' },
+}
+
+/** Extract merge-tag values from a student's applications */
+function getStudentMergeTags(s: EnrichedStudent): Record<string, string> {
+  const tags: Record<string, string> = {}
+  if (!s.applications) return tags
+  for (const app of s.applications) {
+    const raw = (app as any).raw_response as Record<string, any> | null
+    if (!raw) continue
+    for (const [fieldKey, config] of Object.entries(MERGE_TAG_FIELDS)) {
+      const val = raw[fieldKey]
+      if (val == null || String(val).trim() === '') continue
+      if (config.multiSelect) {
+        const parts = String(val).split(',').map((p: string) => p.trim()).filter(Boolean)
+        parts.forEach((p: string, i: number) => {
+          const key = `${config.tag}_${i + 1}`
+          if (!tags[key]) tags[key] = p
+        })
+      } else {
+        if (!tags[config.tag]) tags[config.tag] = String(val).trim()
+      }
+    }
+  }
+  return tags
+}
+
+/** Determine which dynamic merge tags are available across selected students */
+function getAvailableDynamicTags(students: EnrichedStudent[]): { tag: string; label: string }[] {
+  const tagSet = new Set<string>()
+  const tagLabels: Record<string, string> = {}
+  for (const s of students) {
+    const tags = getStudentMergeTags(s)
+    for (const key of Object.keys(tags)) {
+      tagSet.add(key)
+      // Generate label from tag name
+      if (!tagLabels[key]) {
+        // e.g. session_1 → Session 1, a_level_predicted → A-Level Predicted
+        for (const config of Object.values(MERGE_TAG_FIELDS)) {
+          if (key === config.tag) {
+            tagLabels[key] = config.label
+            break
+          }
+          if (config.multiSelect && key.startsWith(config.tag + '_')) {
+            const num = key.split('_').pop()
+            tagLabels[key] = `${config.label} ${num}`
+            break
+          }
+        }
+        if (!tagLabels[key]) tagLabels[key] = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      }
+    }
+  }
+  return Array.from(tagSet).sort().map(tag => ({ tag, label: tagLabels[tag] || tag }))
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -206,13 +275,21 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
   const applyLink = `https://the-steps-foundation-intranet.vercel.app/apply/${eventSlug}`
 
   const fillMerge = (text: string, s: EnrichedStudent): string => {
-    return text
+    let result = text
       .replace(/\{\{first_name\}\}/g, s.first_name ?? '')
       .replace(/\{\{last_name\}\}/g, s.last_name ?? '')
       .replace(/\{\{full_name\}\}/g, `${s.first_name ?? ''} ${s.last_name ?? ''}`)
       .replace(/\{\{email\}\}/g, String(s.personal_email ?? ''))
       .replace(/\{\{event_name\}\}/g, eventName)
       .replace(/\{\{apply_link\}\}/g, applyLink)
+    // Dynamic tags from raw_response
+    const dynTags = getStudentMergeTags(s)
+    for (const [key, val] of Object.entries(dynTags)) {
+      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val)
+    }
+    // Clear any unfilled dynamic tags
+    result = result.replace(/\{\{[a-z_0-9]+\}\}/g, '')
+    return result
   }
 
   const recipients = students.filter(s => selected.has(s.id))
@@ -285,7 +362,12 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
     for (const student of recipients) {
       const renderedSubject = fillMerge(emailSubject, student)
       const renderedBody = fillMerge(emailBody, student)
-      const fullBody = renderedBody + EMAIL_SIGNATURE_HTML
+      // Convert plain text to HTML paragraphs
+      const htmlBody = renderedBody
+        .split('\n\n')
+        .map(p => `<p style="margin:0 0 12px 0;font-family:arial,sans-serif;font-size:14px;color:#222">${p.replace(/\n/g, '<br>')}</p>`)
+        .join('')
+      const fullBody = htmlBody + EMAIL_SIGNATURE_HTML
 
       try {
         // Insert email_log
@@ -589,7 +671,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                       value={templateDraft.body_html}
                       onChange={e => setTemplateDraft(d => ({ ...d, body_html: e.target.value }))}
                       rows={6}
-                      placeholder="Email body HTML with {{merge_tags}}"
+                      placeholder="Email body with {{merge_tags}} — plain text, signature auto-appended"
                       className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 font-mono"
                     />
                     <div className="flex gap-2">
@@ -648,25 +730,62 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
 
               {/* Body */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Body (HTML)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Body</label>
+                  <span className="text-[10px] text-gray-400">Plain text — signature is auto-appended</span>
+                </div>
+
+                {/* Merge tag buttons */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <span className="text-[10px] text-gray-400 self-center mr-1">Insert:</span>
+                  {[
+                    { tag: 'first_name', label: 'First Name' },
+                    { tag: 'event_name', label: 'Event Name' },
+                    { tag: 'apply_link', label: 'Apply Link' },
+                    ...getAvailableDynamicTags(recipients),
+                  ].map(({ tag, label }) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setEmailBody(prev => {
+                          const el = document.getElementById('invite-body-textarea') as HTMLTextAreaElement | null
+                          if (el) {
+                            const start = el.selectionStart
+                            const end = el.selectionEnd
+                            const insert = `{{${tag}}}`
+                            const next = prev.slice(0, start) + insert + prev.slice(end)
+                            // Restore cursor after React re-render
+                            setTimeout(() => { el.selectionStart = el.selectionEnd = start + insert.length; el.focus() }, 0)
+                            return next
+                          }
+                          return prev + `{{${tag}}}`
+                        })
+                      }}
+                      className="px-2 py-0.5 text-[11px] rounded-full border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 <textarea
+                  id="invite-body-textarea"
                   value={emailBody}
                   onChange={e => setEmailBody(e.target.value)}
-                  rows={10}
-                  placeholder="<p>Hey {{first_name}},</p><p>We'd love for you to apply to {{event_name}}! Apply here: {{apply_link}}</p>"
-                  className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-mono"
+                  rows={8}
+                  placeholder={`Hey {{first_name}},\n\nWe'd love for you to apply to {{event_name}}!\n\nApply here: {{apply_link}}\n\nBest wishes,\nThe Steps Foundation Team`}
+                  className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
                 />
-              </div>
 
-              {/* Merge fields */}
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                <span className="font-medium">Merge fields: </span>
-                {['{{first_name}}', '{{last_name}}', '{{full_name}}', '{{event_name}}', '{{apply_link}}'].map((f, i, arr) => (
-                  <span key={f}>
-                    <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{f}</code>
-                    {i < arr.length - 1 ? ', ' : ''}
-                  </span>
-                ))}
+                {/* Signature preview */}
+                <div className="mt-2 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-3">
+                  <div className="text-[10px] text-gray-400 mb-1.5 uppercase tracking-wide">Email signature (auto-appended)</div>
+                  <div
+                    className="text-xs opacity-60 pointer-events-none"
+                    dangerouslySetInnerHTML={{ __html: EMAIL_SIGNATURE_HTML }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -685,7 +804,14 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                 </div>
                 <div
                   className="prose dark:prose-invert prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: fillMerge(emailBody, firstRecipient) + EMAIL_SIGNATURE_HTML }}
+                  dangerouslySetInnerHTML={{ __html: (() => {
+                    const filled = fillMerge(emailBody, firstRecipient)
+                    const html = filled
+                      .split('\n\n')
+                      .map(p => `<p style="margin:0 0 12px 0;font-family:arial,sans-serif;font-size:14px;color:#222">${p.replace(/\n/g, '<br>')}</p>`)
+                      .join('')
+                    return html + EMAIL_SIGNATURE_HTML
+                  })() }}
                 />
               </div>
               <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-800 dark:text-amber-300">
