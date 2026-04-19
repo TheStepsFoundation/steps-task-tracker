@@ -45,9 +45,14 @@ type Applicant = {
 
 // Grade scoring: A-Level, IB, BTEC on a common 0-12 scale
 const GRADE_POINTS: Record<string, number> = {
+  // A-Level / T-Level
   'A*': 12, 'A': 10, 'B': 8, 'C': 6, 'D': 4, 'E': 2, 'U': 0,
+  // IB (1-7)
   '7': 12, '6': 10, '5': 8, '4': 6, '3': 4, '2': 2, '1': 0,
-  'D*': 12, 'D': 10, 'M': 6, 'P': 2,
+  // BTEC (stored with full label from apply form)
+  'D* (Distinction*)': 12, 'D (Distinction)': 10, 'M (Merit)': 6, 'P (Pass)': 2,
+  // Pre-U
+  'D1': 12, 'D2': 11, 'D3': 10, 'M1': 8, 'M2': 7, 'M3': 6, 'P1': 4, 'P2': 3, 'P3': 2,
 }
 
 function scoreGrades(quals: QualEntry[]): number {
