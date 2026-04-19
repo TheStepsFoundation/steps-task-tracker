@@ -709,7 +709,7 @@ export default function ApplyPage() {
       {/* ================================================================= */}
 
       {/* Back to Student Hub — shown on all form steps */}
-      {(step === 'email' || step === 'otp' || step === 'details' || step === 'application') && (
+      {(step === 'details' || step === 'application') && (
         <div className="flex justify-end mb-2">
           <button
             onClick={() => {
