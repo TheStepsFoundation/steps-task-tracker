@@ -21,7 +21,7 @@ export const ATTRIBUTION_SOURCES: { value: string; label: string }[] = [
   { value: 'unknown',           label: 'Unknown' },
 ]
 
-export type SchoolType = 'state' | 'grammar' | 'private'
+export type SchoolType = 'state' | 'grammar' | 'private' | 'independent' | 'independent_bursary'
 export type Eligibility = 'eligible' | 'ineligible' | 'unknown'
 
 export type StudentRow = {

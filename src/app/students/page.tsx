@@ -44,6 +44,8 @@ const SCHOOL_TYPES: { value: SchoolType; label: string }[] = [
   { value: 'state', label: 'State' },
   { value: 'grammar', label: 'Grammar' },
   { value: 'private', label: 'Private' },
+  { value: 'independent', label: 'Independent' },
+  { value: 'independent_bursary', label: 'Independent (90%+ bursary)' },
 ]
 
 const ELIGIBILITY_OPTIONS: { value: Eligibility; label: string }[] = [
