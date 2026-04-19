@@ -7,7 +7,7 @@ import { TopNav } from '@/components/TopNav'
 import { PressableButton } from '@/components/PressableButton'
 import {
   fetchProfile, updateProfile, fetchMyApplications, fetchOpenEvents,
-  signOut, getAuthEmail,
+  signOut, getAuthEmail, withdrawApplication,
   type HubApplication, type HubEvent, type ProfileUpdate,
 } from '@/lib/hub-api'
 import type { StudentSelf } from '@/lib/apply-api'
@@ -59,6 +59,31 @@ export default function StudentHub() {
 
   // Edit mode
   const [editing, setEditing] = useState(false)
+
+  // Withdraw flow
+  const [withdrawTarget, setWithdrawTarget] = useState<HubApplication | null>(null)
+  const [withdrawLoading, setWithdrawLoading] = useState(false)
+  const [withdrawError, setWithdrawError] = useState<string | null>(null)
+  const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null)
+
+  const handleWithdraw = async () => {
+    if (!withdrawTarget) return
+    setWithdrawLoading(true)
+    setWithdrawError(null)
+    const { error } = await withdrawApplication(withdrawTarget.id)
+    setWithdrawLoading(false)
+    if (error) {
+      setWithdrawError(error)
+      return
+    }
+    const eventName = withdrawTarget.event.name
+    setWithdrawTarget(null)
+    setWithdrawSuccess(`Your application to ${eventName} has been withdrawn.`)
+    // Reload applications to reflect the new status
+    const fresh = await fetchMyApplications()
+    setApplications(fresh)
+  }
+
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
 
@@ -279,13 +304,24 @@ export default function StudentHub() {
                         Applied {new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
-                    {!isPast && app.status === 'submitted' && (
-                      <a
-                        href={`/apply/${app.event.slug}?edit=1`}
-                        className="flex-shrink-0 px-3 py-1.5 text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition"
-                      >
-                        Edit
-                      </a>
+                    {!isPast && app.status !== 'withdrew' && app.status !== 'rejected' && (
+                      <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2">
+                        {app.status === 'submitted' && (
+                          <a
+                            href={`/apply/${app.event.slug}?edit=1`}
+                            className="px-3 py-1.5 text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition text-center"
+                          >
+                            Edit
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { setWithdrawTarget(app); setWithdrawError(null) }}
+                          className="px-3 py-1.5 text-sm text-steps-berry hover:text-white font-medium border border-steps-berry/40 rounded-xl hover:bg-steps-berry transition"
+                        >
+                          Withdraw
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -449,6 +485,71 @@ export default function StudentHub() {
           <em className="not-italic">Virtus non origo</em> &nbsp;·&nbsp; Character, not origin
         </p>
       </div>
+
+      {/* Success toast after withdraw */}
+      {withdrawSuccess && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[90%]">
+          <div className="bg-white rounded-2xl shadow-xl border border-emerald-200 px-4 py-3 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-steps-dark">Application withdrawn</p>
+              <p className="text-xs text-slate-600 mt-0.5">{withdrawSuccess}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWithdrawSuccess(null)}
+              className="text-slate-400 hover:text-slate-600 -mr-1"
+              aria-label="Dismiss"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw confirmation modal */}
+      {withdrawTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 max-w-md w-full">
+            <h3 className="font-display text-xl font-bold text-steps-dark mb-1">
+              Withdraw your application?
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              You're about to withdraw your application to <span className="font-semibold text-steps-dark">{withdrawTarget.event.name}</span>.
+              This can't be undone \u2014 if you change your mind, you'll need to reapply.
+            </p>
+
+            {withdrawError && (
+              <p className="mb-4 text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{withdrawError}</p>
+            )}
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => { setWithdrawTarget(null); setWithdrawError(null) }}
+                disabled={withdrawLoading}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition disabled:opacity-50"
+              >
+                Keep my application
+              </button>
+              <button
+                type="button"
+                onClick={handleWithdraw}
+                disabled={withdrawLoading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-steps-berry rounded-xl hover:bg-steps-berry/90 transition disabled:opacity-60"
+              >
+                {withdrawLoading ? 'Withdrawing\u2026' : 'Yes, withdraw'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

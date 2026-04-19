@@ -168,6 +168,16 @@ export async function fetchAllEvents(): Promise<HubEvent[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Withdraw an application (student-initiated)
+// ---------------------------------------------------------------------------
+
+export async function withdrawApplication(applicationId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('withdraw_application', { p_application_id: applicationId })
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+// ---------------------------------------------------------------------------
 // Sign out
 // ---------------------------------------------------------------------------
 

@@ -89,6 +89,9 @@ export default function StudentsDashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleteModal, setDeleteModal] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [teamEmails, setTeamEmails] = useState<Set<string>>(new Set())
+  const [confirmAdminDelete, setConfirmAdminDelete] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -96,6 +99,16 @@ export default function StudentsDashboard() {
     fetchAllStudentsEnriched()
       .then(enriched => { if (active) { setStudents(enriched); setLoading(false) } })
       .catch(err => { if (active) { setError(err?.message ?? 'Failed to load'); setLoading(false) } })
+    return () => { active = false }
+  }, [])
+
+  // Load team member emails once so we can warn before nuking an admin's student record.
+  useEffect(() => {
+    let active = true
+    supabase.from('team_members').select('email').then(({ data }) => {
+      if (!active || !data) return
+      setTeamEmails(new Set(data.map(r => (r.email || '').toLowerCase()).filter(Boolean)))
+    })
     return () => { active = false }
   }, [])
 
@@ -196,24 +209,58 @@ export default function StudentsDashboard() {
     }
   }
 
+  const selectedAdminEmails = useMemo(() => {
+    const hits: string[] = []
+    students.forEach(s => {
+      if (!selected.has(s.id)) return
+      const e = (s.personal_email || '').toLowerCase()
+      if (e && teamEmails.has(e)) hits.push(s.personal_email!)
+    })
+    return hits
+  }, [selected, students, teamEmails])
+
   const handleDeleteStudents = async (mode: 'soft' | 'hard') => {
     if (selected.size === 0) return
+
+    // Extra confirmation if any selected student's email matches a team member.
+    if (mode === 'hard' && selectedAdminEmails.length > 0 && !confirmAdminDelete) {
+      setDeleteError(
+        `${selectedAdminEmails.length} selected student${selectedAdminEmails.length === 1 ? ' has an email that matches' : 's have emails that match'} a team member. ` +
+        `Tick the confirmation box to proceed — their team_members row will NOT be affected, only the student record.`
+      )
+      return
+    }
+
+    setDeleteError(null)
     setDeleteLoading(true)
     const ids = [...selected]
 
-    if (mode === 'soft') {
-      const now = new Date().toISOString()
-      await supabase.from('students').update({ deleted_at: now }).in('id', ids)
-      await supabase.from('applications').update({ deleted_at: now }).in('student_id', ids)
-    } else {
-      await supabase.from('applications').delete().in('student_id', ids)
-      await supabase.from('students').delete().in('id', ids)
-    }
+    try {
+      if (mode === 'soft') {
+        const now = new Date().toISOString()
+        const { error: sErr } = await supabase.from('students').update({ deleted_at: now }).in('id', ids)
+        if (sErr) throw sErr
+        const { error: aErr } = await supabase.from('applications').update({ deleted_at: now }).in('student_id', ids)
+        if (aErr) throw aErr
+      } else {
+        const { error: aErr } = await supabase.from('applications').delete().in('student_id', ids)
+        if (aErr) throw aErr
+        const { error: sErr } = await supabase.from('students').delete().in('id', ids)
+        if (sErr) throw sErr
+      }
 
-    setStudents(prev => prev.filter(s => !selected.has(s.id)))
-    setSelected(new Set())
-    setDeleteLoading(false)
-    setDeleteModal(false)
+      // Reload from DB so we see the authoritative state, not an optimistic guess.
+      const fresh = await fetchAllStudentsEnriched()
+      setStudents(fresh)
+      setSelected(new Set())
+      setConfirmAdminDelete(false)
+      setDeleteModal(false)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (typeof err === 'object' && err && 'message' in err ? String((err as { message: unknown }).message) : 'Delete failed')
+      setDeleteError(`${msg}. No rows were removed — please screenshot this and share with the team.`)
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   return (
@@ -497,10 +544,34 @@ export default function StudentsDashboard() {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Delete {selected.size} student{selected.size !== 1 ? 's' : ''}?
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               This will remove the student record{selected.size !== 1 ? 's' : ''} and all associated applications.
             </p>
-            <div className="space-y-3 mb-6">
+
+            {selectedAdminEmails.length > 0 && (
+              <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                  {selectedAdminEmails.length === 1 ? 'Heads up \u2014 this email belongs to a team member:' : 'Heads up \u2014 these emails belong to team members:'}
+                </p>
+                <ul className="mt-1 text-xs text-amber-800 dark:text-amber-300 list-disc list-inside">
+                  {selectedAdminEmails.map(e => <li key={e}>{e}</li>)}
+                </ul>
+                <p className="mt-2 text-xs text-amber-800 dark:text-amber-300">
+                  Only the <em>student</em> record will be removed. The team_members row stays intact.
+                </p>
+                <label className="mt-2 flex items-start gap-2 text-xs text-amber-900 dark:text-amber-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={confirmAdminDelete}
+                    onChange={e => { setConfirmAdminDelete(e.target.checked); setDeleteError(null) }}
+                    className="mt-0.5 accent-amber-600"
+                  />
+                  I understand and want to delete the student record{selectedAdminEmails.length !== 1 ? 's' : ''} anyway.
+                </label>
+              </div>
+            )}
+
+            <div className="space-y-3 mb-4">
               <button
                 onClick={() => handleDeleteStudents('soft')}
                 disabled={deleteLoading}
@@ -515,8 +586,8 @@ export default function StudentsDashboard() {
               </button>
               <button
                 onClick={() => handleDeleteStudents('hard')}
-                disabled={deleteLoading}
-                className="w-full text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/10 transition group disabled:opacity-50"
+                disabled={deleteLoading || (selectedAdminEmails.length > 0 && !confirmAdminDelete)}
+                className="w-full text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/10 transition group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="font-medium text-gray-900 dark:text-gray-100 text-sm group-hover:text-red-700 dark:group-hover:text-red-400">
                   {deleteLoading ? 'Deleting\u2026' : 'Permanently delete'}
@@ -526,8 +597,15 @@ export default function StudentsDashboard() {
                 </div>
               </button>
             </div>
+
+            {deleteError && (
+              <p className="mb-4 text-xs text-red-700 bg-red-50 dark:bg-red-900/20 dark:text-red-300 rounded-lg px-3 py-2">
+                {deleteError}
+              </p>
+            )}
+
             <button
-              onClick={() => setDeleteModal(false)}
+              onClick={() => { setDeleteModal(false); setDeleteError(null); setConfirmAdminDelete(false) }}
               disabled={deleteLoading}
               className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium disabled:opacity-50"
             >
