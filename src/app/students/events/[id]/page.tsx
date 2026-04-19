@@ -178,7 +178,7 @@ export default function EventDetailPage() {
       setEditDraft({})
     } catch (err) {
       console.error('Failed to save event:', err)
-      alert('Failed to save: ' + JSON.stringify(err, null, 2))
+      alert('Failed to save: ' + (err alert('Failed to save: ' + JSON.stringify(err, null, 2))alert('Failed to save: ' + JSON.stringify(err, null, 2)) typeof err === 'object' alert('Failed to save: ' + JSON.stringify(err, null, 2))alert('Failed to save: ' + JSON.stringify(err, null, 2)) 'message' in err ? (err as any).message : JSON.stringify(err)))
     } finally {
       setEditSaving(false)
     }
@@ -714,7 +714,7 @@ export default function EventDetailPage() {
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Format</label>
                 <select value={editDraft.format ?? ''} onChange={e => setEditDraft(d => ({ ...d, format: e.target.value }))} className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                   <option value="">—</option>
-                  <option value="in-person">In-person</option>
+                  <option value="in_person">In person</option>
                   <option value="online">Online</option>
                   <option value="hybrid">Hybrid</option>
                 </select>
