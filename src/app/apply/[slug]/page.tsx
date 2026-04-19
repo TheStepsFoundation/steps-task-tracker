@@ -7,7 +7,7 @@ import DynamicFormField, { type FieldValue, evaluateConditions } from '@/compone
 import type { FormFieldConfig, FormPage, EventRow } from '@/lib/events-api'
 import { fetchEventBySlug } from '@/lib/events-api'
 import {
-  sendOtp, verifyOtp, signInWithPassword, lookupSelf, hasExistingApplication, getExistingSession,
+  sendOtp, verifyOtp, signInWithPassword, lookupSelf, hasExistingApplication, fetchExistingApplication, getExistingSession,
   submitApplication, upgradeToPassword, signOutStudent,
   fetchEventFormConfig,
   type StudentSelf, type ApplicationSubmission,
@@ -265,6 +265,26 @@ export default function ApplyPage() {
     }
   }, [])
 
+
+  // Restore full application data (GCSEs, qualifications, custom fields, etc.)
+  const restoreApplication = useCallback(async (eventId: string) => {
+    const app = await fetchExistingApplication(eventId)
+    if (!app?.raw_response) return
+    const raw = app.raw_response
+    if (raw.gcse_results) setGcseResults(raw.gcse_results)
+    if (raw.qualifications?.length) {
+      setQualifications(raw.qualifications.map(q => ({
+        qualType: q.qualType || 'a_level',
+        subject: q.subject || '',
+        grade: q.grade || '',
+        level: q.level,
+      })))
+    }
+    if (raw.additional_context) setAdditionalContext(raw.additional_context)
+    if (raw.custom_fields) setCustomFieldValues(raw.custom_fields as Record<string, FieldValue>)
+    if (app.attribution_source) setAttribution(app.attribution_source)
+  }, [])
+
   // Check for existing Supabase session on mount (e.g. page refresh after OTP)
   useEffect(() => {
     if (!event?.id) return
@@ -281,7 +301,7 @@ export default function ApplyPage() {
         setExistingStudent(student)
         prefill(student)
         const applied = await hasExistingApplication(event!.id)
-        if (applied) { setAlreadyApplied(true); if (!cancelled) setStep('applied'); return }
+        if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); if (!cancelled) setStep('applied'); return }
       }
       if (!cancelled) setStep('details')
     })
@@ -411,7 +431,7 @@ export default function ApplyPage() {
       setExistingStudent(student)
       prefill(student)
       const applied = await hasExistingApplication(event!.id)
-      if (applied) { setAlreadyApplied(true); setLoading(false); setStep('applied'); return }
+      if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); setLoading(false); setStep('applied'); return }
     }
     setLoading(false)
     setStep('details')
@@ -434,7 +454,7 @@ export default function ApplyPage() {
       setExistingStudent(student)
       prefill(student)
       const applied = await hasExistingApplication(event!.id)
-      if (applied) { setAlreadyApplied(true); setLoading(false); setStep('applied'); return }
+      if (applied) { setAlreadyApplied(true); await restoreApplication(event!.id); setLoading(false); setStep('applied'); return }
     }
     setLoading(false)
     setStep('details')

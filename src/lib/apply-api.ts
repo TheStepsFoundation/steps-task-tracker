@@ -164,6 +164,48 @@ export async function hasExistingApplication(eventId: string): Promise<boolean> 
 }
 
 
+
+
+// ---------------------------------------------------------------------------
+// Fetch Existing Application (for edit mode)
+// ---------------------------------------------------------------------------
+
+export type ExistingApplicationData = {
+  id: string
+  raw_response: {
+    gcse_results?: string
+    qualifications?: { qualType: string; subject: string; grade: string; level?: string }[]
+    custom_fields?: Record<string, unknown>
+    additional_context?: string
+    household_income_under_40k?: string
+    free_school_meals_raw?: string
+  } | null
+  attribution_source?: string | null
+}
+
+export async function fetchExistingApplication(eventId: string): Promise<ExistingApplicationData | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return null
+
+  const { data: student } = await supabase
+    .from('students')
+    .select('id')
+    .eq('personal_email', user.email.toLowerCase())
+    .maybeSingle()
+
+  if (!student) return null
+
+  const { data } = await supabase
+    .from('applications')
+    .select('id, raw_response, attribution_source')
+    .eq('student_id', student.id)
+    .eq('event_id', eventId)
+    .maybeSingle()
+
+  if (!data) return null
+  return data as ExistingApplicationData
+}
+
 // ---------------------------------------------------------------------------
 // Fetch Event Form Config (public — for application form)
 // ---------------------------------------------------------------------------
