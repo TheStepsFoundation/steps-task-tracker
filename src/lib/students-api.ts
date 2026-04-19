@@ -99,15 +99,12 @@ export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
   const smi_count =
     (s.free_school_meals === true ? 1 : 0) +
     (s.parental_income_band === 'under_40k' ? 1 : 0)
-  const isFeePaying = s.school_type === 'private' || s.school_type === 'independent'
   const eligibility: Eligibility =
-    s.school_type === 'state' || s.school_type === 'grammar'
+    s.school_type === 'state' || s.school_type === 'grammar' || s.school_type === 'independent_bursary'
       ? 'eligible'
-      : isFeePaying && s.bursary_90plus === true && smi_count >= 1
-        ? 'eligible'
-        : isFeePaying
-          ? 'ineligible'
-          : 'unknown'
+      : s.school_type === 'private' || s.school_type === 'independent'
+        ? 'ineligible'
+        : 'unknown'
   return {
     ...s,
     applications: mine,
@@ -134,15 +131,12 @@ function computeEligibility(row: EnrichedStudent): EnrichedStudent {
   const smi_count =
     (row.free_school_meals === true ? 1 : 0) +
     (row.parental_income_band === 'under_40k' ? 1 : 0)
-  const isFeePaying = row.school_type === 'private' || row.school_type === 'independent'
   const eligibility: Eligibility =
-    row.school_type === 'state' || row.school_type === 'grammar'
+    row.school_type === 'state' || row.school_type === 'grammar' || row.school_type === 'independent_bursary'
       ? 'eligible'
-      : isFeePaying && row.bursary_90plus === true && smi_count >= 1
-        ? 'eligible'
-        : isFeePaying
-          ? 'ineligible'
-          : 'unknown'
+      : row.school_type === 'private' || row.school_type === 'independent'
+        ? 'ineligible'
+        : 'unknown'
   row.smi_count = smi_count
   row.eligibility = eligibility
   return row

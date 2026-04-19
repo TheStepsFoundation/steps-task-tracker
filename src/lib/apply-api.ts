@@ -286,10 +286,9 @@ export async function submitApplication(
       ? 'over_40k'
       : 'prefer_na'
 
-  // Map school type to bursary flag for backward compat
-  const bursary90plus = submission.schoolType === 'independent_bursary'
-
   // --- Step 1: Upsert student ---
+  // independent_bursary is now a first-class school_type (migrated 2026-04-19);
+  // no more collapsing it into 'independent' + bursary_90plus=true.
   const studentPayload = {
     first_name: submission.firstName.trim(),
     last_name: submission.lastName.trim(),
@@ -297,10 +296,8 @@ export async function submitApplication(
     school_id: submission.schoolId,
     school_name_raw: submission.schoolNameRaw,
     year_group: submission.yearGroup,
-    school_type: submission.schoolType === 'independent_bursary'
-      ? 'independent' as const
-      : submission.schoolType,
-    bursary_90plus: bursary90plus,
+    school_type: submission.schoolType,
+    bursary_90plus: submission.schoolType === 'independent_bursary' ? true : null,
     free_school_meals: submission.freeSchoolMeals,
     parental_income_band: incomeBand,
   }
