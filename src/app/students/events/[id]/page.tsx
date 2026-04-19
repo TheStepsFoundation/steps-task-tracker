@@ -630,6 +630,45 @@ export default function EventDetailPage() {
   // Combined action: status to apply after emails are queued
   const [notifyAction, setNotifyAction] = useState<string | null>(null)
 
+  // --------------------------------------------------------------------------
+  // Email queue stats — populated from email_outbox, filtered to this event.
+  // Poll every 5s while there's in-flight work (queued + sending > 0) so the
+  // widget tracks the worker as it drains the queue.
+  // --------------------------------------------------------------------------
+  const [queueStats, setQueueStats] = useState<{ queued: number; sending: number; sent: number; failed: number }>({
+    queued: 0, sending: 0, sent: 0, failed: 0,
+  })
+
+  const loadQueueStats = useCallback(async () => {
+    if (!eventId) return
+    try {
+      const statuses = ['queued', 'sending', 'sent', 'failed'] as const
+      const counts = await Promise.all(statuses.map(async (status) => {
+        const { count } = await supabase
+          .from('email_outbox')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', eventId)
+          .eq('status', status)
+        return [status, count ?? 0] as const
+      }))
+      const next = counts.reduce((acc, [status, n]) => ({ ...acc, [status]: n }), {
+        queued: 0, sending: 0, sent: 0, failed: 0,
+      } as { queued: number; sending: number; sent: number; failed: number })
+      setQueueStats(next)
+    } catch (err) {
+      console.error('loadQueueStats error:', err)
+    }
+  }, [eventId])
+
+  // Initial load + poll while queue is active
+  useEffect(() => {
+    loadQueueStats()
+    const active = queueStats.queued > 0 || queueStats.sending > 0
+    if (!active) return
+    const iv = setInterval(loadQueueStats, 5000)
+    return () => clearInterval(iv)
+  }, [loadQueueStats, queueStats.queued, queueStats.sending])
+
   // Fetch event
   useEffect(() => {
     let active = true
@@ -1127,6 +1166,10 @@ export default function EventDetailPage() {
     return applicants.filter(a => selected.has(a.id) && a.personal_email)
   }
 
+  // Queue all recipients into email_outbox in a single bulk insert. The
+  // server-side worker (pg_cron -> /api/process-email-queue) handles the
+  // actual Gmail sends at ~50/minute, so this returns in a second or two
+  // regardless of recipient count and survives the admin closing the tab.
   const sendEmails = async () => {
     const recipients = getRecipients()
     if (recipients.length === 0) return
@@ -1135,78 +1178,62 @@ export default function EventDetailPage() {
     setSendProgress({ sent: 0, failed: 0, total: recipients.length })
 
     const now = new Date().toISOString()
-    const emailLogIds: { appId: string; logId: string }[] = []
 
-    for (const recipient of recipients) {
+    // Build all outbox rows — merge tags resolved per recipient, signature
+    // appended, body converted to HTML if it was stored as plain text.
+    const outboxRows = recipients.map(recipient => {
       const renderedSubject = fillMergeFields(emailSubject, recipient)
       const renderedBody = fillMergeFields(emailBody, recipient)
-
-      try {
-        const bodyHtml = looksLikeHtml(renderedBody) ? renderedBody : plainTextToHtml(renderedBody)
-        const fullBody = bodyHtml + EMAIL_SIGNATURE_HTML
-
-        // Insert into email_log with status pending
-        const { data: logRow } = await supabase.from('email_log').insert({
-          student_id: recipient.student_id,
-          event_id: eventId,
-          template_id: selectedTemplate || null,
-          to_email: recipient.personal_email!,
-          from_email: 'events@thestepsfoundation.com',
-          subject: renderedSubject,
-          body_html: fullBody,
-          status: 'pending',
-          sent_by: (teamMember as any)?.auth_uuid ?? null,
-        }).select('id').single()
-
-        // Actually send via server-side Gmail API
-        const sendRes = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: recipient.personal_email!,
-            subject: renderedSubject,
-            html: fullBody,
-          }),
-        })
-        const sendData = await sendRes.json()
-
-        if (logRow) {
-          emailLogIds.push({ appId: recipient.id, logId: logRow.id })
-          // Update email_log with send result
-          await supabase.from('email_log').update({
-            status: sendRes.ok ? 'sent' : 'failed',
-            gmail_message_id: sendData.messageId ?? null,
-            sent_at: sendRes.ok ? new Date().toISOString() : null,
-            error_message: sendRes.ok ? null : (sendData.error ?? 'Send failed'),
-          }).eq('id', logRow.id)
-        }
-
-        if (sendRes.ok) {
-          setSendProgress(prev => ({ ...prev, sent: prev.sent + 1 }))
-        } else {
-          setSendProgress(prev => ({ ...prev, failed: prev.failed + 1 }))
-        }
-      } catch (err) {
-        setSendProgress(prev => ({ ...prev, failed: prev.failed + 1 }))
+      const bodyHtml = looksLikeHtml(renderedBody) ? renderedBody : plainTextToHtml(renderedBody)
+      const fullBody = bodyHtml + EMAIL_SIGNATURE_HTML
+      return {
+        queued_by: (teamMember as any)?.auth_uuid ?? null,
+        event_id: eventId,
+        application_id: recipient.id,
+        student_id: recipient.student_id,
+        template_id: selectedTemplate || null,
+        to_email: recipient.personal_email!,
+        from_email: 'events@thestepsfoundation.com',
+        subject: renderedSubject,
+        body_html: fullBody,
       }
+    })
+
+    try {
+      const { error: insertErr } = await supabase.from('email_outbox').insert(outboxRows)
+      if (insertErr) {
+        console.error('enqueue error:', insertErr)
+        setSendProgress({ sent: 0, failed: recipients.length, total: recipients.length })
+        setEmailStep('done')
+        return
+      }
+      // All rows queued — treat as "sent" from the admin's POV (they've
+      // handed the work off). The queue widget surfaces actual send state.
+      setSendProgress({ sent: recipients.length, failed: 0, total: recipients.length })
+    } catch (err) {
+      console.error('enqueue exception:', err)
+      setSendProgress({ sent: 0, failed: recipients.length, total: recipients.length })
+      setEmailStep('done')
+      return
     }
 
-    // If this is a combined action, update statuses now and link to email_log
+    // Combined action: apply the status change immediately so the admin
+    // sees applicants move to Accepted / Rejected / Waitlisted right away.
+    // email_log_id gets linked after send by the worker (nullable here).
     if (notifyAction) {
       const ids = recipients.map(r => r.id)
 
-      // Log status history for each, linking to email_log
-      for (const recipient of recipients) {
-        if (recipient.status !== notifyAction) {
-          const logEntry = emailLogIds.find(e => e.appId === recipient.id)
-          await supabase.from('application_status_history').insert({
-            application_id: recipient.id,
-            old_status: recipient.status,
-            new_status: notifyAction,
-            changed_by: teamMember?.auth_uuid ?? null,
-            email_log_id: logEntry?.logId ?? null,
-          })
-        }
+      // Status history — one row per applicant whose status actually changes
+      const historyRows = recipients
+        .filter(r => r.status !== notifyAction)
+        .map(r => ({
+          application_id: r.id,
+          old_status: r.status,
+          new_status: notifyAction,
+          changed_by: teamMember?.auth_uuid ?? null,
+        }))
+      if (historyRows.length > 0) {
+        await supabase.from('application_status_history').insert(historyRows)
       }
 
       // Bulk update application statuses
@@ -1221,7 +1248,6 @@ export default function EventDetailPage() {
         } as any)
         .in('id', ids)
 
-      // Optimistic update
       setApplicants(prev => prev.map(a =>
         ids.includes(a.id) ? {
           ...a,
@@ -1233,6 +1259,8 @@ export default function EventDetailPage() {
       ))
     }
 
+    // Refresh the queue stats widget so the admin sees their new queued items
+    loadQueueStats()
     setEmailStep('done')
   }
 
@@ -1614,9 +1642,48 @@ export default function EventDetailPage() {
               )}
             </button>
 
+            {/* Email queue status — only shown when there's activity on this event */}
+            {(queueStats.queued > 0 || queueStats.sending > 0 || queueStats.sent > 0 || queueStats.failed > 0) && (
+              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs">
+                <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                <span className="text-gray-500 dark:text-gray-400">Email queue:</span>
+                {queueStats.queued > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title="Waiting to send">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    {queueStats.queued} queued
+                  </span>
+                )}
+                {queueStats.sending > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-steps-blue-100 text-steps-blue-700 dark:bg-steps-blue-900/30 dark:text-steps-blue-400" title="Worker is sending">
+                    <span className="w-1.5 h-1.5 rounded-full bg-steps-blue-500 animate-pulse" />
+                    {queueStats.sending} sending
+                  </span>
+                )}
+                {queueStats.sent > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" title="Successfully sent">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    {queueStats.sent}
+                  </span>
+                )}
+                {queueStats.failed > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" title="Permanent failures after max retries">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    {queueStats.failed}
+                  </span>
+                )}
+                <button
+                  onClick={loadQueueStats}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title="Refresh"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
+              </div>
+            )}
+
             <button
               onClick={() => setShowInvite(true)}
-              className="ml-auto px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 whitespace-nowrap"
+              className={`${queueStats.queued > 0 || queueStats.sending > 0 || queueStats.sent > 0 || queueStats.failed > 0 ? '' : 'ml-auto '}px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 whitespace-nowrap`}
             >
               Invite Students
             </button>
