@@ -1273,21 +1273,33 @@ export default function EventDetailPage() {
                         {/* Custom field answer columns */}
                         {customFieldCols.map(col => {
                           const val = app.customFields[col.id]
-                          const display = val == null ? '—' : String(val)
+                          // Serialize arrays/objects to readable text
+                          const display = val == null ? '—'
+                            : Array.isArray(val) ? val.map(v =>
+                                typeof v === 'object' && v !== null
+                                  ? Object.values(v as Record<string, unknown>).filter(Boolean).join(': ')
+                                  : String(v)
+                              ).join(', ')
+                            : typeof val === 'object' ? JSON.stringify(val, null, 2)
+                            : String(val)
                           const isLong = display.length > 40
 
                           return (
                             <td key={col.id} className="p-3 max-w-[200px]">
-                              {isLong ? (
-                                <div className="group relative">
-                                  <span className="text-gray-700 dark:text-gray-300 truncate block cursor-default">{display.slice(0, 40)}…</span>
-                                  <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[280px] max-w-[400px] max-h-[200px] overflow-y-auto">
-                                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{col.label}</div>
-                                    <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{display}</div>
-                                  </div>
-                                </div>
+                              {display === '—' ? (
+                                <span className="text-gray-400">—</span>
                               ) : (
-                                <span className="text-gray-700 dark:text-gray-300">{display}</span>
+                                <div className="group relative">
+                                  <span className="text-gray-700 dark:text-gray-300 truncate block cursor-default">
+                                    {isLong ? display.slice(0, 40) + '…' : display}
+                                  </span>
+                                  {isLong && (
+                                    <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[280px] max-w-[400px] max-h-[200px] overflow-y-auto">
+                                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{col.label}</div>
+                                      <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{display}</div>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </td>
                           )
