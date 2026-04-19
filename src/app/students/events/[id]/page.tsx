@@ -150,6 +150,18 @@ const ORDINAL: Record<string, string> = {
 type SortKey = 'name' | 'school_type' | 'year_group' | 'status' | 'gradeScore' | 'submitted_at'
 type SortDir = 'asc' | 'desc'
 
+
+// Built-in columns for the applicants table
+type BuiltInColId = 'school_type' | 'status' | 'grades' | 'rsvp' | 'attended'
+const DEFAULT_BUILTIN_COLS: BuiltInColId[] = ['school_type', 'status', 'grades', 'rsvp', 'attended']
+const BUILTIN_COL_LABELS: Record<BuiltInColId, string> = {
+  school_type: 'School Type',
+  status: 'Status',
+  grades: 'Grades (Score)',
+  rsvp: 'RSVP',
+  attended: 'Attended',
+}
+
 type StatusFilter = 'all' | string
 
 // ---------------------------------------------------------------------------
@@ -185,6 +197,11 @@ export default function EventDetailPage() {
 
   // Filter/sort panel visibility
   const [showFilters, setShowFilters] = useState(false)
+
+  // Column visibility & ordering
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set())
+  const [colOrder, setColOrder] = useState<string[]>([])  // empty = default order
+
 
   // Selection for bulk actions
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -779,6 +796,52 @@ export default function EventDetailPage() {
     const cfg = event.form_config as { fields?: { id: string; label: string; type: string }[] }
     return (cfg.fields ?? []).map(f => ({ id: f.id, label: f.label, type: f.type }))
   }, [event])
+  // Compute the effective ordered list of all visible columns (built-in + custom)
+  const allColumns = useMemo(() => {
+    const builtIn: { id: string; label: string; kind: 'builtin' }[] =
+      DEFAULT_BUILTIN_COLS.map(id => ({ id, label: BUILTIN_COL_LABELS[id], kind: 'builtin' as const }))
+    const custom: { id: string; label: string; kind: 'custom' }[] =
+      customFieldCols.map(c => ({ id: `cf_${c.id}`, label: c.label, kind: 'custom' as const }))
+    const all = [...builtIn, ...custom]
+    // Apply custom ordering if set
+    if (colOrder.length > 0) {
+      const map = new Map(all.map(c => [c.id, c]))
+      const ordered = colOrder.filter(id => map.has(id)).map(id => map.get(id)!)
+      // Add any new columns not in the saved order
+      const inOrder = new Set(colOrder)
+      all.filter(c => !inOrder.has(c.id)).forEach(c => ordered.push(c))
+      return ordered
+    }
+    return all
+  }, [customFieldCols, colOrder])
+
+  const visibleColumns = useMemo(() => {
+    return allColumns.filter(c => {
+      if (hiddenCols.has(c.id)) return false
+      // Auto-hide status when filtering by a specific status
+      if (c.id === 'status' && statusFilter !== 'all') return false
+      return true
+    })
+  }, [allColumns, hiddenCols, statusFilter])
+
+  const moveCol = (id: string, dir: -1 | 1) => {
+    const order = colOrder.length > 0 ? [...colOrder] : allColumns.map(c => c.id)
+    const idx = order.indexOf(id)
+    if (idx < 0) return
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= order.length) return
+    ;[order[idx], order[newIdx]] = [order[newIdx], order[idx]]
+    setColOrder(order)
+  }
+
+  const toggleCol = (id: string) => {
+    setHiddenCols(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   // ---------------------------------------------------------------------------
   // Render
@@ -1074,25 +1137,11 @@ export default function EventDetailPage() {
               className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 w-64"
             />
 
-            {/* Min grade score filter */}
-            <div className="flex items-center gap-1.5">
-              <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Min grade</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={minGradeScore || ''}
-                onChange={e => setMinGradeScore(Number(e.target.value) || 0)}
-                placeholder="0"
-                className="w-16 px-2 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-
             {/* Filter & Sort toggle */}
             <button
               onClick={() => setShowFilters(f => !f)}
               className={`px-3 py-1.5 text-sm rounded-md border transition-colors flex items-center gap-1.5 ${
-                showFilters || yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at'
+                showFilters || yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at' || minGradeScore > 0 || hiddenCols.size > 0
                   ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'
                   : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
@@ -1101,7 +1150,7 @@ export default function EventDetailPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
               </svg>
               Filter & Sort
-              {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at') && (
+              {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at' || minGradeScore > 0 || hiddenCols.size > 0) && (
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
               )}
             </button>
@@ -1116,78 +1165,144 @@ export default function EventDetailPage() {
 
           {/* Filter & Sort panel */}
           {showFilters && (
-            <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 flex flex-wrap items-end gap-4">
-              {/* Year Group filter */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Year Group</label>
-                <select
-                  value={yearGroupFilter}
-                  onChange={e => setYearGroupFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="all">All</option>
-                  {uniqueYearGroups.map(yg => (
-                    <option key={yg} value={String(yg)}>Year {yg}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* School Type filter */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">School Type</label>
-                <select
-                  value={schoolTypeFilter}
-                  onChange={e => setSchoolTypeFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="all">All</option>
-                  {uniqueSchoolTypes.map(st => (
-                    <option key={st} value={st} className="capitalize">{st.charAt(0).toUpperCase() + st.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sort by */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Sort By</label>
-                <div className="flex items-center gap-1">
+            <div className="mt-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+              {/* Row 1: Filters & Sort */}
+              <div className="p-3 flex flex-wrap items-end gap-4">
+                {/* Year Group filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Year Group</label>
                   <select
-                    value={sortKey}
-                    onChange={e => setSortKey(e.target.value as SortKey)}
+                    value={yearGroupFilter}
+                    onChange={e => setYearGroupFilter(e.target.value)}
                     className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   >
-                    <option value="submitted_at">Date Applied</option>
-                    <option value="name">Name</option>
-                    <option value="school_type">School Type</option>
-                    <option value="year_group">Year Group</option>
-                    <option value="status">Status</option>
-                    <option value="gradeScore">Grade Score</option>
+                    <option value="all">All</option>
+                    {uniqueYearGroups.map(yg => (
+                      <option key={yg} value={String(yg)}>Year {yg}</option>
+                    ))}
                   </select>
-                  <button
-                    onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-                    className="p-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      {sortDir === 'asc' ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
-                      )}
-                    </svg>
-                  </button>
                 </div>
+
+                {/* School Type filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">School Type</label>
+                  <select
+                    value={schoolTypeFilter}
+                    onChange={e => setSchoolTypeFilter(e.target.value)}
+                    className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="all">All</option>
+                    {uniqueSchoolTypes.map(st => (
+                      <option key={st} value={st} className="capitalize">{st.charAt(0).toUpperCase() + st.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Min grade score */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Min Grade Score</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={minGradeScore || ''}
+                    onChange={e => setMinGradeScore(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-20 px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 self-end" />
+
+                {/* Sort by */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Sort By</label>
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={sortKey}
+                      onChange={e => setSortKey(e.target.value as SortKey)}
+                      className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="submitted_at">Date Applied</option>
+                      <option value="name">Name</option>
+                      <option value="school_type">School Type</option>
+                      <option value="year_group">Year Group</option>
+                      <option value="status">Status</option>
+                      <option value="gradeScore">Grade Score</option>
+                    </select>
+                    <button
+                      onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                      className="p-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        {sortDir === 'asc' ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                        )}
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Reset */}
+                {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at' || minGradeScore > 0 || hiddenCols.size > 0 || colOrder.length > 0) && (
+                  <button
+                    onClick={() => { setYearGroupFilter('all'); setSchoolTypeFilter('all'); setSortKey('submitted_at'); setSortDir('desc'); setMinGradeScore(0); setHiddenCols(new Set()); setColOrder([]) }}
+                    className="px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline self-end"
+                  >
+                    Reset all
+                  </button>
+                )}
               </div>
 
-              {/* Reset filters */}
-              {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at') && (
-                <button
-                  onClick={() => { setYearGroupFilter('all'); setSchoolTypeFilter('all'); setSortKey('submitted_at'); setSortDir('desc') }}
-                  className="px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
-                >
-                  Reset all
-                </button>
-              )}
+              {/* Row 2: Columns — show/hide & reorder */}
+              <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Columns</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {allColumns.map((col, i) => {
+                    const isVisible = !hiddenCols.has(col.id) && !(col.id === 'status' && statusFilter !== 'all')
+                    const autoHidden = col.id === 'status' && statusFilter !== 'all'
+                    return (
+                      <div key={col.id} className="flex items-center gap-0.5">
+                        {/* Reorder arrows */}
+                        <button
+                          onClick={() => moveCol(col.id, -1)}
+                          disabled={i === 0}
+                          className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                          title="Move left"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        {/* Column pill */}
+                        <button
+                          onClick={() => !autoHidden && toggleCol(col.id)}
+                          className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                            autoHidden
+                              ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed line-through'
+                              : isVisible
+                                ? 'border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
+                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through'
+                          }`}
+                          title={autoHidden ? 'Auto-hidden (filtering by status)' : isVisible ? 'Click to hide' : 'Click to show'}
+                        >
+                          {col.label}
+                        </button>
+                        <button
+                          onClick={() => moveCol(col.id, 1)}
+                          disabled={i === allColumns.length - 1}
+                          className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                          title="Move right"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
@@ -1307,12 +1422,7 @@ export default function EventDetailPage() {
               <table className="text-sm w-full">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    <th className="p-3 whitespace-nowrap">School Type</th>
-                    {statusFilter === 'all' && <th className="p-3">Status</th>}
-                    <th className="p-3 whitespace-nowrap">Grades (Score)</th>
-                    <th className="p-3">RSVP</th>
-                    <th className="p-3">Attended</th>
-                    {customFieldCols.map(col => (
+                    {visibleColumns.map(col => (
                       <th key={col.id} className="p-3 whitespace-nowrap max-w-[200px] truncate" title={col.label}>
                         {col.label}
                       </th>
@@ -1335,109 +1445,110 @@ export default function EventDetailPage() {
                           selected.has(app.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
                         }`}
                       >
-                        {/* School type */}
-                        <td className="p-3 text-gray-500 dark:text-gray-400 capitalize whitespace-nowrap">
-                          {app.school_type ?? '—'}
-                        </td>
-
-                        {/* Status — hidden when filtering by a specific status */}
-                        {statusFilter === 'all' && (
-                        <td className="p-3">
-                          <select
-                            value={app.status}
-                            onChange={e => updateStatus(app.id, e.target.value)}
-                            disabled={saving.has(app.id)}
-                            className={`text-xs font-medium rounded-full px-2.5 py-0.5 border-0 cursor-pointer ${badge.color} ${
-                              saving.has(app.id) ? 'opacity-50' : ''
-                            }`}
-                          >
-                            {STATUSES.map(s => (
-                              <option key={s.code} value={s.code}>{s.label}</option>
-                            ))}
-                          </select>
-                        </td>
-                        )}
-
-                        {/* Grades with hover popover */}
-                        <td className="p-3 whitespace-nowrap">
-                          {post16.length > 0 ? (
-                            <div className="group relative inline-block">
-                              <span className="text-gray-700 dark:text-gray-300 cursor-default">
-                                {gradeLetters}
-                                <span className="ml-1 text-xs text-gray-400">({app.gradeScore})</span>
-                              </span>
-                              {/* Hover popover */}
-                              <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[220px]">
-                                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Qualifications</div>
-                                {post16.map((q, i) => (
-                                  <div key={i} className="flex justify-between gap-4 text-xs py-0.5">
-                                    <span className="text-gray-700 dark:text-gray-300">{q.qualType}: {q.subject}</span>
-                                    <span className="font-medium text-gray-900 dark:text-gray-100">{q.grade}</span>
-                                  </div>
+                        {/* Dynamic columns based on visibility & order */}
+                        {visibleColumns.map(col => {
+                          // Built-in: school_type
+                          if (col.id === 'school_type') return (
+                            <td key={col.id} className="p-3 text-gray-500 dark:text-gray-400 capitalize whitespace-nowrap">
+                              {app.school_type ?? '—'}
+                            </td>
+                          )
+                          // Built-in: status
+                          if (col.id === 'status') return (
+                            <td key={col.id} className="p-3">
+                              <select
+                                value={app.status}
+                                onChange={e => updateStatus(app.id, e.target.value)}
+                                disabled={saving.has(app.id)}
+                                className={`text-xs font-medium rounded-full px-2.5 py-0.5 border-0 cursor-pointer ${badge.color} ${
+                                  saving.has(app.id) ? 'opacity-50' : ''
+                                }`}
+                              >
+                                {STATUSES.map(s => (
+                                  <option key={s.code} value={s.code}>{s.label}</option>
                                 ))}
-                                <div className="border-t border-gray-100 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between text-xs font-medium">
-                                  <span className="text-gray-500 dark:text-gray-400">Total score</span>
-                                  <span className="text-gray-900 dark:text-gray-100">{app.gradeScore}</span>
+                              </select>
+                            </td>
+                          )
+                          // Built-in: grades
+                          if (col.id === 'grades') return (
+                            <td key={col.id} className="p-3 whitespace-nowrap">
+                              {post16.length > 0 ? (
+                                <div className="group relative inline-block">
+                                  <span className="text-gray-700 dark:text-gray-300 cursor-default">
+                                    {gradeLetters}
+                                    <span className="ml-1 text-xs text-gray-400">({app.gradeScore})</span>
+                                  </span>
+                                  <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[220px]">
+                                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Qualifications</div>
+                                    {post16.map((q, qi) => (
+                                      <div key={qi} className="flex justify-between gap-4 text-xs py-0.5">
+                                        <span className="text-gray-700 dark:text-gray-300">{q.qualType}: {q.subject}</span>
+                                        <span className="font-medium text-gray-900 dark:text-gray-100">{q.grade}</span>
+                                      </div>
+                                    ))}
+                                    <div className="border-t border-gray-100 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between text-xs font-medium">
+                                      <span className="text-gray-500 dark:text-gray-400">Total score</span>
+                                      <span className="text-gray-900 dark:text-gray-100">{app.gradeScore}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 dark:text-gray-600">—</span>
-                          )}
-                        </td>
-
-                        {/* RSVP */}
-                        <td className="p-3">
-                          {app.status === 'accepted' ? (
-                            app.rsvp_confirmed === true ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                                Yes
-                              </span>
-                            ) : (
-                              <span className="text-xs text-amber-600 dark:text-amber-400">Pending</span>
-                            )
-                          ) : (
-                            <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
-                          )}
-                        </td>
-
-                        {/* Attended */}
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => toggleAttended(app.id)}
-                            disabled={saving.has(app.id)}
-                            className={`w-5 h-5 rounded border-2 inline-flex items-center justify-center transition-colors ${
-                              app.attended
-                                ? 'bg-emerald-500 border-emerald-500 text-white'
-                                : 'border-gray-300 dark:border-gray-600 hover:border-emerald-400'
-                            } ${saving.has(app.id) ? 'opacity-50' : ''}`}
-                            title={app.attended ? 'Attended' : 'Not attended'}
-                          >
-                            {app.attended && (
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </button>
-                        </td>
-
-                        {/* Custom field answer columns */}
-                        {customFieldCols.map(col => {
-                          const val = app.customFields[col.id]
-                          // Detect ranked choice (object with ordinal keys like first/second/third)
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-600">—</span>
+                              )}
+                            </td>
+                          )
+                          // Built-in: rsvp
+                          if (col.id === 'rsvp') return (
+                            <td key={col.id} className="p-3">
+                              {app.status === 'accepted' ? (
+                                app.rsvp_confirmed === true ? (
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Yes
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-amber-600 dark:text-amber-400">Pending</span>
+                                )
+                              ) : (
+                                <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
+                              )}
+                            </td>
+                          )
+                          // Built-in: attended
+                          if (col.id === 'attended') return (
+                            <td key={col.id} className="p-3 text-center">
+                              <button
+                                onClick={() => toggleAttended(app.id)}
+                                disabled={saving.has(app.id)}
+                                className={`w-5 h-5 rounded border-2 inline-flex items-center justify-center transition-colors ${
+                                  app.attended
+                                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                                    : 'border-gray-300 dark:border-gray-600 hover:border-emerald-400'
+                                } ${saving.has(app.id) ? 'opacity-50' : ''}`}
+                                title={app.attended ? 'Attended' : 'Not attended'}
+                              >
+                                {app.attended && (
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </button>
+                            </td>
+                          )
+                          // Custom field columns (id starts with cf_)
+                          const cfId = col.id.replace(/^cf_/, '')
+                          const val = app.customFields[cfId]
                           const isRankedChoice = val != null && !Array.isArray(val) && typeof val === 'object'
                             && Object.keys(val as Record<string, unknown>).some(k => k in ORDINAL)
-                          // Serialize for display
                           let display: string
                           let popoverContent: string | null = null
                           if (val == null) {
                             display = '—'
                           } else if (isRankedChoice) {
                             const obj = val as Record<string, unknown>
-                            // Ordered entries for popover
                             const orderedKeys = ['first', 'second', 'third', 'fourth', 'fifth'].filter(k => obj[k])
                             display = orderedKeys.map(k => toTitleCase(String(obj[k]))).join(', ')
                             popoverContent = orderedKeys.map(k => `${ORDINAL[k]}: ${toTitleCase(String(obj[k]))}`).join('\n')
@@ -1454,7 +1565,6 @@ export default function EventDetailPage() {
                             display = String(val)
                           }
                           const isLong = display.length > 40 || popoverContent != null
-
                           return (
                             <td key={col.id} className="p-3 max-w-[200px]">
                               {display === '—' ? (
