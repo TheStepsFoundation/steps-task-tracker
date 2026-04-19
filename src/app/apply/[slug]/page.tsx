@@ -172,7 +172,7 @@ function clearDraft(eventId: string, email: string): void {
 // Steps
 // ---------------------------------------------------------------------------
 
-type Step = 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'success' | 'applied'
+type Step = 'loading' | 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'success' | 'applied'
 
 // ---------------------------------------------------------------------------
 // Page Component
@@ -186,7 +186,7 @@ export default function ApplyPage() {
   const [event, setEvent] = useState<EventRow | null>(null)
   const [eventLoading, setEventLoading] = useState(true)
 
-  const [step, setStep] = useState<Step>('email')
+  const [step, setStep] = useState<Step>('loading')
   const [email, setEmail] = useState('')
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password')
   const [loginPassword, setLoginPassword] = useState('')
@@ -293,7 +293,7 @@ export default function ApplyPage() {
     if (!event?.id) return
     let cancelled = false
     getExistingSession().then(async (session) => {
-      if (cancelled || !session) return
+      if (cancelled || !session) { setStep('email'); return }
       setEmail(session.email)
       // Check if user already has a password (skip prompt on success screen)
       userHasPassword().then(has => { if (!cancelled) setHasPassword(has) })
@@ -323,7 +323,7 @@ export default function ApplyPage() {
 
   // Restore draft from localStorage after auth is established (runs once)
   useEffect(() => {
-    if (!event?.id || !email || step === 'email' || step === 'otp' || step === 'success' || step === 'applied') return
+    if (!event?.id || !email || step === 'loading' || step === 'email' || step === 'otp' || step === 'success' || step === 'applied') return
     if (draftRestoredRef.current) return
     const draft = loadDraft(event!.id, email)
     if (!draft) { draftRestoredRef.current = true; return }
@@ -382,7 +382,7 @@ export default function ApplyPage() {
   // Auto-save draft to localStorage on field changes (debounced)
   useEffect(() => {
     if (!event?.id || !email || restoringRef.current) return
-    if (step === 'email' || step === 'otp' || step === 'success' || step === 'applied' || step === 'submitting') return
+    if (step === 'loading' || step === 'email' || step === 'otp' || step === 'success' || step === 'applied' || step === 'submitting') return
 
     const t = setTimeout(() => {
       saveDraft(event!.id, email, {
@@ -649,7 +649,7 @@ export default function ApplyPage() {
       </div>
 
       {/* Progress */}
-      {step !== 'success' && step !== 'submitting' && step !== 'applied' && (
+      {step !== 'loading' && step !== 'success' && step !== 'submitting' && step !== 'applied' && (
         <div className="flex items-center gap-2 mb-8 justify-center">
           {(['email', 'otp', 'details', 'application'] as Step[]).map((s, i) => (
             <div key={s} className="flex items-center gap-2">
@@ -679,6 +679,12 @@ export default function ApplyPage() {
       {/* ================================================================= */}
       {/* STEP 1: Email */}
       {/* ================================================================= */}
+      {step === 'loading' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex items-center justify-center min-h-[200px]">
+          <Spinner large />
+        </div>
+      )}
+
       {step === 'email' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           {loginMode === 'password' ? (
