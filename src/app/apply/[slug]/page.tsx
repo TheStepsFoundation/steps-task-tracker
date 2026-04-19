@@ -1219,10 +1219,10 @@ export default function ApplyPage() {
               Edit my application
             </button>
             <a
-              href="https://thestepsfoundation.com"
+              href="/hub"
               className="px-6 py-2.5 text-sm text-purple-600 hover:text-purple-800 font-medium"
             >
-              Back to The Steps Foundation
+              Go to Student Hub
             </a>
             <button
               onClick={handleSignOut}
@@ -1271,8 +1271,8 @@ export default function ApplyPage() {
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition" />
               </div>
               <div className="flex gap-3">
-                <button onClick={handleSignOut}
-                  className="px-6 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium">No thanks</button>
+                <a href="/hub"
+                  className="px-6 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium">No thanks, go to hub</a>
                 <button onClick={handlePasswordUpgrade} disabled={loading || password.length < 6}
                   className="flex-1 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                   {loading ? <Spinner /> : null}
@@ -1283,10 +1283,16 @@ export default function ApplyPage() {
           ) : (
             <div className="border-t border-gray-100 pt-6 text-center">
               <p className="text-green-600 font-medium mb-2">Password saved!</p>
-              <p className="text-gray-500 text-sm">
+              <p className="text-gray-500 text-sm mb-4">
                 Next time, you can sign in with your email and password at{' '}
                 <strong className="text-gray-700">{email}</strong>.
               </p>
+              <a
+                href="/hub"
+                className="inline-block px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition text-sm"
+              >
+                Go to Student Hub
+              </a>
             </div>
           )}
         </div>
