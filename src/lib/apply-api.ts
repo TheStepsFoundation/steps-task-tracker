@@ -54,8 +54,6 @@ export type ApplicationSubmission = {
   customFields: Record<string, unknown>
   // Attribution
   attributionSource: string
-  // Consent
-  consentGiven: boolean
   // Raw form values for raw_response (preserves granularity lost in boolean mapping)
   freeSchoolMealsRaw: string  // 'yes' | 'previously' | 'no'
 }
@@ -268,8 +266,6 @@ export async function submitApplication(
       event_id: eventId,
       status: 'submitted',
       raw_response: rawResponse,
-      consent_given: true,
-      consent_text_version: 'v1.0-man-group-2026',
       channel: submission.attributionSource,
       attribution_source: attributionMap[submission.attributionSource] || 'other',
     })

@@ -151,7 +151,6 @@ type DraftData = {
   gcseResults: string
   qualifications: QualificationEntry[]
   attribution: string
-  consentGiven: boolean
   // Custom fields
   customFieldValues: Record<string, unknown>
 }
@@ -222,7 +221,6 @@ export default function ApplyPage() {
     { qualType: 'a_level', subject: '', grade: '' },
   ])
   const [attribution, setAttribution] = useState('')
-  const [consentGiven, setConsentGiven] = useState(false)
 
   // Form state — custom fields (from form_config)
   const [formFields, setFormFields] = useState<FormFieldConfig[]>([])
@@ -313,7 +311,6 @@ export default function ApplyPage() {
     if (draft.gcseResults) setGcseResults(draft.gcseResults)
     if (draft.qualifications?.length) setQualifications(draft.qualifications)
     if (draft.attribution) setAttribution(draft.attribution)
-    if (draft.consentGiven) setConsentGiven(draft.consentGiven)
 
     // Restore custom fields
     if (draft.customFieldValues) setCustomFieldValues(draft.customFieldValues as Record<string, FieldValue>)
@@ -359,7 +356,7 @@ export default function ApplyPage() {
         step,
         firstName, lastName, school, yearGroup, schoolType,
         freeSchoolMeals, firstGenUni, householdIncome, additionalContext,
-        gcseResults, qualifications, attribution, consentGiven,
+        gcseResults, qualifications, attribution,
         customFieldValues,
       })
     }, 500)
@@ -368,7 +365,7 @@ export default function ApplyPage() {
     event?.id, email, step,
     firstName, lastName, school, yearGroup, schoolType,
     freeSchoolMeals, firstGenUni, householdIncome, additionalContext,
-    gcseResults, qualifications, attribution, consentGiven,
+    gcseResults, qualifications, attribution,
     customFieldValues,
   ])
 
@@ -471,7 +468,6 @@ export default function ApplyPage() {
     }
 
     if (!attribution) { setError('Please tell us how you heard about this opportunity.'); return }
-    if (!consentGiven) { setError('Please accept the privacy notice to continue.'); return }
 
     setStep('submitting')
 
@@ -491,7 +487,6 @@ export default function ApplyPage() {
       qualifications: filledQuals,
       customFields: customFieldValues,
       attributionSource: attribution,
-      consentGiven: true,
       freeSchoolMealsRaw: freeSchoolMeals,
     }
 
@@ -972,17 +967,7 @@ export default function ApplyPage() {
               ))}
             </fieldset>
 
-            <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
-              <input type="checkbox" checked={consentGiven}
-                onChange={e => setConsentGiven(e.target.checked)}
-                className="mt-0.5 accent-purple-600" />
-              <span className="text-sm text-gray-600">
-                I consent to The Steps Foundation processing my data for the purpose of
-                delivering this event and for aggregate impact reporting. I understand I can
-                contact <span className="font-medium">hello@thestepsfoundation.com</span> to
-                request access to, correction, or deletion of my data at any time.
-              </span>
-            </label>
+
           </div>
 
           <div className="flex gap-3">
@@ -990,7 +975,7 @@ export default function ApplyPage() {
               className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition">
               Back
             </button>
-            <button onClick={handleSubmit} disabled={!consentGiven}
+            <button onClick={handleSubmit}
               className="flex-1 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
               Submit application
             </button>
