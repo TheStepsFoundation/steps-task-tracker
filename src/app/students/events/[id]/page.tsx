@@ -137,6 +137,19 @@ This message is intended only for the addressee and may contain information that
 </p>
 `;
 
+// Helpers for ranked-choice display
+function toTitleCase(s: string): string {
+  return s.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+const ORDINAL: Record<string, string> = {
+  first: '1st', second: '2nd', third: '3rd', fourth: '4th', fifth: '5th',
+  sixth: '6th', seventh: '7th', eighth: '8th', ninth: '9th', tenth: '10th',
+}
+
+// Available sortable columns
+type SortKey = 'name' | 'school_type' | 'year_group' | 'status' | 'gradeScore' | 'submitted_at'
+type SortDir = 'asc' | 'desc'
+
 type StatusFilter = 'all' | string
 
 // ---------------------------------------------------------------------------
@@ -161,6 +174,17 @@ export default function EventDetailPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [search, setSearch] = useState('')
   const [minGradeScore, setMinGradeScore] = useState(0)
+
+  // Sort
+  const [sortKey, setSortKey] = useState<SortKey>('submitted_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  // Column filters
+  const [yearGroupFilter, setYearGroupFilter] = useState<string>('all')
+  const [schoolTypeFilter, setSchoolTypeFilter] = useState<string>('all')
+
+  // Filter/sort panel visibility
+  const [showFilters, setShowFilters] = useState(false)
 
   // Selection for bulk actions
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -374,6 +398,12 @@ export default function EventDetailPage() {
     if (statusFilter !== 'all') {
       list = list.filter(a => a.status === statusFilter)
     }
+    if (yearGroupFilter !== 'all') {
+      list = list.filter(a => String(a.year_group) === yearGroupFilter)
+    }
+    if (schoolTypeFilter !== 'all') {
+      list = list.filter(a => (a.school_type?.toLowerCase() ?? '') === schoolTypeFilter)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(a =>
@@ -385,8 +415,21 @@ export default function EventDetailPage() {
     if (minGradeScore > 0) {
       list = list.filter(a => a.gradeScore >= minGradeScore)
     }
+    // Sort
+    const dir = sortDir === 'asc' ? 1 : -1
+    list = [...list].sort((a, b) => {
+      switch (sortKey) {
+        case 'name': return dir * `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+        case 'school_type': return dir * (a.school_type ?? '').localeCompare(b.school_type ?? '')
+        case 'year_group': return dir * ((a.year_group ?? 0) - (b.year_group ?? 0))
+        case 'status': return dir * a.status.localeCompare(b.status)
+        case 'gradeScore': return dir * (a.gradeScore - b.gradeScore)
+        case 'submitted_at': return dir * (a.submitted_at ?? '').localeCompare(b.submitted_at ?? '')
+        default: return 0
+      }
+    })
     return list
-  }, [applicants, statusFilter, search, minGradeScore])
+  }, [applicants, statusFilter, yearGroupFilter, schoolTypeFilter, search, minGradeScore, sortKey, sortDir])
 
   const statusCounts = useMemo(() => {
     const c: Record<string, number> = { all: applicants.length }
@@ -394,11 +437,24 @@ export default function EventDetailPage() {
     return c
   }, [applicants])
 
+  // Unique values for filter dropdowns
+  const uniqueYearGroups = useMemo(() => {
+    const ygs = new Set<number>()
+    applicants.forEach(a => { if (a.year_group) ygs.add(a.year_group) })
+    return Array.from(ygs).sort()
+  }, [applicants])
+
+  const uniqueSchoolTypes = useMemo(() => {
+    const sts = new Set<string>()
+    applicants.forEach(a => { if (a.school_type) sts.add(a.school_type.toLowerCase()) })
+    return Array.from(sts).sort()
+  }, [applicants])
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page])
 
   // Reset page when filters change
-  useEffect(() => { setPage(0) }, [statusFilter, search, minGradeScore])
+  useEffect(() => { setPage(0) }, [statusFilter, yearGroupFilter, schoolTypeFilter, search, minGradeScore, sortKey, sortDir])
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -1031,6 +1087,25 @@ export default function EventDetailPage() {
                 className="w-16 px-2 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               />
             </div>
+
+            {/* Filter & Sort toggle */}
+            <button
+              onClick={() => setShowFilters(f => !f)}
+              className={`px-3 py-1.5 text-sm rounded-md border transition-colors flex items-center gap-1.5 ${
+                showFilters || yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at'
+                  ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'
+                  : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+              </svg>
+              Filter & Sort
+              {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at') && (
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+              )}
+            </button>
+
             <button
               onClick={() => setShowInvite(true)}
               className="ml-auto px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
@@ -1038,6 +1113,83 @@ export default function EventDetailPage() {
               Invite Students
             </button>
           </div>
+
+          {/* Filter & Sort panel */}
+          {showFilters && (
+            <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 flex flex-wrap items-end gap-4">
+              {/* Year Group filter */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Year Group</label>
+                <select
+                  value={yearGroupFilter}
+                  onChange={e => setYearGroupFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="all">All</option>
+                  {uniqueYearGroups.map(yg => (
+                    <option key={yg} value={String(yg)}>Year {yg}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* School Type filter */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">School Type</label>
+                <select
+                  value={schoolTypeFilter}
+                  onChange={e => setSchoolTypeFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="all">All</option>
+                  {uniqueSchoolTypes.map(st => (
+                    <option key={st} value={st} className="capitalize">{st.charAt(0).toUpperCase() + st.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sort by */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Sort By</label>
+                <div className="flex items-center gap-1">
+                  <select
+                    value={sortKey}
+                    onChange={e => setSortKey(e.target.value as SortKey)}
+                    className="px-2.5 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="submitted_at">Date Applied</option>
+                    <option value="name">Name</option>
+                    <option value="school_type">School Type</option>
+                    <option value="year_group">Year Group</option>
+                    <option value="status">Status</option>
+                    <option value="gradeScore">Grade Score</option>
+                  </select>
+                  <button
+                    onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                    className="p-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      {sortDir === 'asc' ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                      )}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Reset filters */}
+              {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at') && (
+                <button
+                  onClick={() => { setYearGroupFilter('all'); setSchoolTypeFilter('all'); setSortKey('submitted_at'); setSortDir('desc') }}
+                  className="px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
+                >
+                  Reset all
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Bulk actions */}
           {selected.size > 0 && (
@@ -1156,7 +1308,7 @@ export default function EventDetailPage() {
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     <th className="p-3 whitespace-nowrap">School Type</th>
-                    <th className="p-3">Status</th>
+                    {statusFilter === 'all' && <th className="p-3">Status</th>}
                     <th className="p-3 whitespace-nowrap">Grades (Score)</th>
                     <th className="p-3">RSVP</th>
                     <th className="p-3">Attended</th>
@@ -1188,7 +1340,8 @@ export default function EventDetailPage() {
                           {app.school_type ?? '—'}
                         </td>
 
-                        {/* Status */}
+                        {/* Status — hidden when filtering by a specific status */}
+                        {statusFilter === 'all' && (
                         <td className="p-3">
                           <select
                             value={app.status}
@@ -1203,6 +1356,7 @@ export default function EventDetailPage() {
                             ))}
                           </select>
                         </td>
+                        )}
 
                         {/* Grades with hover popover */}
                         <td className="p-3 whitespace-nowrap">
