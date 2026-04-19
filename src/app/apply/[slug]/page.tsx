@@ -6,7 +6,7 @@ import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
 import DynamicFormField, { type FieldValue } from '@/components/DynamicFormField'
 import type { FormFieldConfig } from '@/lib/events-api'
 import {
-  sendOtp, verifyOtp, lookupSelf, hasExistingApplication,
+  sendOtp, verifyOtp, lookupSelf, hasExistingApplication, getExistingSession,
   submitApplication, upgradeToPassword, signOutStudent,
   fetchEventFormConfig,
   type StudentSelf, type ApplicationSubmission,
@@ -171,6 +171,29 @@ export default function ApplyPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [passwordSaved, setPasswordSaved] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  // Check for existing Supabase session on mount (e.g. page refresh after OTP)
+  useEffect(() => {
+    if (!event?.id) return
+    let cancelled = false
+    getExistingSession().then(async (session) => {
+      if (cancelled || !session) return
+      setEmail(session.email)
+      // Re-fetch form config with auth
+      fetchEventFormConfig(event.id).then(config => {
+        setFormFields(config.fields ?? [])
+      })
+      const student = await lookupSelf()
+      if (student) {
+        setExistingStudent(student)
+        prefill(student)
+        const applied = await hasExistingApplication(event.id)
+        if (applied) setAlreadyApplied(true)
+      }
+      if (!cancelled) setStep('details')
+    })
+    return () => { cancelled = true }
+  }, [event?.id, prefill])
 
   // Fetch form config from DB when event is known
   useEffect(() => {

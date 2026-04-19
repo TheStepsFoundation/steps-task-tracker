@@ -104,6 +104,12 @@ export async function signOutStudent(): Promise<void> {
   await supabase.auth.signOut()
 }
 
+export async function getExistingSession(): Promise<{ email: string } | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return null
+  return { email: user.email }
+}
+
 // ---------------------------------------------------------------------------
 // Student Lookup (post-OTP, reads own row via RLS)
 // ---------------------------------------------------------------------------
