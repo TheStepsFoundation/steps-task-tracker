@@ -172,7 +172,7 @@ function clearDraft(eventId: string, email: string): void {
 // Steps
 // ---------------------------------------------------------------------------
 
-type Step = 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'success'
+type Step = 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'success' | 'applied'
 
 // ---------------------------------------------------------------------------
 // Page Component
@@ -281,7 +281,7 @@ export default function ApplyPage() {
         setExistingStudent(student)
         prefill(student)
         const applied = await hasExistingApplication(event!.id)
-        if (applied) setAlreadyApplied(true)
+        if (applied) { setAlreadyApplied(true); if (!cancelled) setStep('applied'); return }
       }
       if (!cancelled) setStep('details')
     })
@@ -291,7 +291,7 @@ export default function ApplyPage() {
 
   // Restore draft from localStorage after auth is established (runs once)
   useEffect(() => {
-    if (!event?.id || !email || step === 'email' || step === 'otp' || step === 'success') return
+    if (!event?.id || !email || step === 'email' || step === 'otp' || step === 'success' || step === 'applied') return
     if (draftRestoredRef.current) return
     const draft = loadDraft(event!.id, email)
     if (!draft) { draftRestoredRef.current = true; return }
@@ -350,7 +350,7 @@ export default function ApplyPage() {
   // Auto-save draft to localStorage on field changes (debounced)
   useEffect(() => {
     if (!event?.id || !email || restoringRef.current) return
-    if (step === 'email' || step === 'otp' || step === 'success' || step === 'submitting') return
+    if (step === 'email' || step === 'otp' || step === 'success' || step === 'applied' || step === 'submitting') return
 
     const t = setTimeout(() => {
       saveDraft(event!.id, email, {
@@ -411,7 +411,7 @@ export default function ApplyPage() {
       setExistingStudent(student)
       prefill(student)
       const applied = await hasExistingApplication(event!.id)
-      if (applied) setAlreadyApplied(true)
+      if (applied) { setAlreadyApplied(true); setLoading(false); setStep('applied'); return }
     }
     setLoading(false)
     setStep('details')
@@ -434,7 +434,7 @@ export default function ApplyPage() {
       setExistingStudent(student)
       prefill(student)
       const applied = await hasExistingApplication(event!.id)
-      if (applied) setAlreadyApplied(true)
+      if (applied) { setAlreadyApplied(true); setLoading(false); setStep('applied'); return }
     }
     setLoading(false)
     setStep('details')
@@ -577,7 +577,7 @@ export default function ApplyPage() {
       </div>
 
       {/* Progress */}
-      {step !== 'success' && step !== 'submitting' && (
+      {step !== 'success' && step !== 'submitting' && step !== 'applied' && (
         <div className="flex items-center gap-2 mb-8 justify-center">
           {(['email', 'otp', 'details', 'application'] as Step[]).map((s, i) => (
             <div key={s} className="flex items-center gap-2">
@@ -748,11 +748,7 @@ export default function ApplyPage() {
             </div>
           )}
 
-          {alreadyApplied && (
-            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
-              You&apos;ve already submitted an application for this event. Submitting again will not be possible.
-            </div>
-          )}
+
 
           <h2 className="text-lg font-semibold text-gray-900 mb-6">About you</h2>
 
@@ -896,9 +892,9 @@ export default function ApplyPage() {
             </div>
           </div>
 
-          <button onClick={handleDetailsNext} disabled={alreadyApplied}
+          <button onClick={handleDetailsNext}
             className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-            {alreadyApplied ? 'Already applied' : 'Continue'}
+            Continue
           </button>
         </div>
       )}
@@ -1140,6 +1136,40 @@ export default function ApplyPage() {
       )}
 
       {/* STEP 5: Success + Password Upgrade */}
+      {/* ================================================================= */}
+      {/* APPLIED — already submitted */}
+      {/* ================================================================= */}
+      {step === 'applied' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">You&apos;ve already applied!</h2>
+            <p className="text-gray-500 text-sm">
+              Your application for the {event.name} has been received. We&apos;ll be in touch via email with next steps.
+            </p>
+          </div>
+
+          <div className="border-t border-gray-100 pt-6 flex flex-col items-center gap-3">
+            <button
+              onClick={() => { setAlreadyApplied(false); setStep('details') }}
+              className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition text-sm"
+            >
+              Edit my application
+            </button>
+            <button
+              onClick={() => signOutStudent()}
+              className="px-6 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+
       {step === 'success' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           <div className="text-center mb-6">
