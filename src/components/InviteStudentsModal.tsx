@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -138,7 +139,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
       if (search) {
         const q = search.toLowerCase()
         if (!`${s.first_name} ${s.last_name}`.toLowerCase().includes(q) &&
-            !(s.school_name_raw ?? '').toLowerCase().includes(q) &&
+            !(s.school_type ?? '').toLowerCase().includes(q) &&
             !(s.personal_email ?? '').toLowerCase().includes(q)) return false
       }
       return true
@@ -425,7 +426,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                         <input type="checkbox" checked={pageStudents.length > 0 && pageStudents.every(s => selected.has(s.id))} onChange={toggleAll} />
                       </th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Name</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">School</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">School Type</th>
                       <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase">Year</th>
                       <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase">Events</th>
                       <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase">Eligibility</th>
@@ -439,14 +440,16 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                           <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} />
                         </td>
                         <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
-                          {s.first_name} {s.last_name}
+                          <Link href={`/students/${s.id}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer">
+                            {s.first_name} {s.last_name}
+                          </Link>
                           <div className="text-xs text-gray-400">{s.personal_email}</div>
                         </td>
-                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400 text-xs">{s.school_name_raw ?? '—'}</td>
+                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400 text-xs">{s.school_type ? s.school_type.charAt(0).toUpperCase() + s.school_type.slice(1) : '—'}</td>
                         <td className="px-3 py-2 text-center text-gray-600 dark:text-gray-400">{s.year_group ?? '—'}</td>
                         <td className="px-3 py-2 text-center text-gray-600 dark:text-gray-400">
-                          {s.submitted_count > 0
-                            ? `${s.attended_count}/${s.submitted_count}`
+                          {EVENTS.length > 0
+                            ? `${s.attended_count}/${EVENTS.length}`
                             : '—'}
                         </td>
                         <td className="px-3 py-2 text-center">
