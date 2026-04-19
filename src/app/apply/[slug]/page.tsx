@@ -1200,7 +1200,7 @@ export default function ApplyPage() {
             </button>
             <button onClick={handleSubmit}
               className="flex-1 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-              Submit application
+              {alreadyApplied ? 'Update application' : 'Submit application'}
             </button>
           </div>
         </div>
@@ -1274,7 +1274,7 @@ export default function ApplyPage() {
             </p>
           </div>
 
-          {!passwordSaved && !hasPassword ? (
+          {!passwordSaved && !hasPassword && !alreadyApplied ? (
             <div className="border-t border-gray-100 pt-6">
               <h3 className="text-base font-semibold text-gray-900 mb-1">Speed up future applications</h3>
               <p className="text-gray-500 text-sm mb-4">
