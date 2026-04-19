@@ -81,7 +81,6 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       year_group: student.year_group,
       free_school_meals: student.free_school_meals,
       parental_income_band: student.parental_income_band,
-      first_generation_uni: student.first_generation_uni,
       subscribed_to_mailing: student.subscribed_to_mailing,
       school_type: student.school_type,
       notes: student.notes,
@@ -198,7 +197,6 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             <Field label="Year group" value={student.year_group} />
             <Field label="Income band" value={incomeLabel(student.parental_income_band)} />
             <Field label="Free school meals" value={boolLabel(student.free_school_meals)} />
-            <Field label="First-gen uni" value={boolLabel(student.first_generation_uni)} />
             <Field label="Mailing list" value={boolLabel(student.subscribed_to_mailing)} />
             <Field label="School type" value={schoolTypeLabel(student.school_type)} />
             <Field label="Eligibility" value={enriched.eligibility} />
@@ -237,7 +235,6 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
               </select>
             </div>
             <TriCheckbox label="Free school meals" value={draft.free_school_meals} onChange={v => setDraft(d => ({ ...d, free_school_meals: v }))} />
-            <TriCheckbox label="First-gen uni" value={draft.first_generation_uni} onChange={v => setDraft(d => ({ ...d, first_generation_uni: v }))} />
             <TriCheckbox label="Mailing list" value={draft.subscribed_to_mailing} onChange={v => setDraft(d => ({ ...d, subscribed_to_mailing: v }))} />
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">School type</label>
@@ -383,7 +380,6 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
 
       <div className="flex flex-wrap gap-2">
         {student.free_school_meals && <Flag>Free school meals</Flag>}
-        {student.first_generation_uni && <Flag>First-gen uni</Flag>}
         {student.parental_income_band && <Flag>Income: {incomeLabel(student.parental_income_band)}</Flag>}
         {student.subscribed_to_mailing ? <Flag tone="green">On mailing list</Flag> : <Flag tone="gray">Not subscribed</Flag>}
       </div>

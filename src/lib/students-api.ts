@@ -34,7 +34,6 @@ export type StudentRow = {
   year_group: string | null
   free_school_meals: boolean | null
   parental_income_band: string | null
-  first_generation_uni: boolean | null
   subscribed_to_mailing: boolean | null
   school_type: SchoolType | null
   bursary_90plus: boolean | null
@@ -99,7 +98,6 @@ export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
   }
   const smi_count =
     (s.free_school_meals === true ? 1 : 0) +
-    (s.first_generation_uni === true ? 1 : 0) +
     (s.parental_income_band === 'under_40k' ? 1 : 0)
   const eligibility: Eligibility =
     s.school_type === 'state' || s.school_type === 'grammar'
@@ -134,7 +132,6 @@ function computeEligibility(row: EnrichedStudent): EnrichedStudent {
   if (!row.applications) row.applications = []
   const smi_count =
     (row.free_school_meals === true ? 1 : 0) +
-    (row.first_generation_uni === true ? 1 : 0) +
     (row.parental_income_band === 'under_40k' ? 1 : 0)
   const eligibility: Eligibility =
     row.school_type === 'state' || row.school_type === 'grammar'
@@ -157,7 +154,7 @@ export function invalidateStudentsCache() {
 }
 
 const STUDENT_COLUMNS =
-  'id,first_name,last_name,personal_email,school_name_raw,school_id,year_group,free_school_meals,parental_income_band,first_generation_uni,subscribed_to_mailing,school_type,bursary_90plus,notes,created_at'
+  'id,first_name,last_name,personal_email,school_name_raw,school_id,year_group,free_school_meals,parental_income_band,subscribed_to_mailing,school_type,bursary_90plus,notes,created_at'
 
 export async function fetchAllStudentsEnriched(opts?: { forceRefresh?: boolean }): Promise<EnrichedStudent[]> {
   if (!opts?.forceRefresh && enrichedCache && Date.now() - enrichedCache.at < CACHE_TTL_MS) {

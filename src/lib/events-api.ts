@@ -194,3 +194,32 @@ export async function updateEvent(
   if (error) throw error
   return data as EventRow
 }
+
+/**
+ * Fetch a single event by slug (public / anon-friendly).
+ * Returns only the columns needed for the student-facing apply page.
+ */
+export async function fetchEventBySlug(slug: string): Promise<EventRow | null> {
+  const { data, error } = await supabase
+    .from('events')
+    .select(EVENT_COLUMNS)
+    .eq('slug', slug)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (error) throw error
+  return (data as EventRow) ?? null
+}
+
+/**
+ * Fetch only the form_config for an event (by slug).
+ */
+export async function fetchEventFormConfigBySlug(slug: string): Promise<{ fields: FormFieldConfig[]; pages?: FormPage[] } | null> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('form_config')
+    .eq('slug', slug)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (error) throw error
+  return (data as { form_config: { fields: FormFieldConfig[]; pages?: FormPage[] } })?.form_config ?? null
+}

@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
 import DynamicFormField, { type FieldValue, evaluateConditions } from '@/components/DynamicFormField'
-import type { FormFieldConfig, FormPage } from '@/lib/events-api'
+import type { FormFieldConfig, FormPage, EventRow } from '@/lib/events-api'
+import { fetchEventBySlug } from '@/lib/events-api'
 import {
   sendOtp, verifyOtp, signInWithPassword, lookupSelf, hasExistingApplication, getExistingSession,
   submitApplication, upgradeToPassword, signOutStudent,
@@ -17,18 +18,7 @@ import {
 // Event registry — maps slug to event metadata + form config
 // ---------------------------------------------------------------------------
 
-const EVENTS: Record<string, {
-  id: string; name: string; date: string; location: string; time: string; capacity: string
-}> = {
-  'man-group-office-visit': {
-    id: 'b5e7f8a1-3c9d-4b2e-8f1a-6d7c8e9f0a1b',
-    name: 'Man Group Office Visit',
-    date: 'Wednesday 8 July 2026',
-    location: 'Riverbank House, 2 Swan Lane, London EC4R 3AD',
-    time: '~09:30 – 15:30',
-    capacity: '20–25',
-  },
-}
+
 
 // ---------------------------------------------------------------------------
 // Qualification constants
@@ -144,7 +134,6 @@ type DraftData = {
   yearGroup: number | ''
   schoolType: string
   freeSchoolMeals: string
-  firstGenUni: string
   householdIncome: string
   additionalContext: string
   // Application
@@ -192,7 +181,8 @@ type Step = 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'succes
 export default function ApplyPage() {
   const params = useParams()
   const slug = params.slug as string
-  const event = EVENTS[slug]
+  const [event, setEvent] = useState<EventRow | null>(null)
+  const [eventLoading, setEventLoading] = useState(true)
 
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
@@ -211,7 +201,6 @@ export default function ApplyPage() {
   const [yearGroup, setYearGroup] = useState<number | ''>('')
   const [schoolType, setSchoolType] = useState('')
   const [freeSchoolMeals, setFreeSchoolMeals] = useState('')
-  const [firstGenUni, setFirstGenUni] = useState('')
   const [householdIncome, setHouseholdIncome] = useState('')
   const [additionalContext, setAdditionalContext] = useState('')
 
@@ -260,7 +249,6 @@ export default function ApplyPage() {
     if (s.school_type) setSchoolType(s.school_type)
     if (s.free_school_meals === true) setFreeSchoolMeals('yes')
     else if (s.free_school_meals === false) setFreeSchoolMeals('no')
-    if (s.first_generation_uni !== null) setFirstGenUni(s.first_generation_uni ? 'yes' : 'no')
     if (s.parental_income_band) {
       if (['under_20k', '20_40k'].includes(s.parental_income_band)) setHouseholdIncome('yes')
       else if (s.parental_income_band === 'prefer_na') setHouseholdIncome('prefer_not_to_say')
@@ -308,7 +296,6 @@ export default function ApplyPage() {
     if (draft.yearGroup) setYearGroup(draft.yearGroup)
     if (draft.schoolType) setSchoolType(draft.schoolType)
     if (draft.freeSchoolMeals) setFreeSchoolMeals(draft.freeSchoolMeals)
-    if (draft.firstGenUni) setFirstGenUni(draft.firstGenUni)
     if (draft.householdIncome) setHouseholdIncome(draft.householdIncome)
     if (draft.additionalContext) setAdditionalContext(draft.additionalContext)
 
@@ -360,7 +347,7 @@ export default function ApplyPage() {
       saveDraft(event.id, email, {
         step,
         firstName, lastName, school, yearGroup, schoolType,
-        freeSchoolMeals, firstGenUni, householdIncome, additionalContext,
+        freeSchoolMeals, householdIncome, additionalContext,
         gcseResults, qualifications, attribution,
         customFieldValues,
       })
@@ -369,7 +356,7 @@ export default function ApplyPage() {
   }, [
     event?.id, email, step,
     firstName, lastName, school, yearGroup, schoolType,
-    freeSchoolMeals, firstGenUni, householdIncome, additionalContext,
+    freeSchoolMeals, householdIncome, additionalContext,
     gcseResults, qualifications, attribution,
     customFieldValues,
   ])
@@ -451,7 +438,6 @@ export default function ApplyPage() {
     if (!yearGroup) { setError('Please select your year group.'); return }
     if (!schoolType) { setError('Please select your school type.'); return }
     if (!freeSchoolMeals) { setError('Please answer the Free School Meals question.'); return }
-    if (!firstGenUni) { setError('Please answer the first generation question.'); return }
     if (!householdIncome) { setError('Please answer the household income question.'); return }
     setStep('application')
   }
@@ -513,7 +499,6 @@ export default function ApplyPage() {
       yearGroup: yearGroup as number,
       schoolType,
       freeSchoolMeals: (freeSchoolMeals === 'yes' || freeSchoolMeals === 'previously') ? true : freeSchoolMeals === 'no' ? false : null,
-      firstGenerationUni: firstGenUni === 'yes' ? true : firstGenUni === 'no' ? false : null,
       householdIncomeUnder40k: householdIncome,
       additionalContext,
       gcseResults,
@@ -544,7 +529,17 @@ export default function ApplyPage() {
     setPasswordSaved(true)
   }
 
-  // --- 404 ---
+  // --- Loading / 404 ---
+  if (eventLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Loading event…</p>
+        </div>
+      </div>
+    )
+  }
   if (!event) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
@@ -566,9 +561,10 @@ export default function ApplyPage() {
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{event.name}</h1>
         <p className="text-gray-500 text-sm">
-          {event.date} &middot; {event.time} &middot; {event.capacity} places
+          {event.event_date ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+          {event.time_start ? ` \u00b7 ${event.time_start}${event.time_end ? ' \u2013 ' + event.time_end : ''}` : ''}
         </p>
-        <p className="text-gray-500 text-sm">{event.location}</p>
+        <p className="text-gray-500 text-sm">{event.location ?? ''}</p>
       </div>
 
       {/* Progress */}
@@ -845,19 +841,6 @@ export default function ApplyPage() {
                 ))}
               </fieldset>
             )}
-
-            <fieldset className="mb-4">
-              <legend className="block text-sm font-medium text-gray-700 mb-2">
-                Are you in the first generation of your family to attend university? <span className="text-red-400">*</span>
-              </legend>
-              {[{ v: 'yes', l: 'Yes' }, { v: 'no', l: 'No' }].map(opt => (
-                <label key={opt.v} className="flex items-center gap-3 py-1.5 cursor-pointer">
-                  <input type="radio" name="firstGen" value={opt.v} checked={firstGenUni === opt.v}
-                    onChange={e => setFirstGenUni(e.target.value)} className="accent-purple-600" />
-                  <span className="text-sm text-gray-700">{opt.l}</span>
-                </label>
-              ))}
-            </fieldset>
 
             <fieldset className="mb-4">
               <legend className="block text-sm font-medium text-gray-700 mb-2">

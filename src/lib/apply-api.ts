@@ -22,7 +22,6 @@ export type StudentSelf = {
   year_group: number | null
   school_type: string | null
   free_school_meals: boolean | null
-  first_generation_uni: boolean | null
   parental_income_band: string | null
 }
 
@@ -44,7 +43,6 @@ export type ApplicationSubmission = {
   // Socioeconomic
   schoolType: string       // state | grammar | independent | independent_bursary
   freeSchoolMeals: boolean | null
-  firstGenerationUni: boolean | null
   householdIncomeUnder40k: string  // yes | no | prefer_not_to_say
   additionalContext: string
   // Academics
@@ -60,7 +58,7 @@ export type ApplicationSubmission = {
 
 // Non-sensitive columns we fetch for the pre-fill
 const STUDENT_SELF_COLUMNS =
-  'id,first_name,last_name,personal_email,school_id,school_name_raw,year_group,school_type,free_school_meals,first_generation_uni,parental_income_band'
+  'id,first_name,last_name,personal_email,school_id,school_name_raw,year_group,school_type,free_school_meals,parental_income_band'
 
 // ---------------------------------------------------------------------------
 // OTP Auth
@@ -221,7 +219,6 @@ export async function submitApplication(
       : submission.schoolType,
     bursary_90plus: bursary90plus,
     free_school_meals: submission.freeSchoolMeals,
-    first_generation_uni: submission.firstGenerationUni,
     parental_income_band: incomeBand,
   }
 

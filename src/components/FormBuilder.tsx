@@ -71,7 +71,6 @@ const STANDARD_QUESTIONS: StandardQuestion[] = [
   { id: "std_school",        label: "Current school / sixth form", type: "search" },
   { id: "std_year_group",    label: "Year group",                  type: "dropdown" },
   { id: "std_school_type",   label: "School type",                 type: "radio" },
-  { id: "std_first_gen",     label: "First generation to attend university?", type: "yes_no" },
   { id: "std_income",        label: "Household income under £40k?", type: "radio" },
   { id: "std_fsm",           label: "Free School Meals eligibility", type: "radio" },
   { id: "std_additional",    label: "Additional contextual information", type: "textarea" },

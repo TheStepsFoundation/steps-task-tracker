@@ -32,10 +32,9 @@ const INCOME_BANDS: { value: string; label: string }[] = [
 ]
 
 type SmiMin = 0 | 1 | 2 | 3
-function smiCount(s: { free_school_meals: boolean | null; first_generation_uni: boolean | null; parental_income_band: string | null }): number {
+function smiCount(s: { free_school_meals: boolean | null; parental_income_band: string | null }): number {
   let n = 0
   if (s.free_school_meals === true) n++
-  if (s.first_generation_uni === true) n++
   if (s.parental_income_band === 'under_40k') n++
   return n
 }
@@ -56,7 +55,6 @@ type Filters = {
   search: string
   yearGroups: string[]
   fsm: TriBool
-  firstGen: TriBool
   incomeBands: string[]
   smiMin: SmiMin
   schoolTypes: SchoolType[]
@@ -70,7 +68,6 @@ const defaultFilters = (): Filters => ({
   search: '',
   yearGroups: [],
   fsm: 'any',
-  firstGen: 'any',
   incomeBands: [],
   smiMin: 0,
   schoolTypes: [],
@@ -118,7 +115,6 @@ export default function StudentsDashboard() {
     if (filters.search.trim()) n++
     if (filters.yearGroups.length) n++
     if (filters.fsm !== 'any') n++
-    if (filters.firstGen !== 'any') n++
     if (filters.incomeBands.length) n++
     if (filters.smiMin > 0) n++
     if (filters.schoolTypes.length) n++
@@ -139,7 +135,6 @@ export default function StudentsDashboard() {
       }
       if (f.yearGroups.length && (!s.year_group || !f.yearGroups.includes(s.year_group))) return false
       if (!matchTri(f.fsm, s.free_school_meals)) return false
-      if (!matchTri(f.firstGen, s.first_generation_uni)) return false
       if (f.incomeBands.length && (!s.parental_income_band || !f.incomeBands.includes(s.parental_income_band))) return false
       if (f.smiMin > 0 && smiCount(s) < f.smiMin) return false
       if (f.schoolTypes.length && (!s.school_type || !f.schoolTypes.includes(s.school_type))) return false
@@ -290,10 +285,7 @@ export default function StudentsDashboard() {
                 <Label>Free school meals</Label>
                 <TriToggle value={filters.fsm} onChange={v => setFilters(f => ({ ...f, fsm: v }))} />
               </div>
-              <div>
-                <Label>First-gen university</Label>
-                <TriToggle value={filters.firstGen} onChange={v => setFilters(f => ({ ...f, firstGen: v }))} />
-              </div>
+
               <div>
                 <Label>School type</Label>
                 <ChipList

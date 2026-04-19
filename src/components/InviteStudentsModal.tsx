@@ -973,7 +973,6 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                   <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Social Mobility Indicators</h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <PreviewField label="Free school meals" value={previewStudent.free_school_meals === true ? 'Yes' : previewStudent.free_school_meals === false ? 'No' : '—'} />
-                    <PreviewField label="First-gen uni" value={previewStudent.first_generation_uni === true ? 'Yes' : previewStudent.first_generation_uni === false ? 'No' : '—'} />
                     <PreviewField label="Income band" value={
                       previewStudent.parental_income_band === 'under_40k' ? 'Under £40k'
                         : previewStudent.parental_income_band === 'over_40k' ? '£40k or more'
