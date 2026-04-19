@@ -715,6 +715,16 @@ export default function EventDetailPage() {
   }, [applicants])
 
   // ---------------------------------------------------------------------------
+  // Custom field columns (from event form_config)
+  // ---------------------------------------------------------------------------
+
+  const customFieldCols = useMemo(() => {
+    if (!event?.form_config) return []
+    const cfg = event.form_config as { fields?: { id: string; label: string; type: string }[] }
+    return (cfg.fields ?? []).map(f => ({ id: f.id, label: f.label, type: f.type }))
+  }, [event])
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
