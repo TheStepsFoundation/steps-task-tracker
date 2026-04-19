@@ -102,7 +102,7 @@ export function QuickCompleteModal({
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => toggleAll(true)}
-              className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+              className="text-xs text-steps-blue-600 hover:text-steps-blue-700 font-medium"
             >
               Select all
             </button>
@@ -125,7 +125,7 @@ export function QuickCompleteModal({
                 <div 
                   key={subtask.id}
                   className={`p-3 rounded-lg border-2 transition ${
-                    selection.selected ? 'border-purple-200 bg-purple-50' : 'border-gray-100 bg-gray-50 opacity-60'
+                    selection.selected ? 'border-steps-blue-200 bg-steps-blue-50' : 'border-gray-100 bg-gray-50 opacity-60'
                   }`}
                 >
                   {/* Checkbox + description */}
@@ -137,7 +137,7 @@ export function QuickCompleteModal({
                         ...prev,
                         [subtask.id]: { ...prev[subtask.id], selected: e.target.checked }
                       }))}
-                      className="mt-1 w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                      className="mt-1 w-4 h-4 text-steps-blue-600 rounded border-gray-300 focus:ring-steps-blue-500"
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">
@@ -163,7 +163,7 @@ export function QuickCompleteModal({
                             }))}
                             className={`px-2.5 py-1 rounded text-xs font-medium transition ${
                               selection.hours === opt.value
-                                ? 'bg-purple-600 text-white'
+                                ? 'bg-steps-blue-600 text-white'
                                 : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                             }`}
                           >

@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
+import { TopNav } from '@/components/TopNav'
+import { PressableButton } from '@/components/PressableButton'
 import {
   fetchProfile, updateProfile, fetchMyApplications, fetchOpenEvents,
   signOut, getAuthEmail,
@@ -33,7 +35,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   accepted: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-700' },
   rejected: { label: 'Not selected', color: 'bg-gray-100 text-gray-600' },
   withdrew: { label: 'Withdrawn', color: 'bg-gray-100 text-gray-500' },
-  waitlisted: { label: 'Waitlisted', color: 'bg-purple-100 text-purple-700' },
+  waitlisted: { label: 'Waitlisted', color: 'bg-steps-blue-100 text-steps-blue-700' },
 }
 
 function formatDate(d: string | null): string {
@@ -145,10 +147,10 @@ export default function StudentHub() {
   // --- Loading ---
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-50 to-white">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Loading your hub…</p>
+          <div className="animate-spin w-8 h-8 border-2 border-steps-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-slate-500 text-sm">Loading your hub…</p>
         </div>
       </div>
     )
@@ -156,25 +158,27 @@ export default function StudentHub() {
 
   // --- Render ---
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 text-sm font-medium px-3 py-1 rounded-full mb-2">
-            The Steps Foundation
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {profile?.first_name ? `Hey, ${profile.first_name}!` : 'Student Hub'}
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">{authEmail}</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <TopNav>
+        <span className="hidden sm:block text-sm text-slate-600">{authEmail}</span>
         <button
           onClick={handleSignOut}
-          className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition"
+          className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
         >
           Sign out
         </button>
-      </div>
+      </TopNav>
+
+      <div className="max-w-3xl mx-auto px-4 py-10 sm:py-14">
+        <div className="mb-10">
+          <div className="inline-flex items-center gap-2 bg-steps-blue-100 text-steps-blue-700 text-xs font-semibold tracking-wide uppercase px-3 py-1 rounded-full mb-3">
+            Student Hub
+          </div>
+          <h1 className="font-display text-3xl sm:text-4xl font-black text-steps-dark tracking-tight">
+            {profile?.first_name ? `Hey, ${profile.first_name}!` : 'Welcome'}
+          </h1>
+          <p className="text-slate-500 text-sm mt-2">{authEmail}</p>
+        </div>
 
       {/* Success banner */}
       {saveMsg && (
@@ -194,11 +198,11 @@ export default function StudentHub() {
               <a
                 key={event.id}
                 href={`/apply/${event.slug}`}
-                className="block bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-purple-200 transition group"
+                className="block bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-steps-blue-200 transition group"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 group-hover:text-purple-700 transition">
+                    <h3 className="font-semibold text-gray-900 group-hover:text-steps-blue-700 transition">
                       {event.name}
                     </h3>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1">
@@ -217,12 +221,12 @@ export default function StudentHub() {
                       <p className="text-sm text-gray-500 mt-2 line-clamp-2">{event.description}</p>
                     )}
                     {event.applications_close_at && (
-                      <p className="text-xs text-purple-600 font-medium mt-2">
+                      <p className="text-xs text-steps-blue-600 font-medium mt-2">
                         Applications close {new Date(event.applications_close_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     )}
                   </div>
-                  <span className="flex-shrink-0 mt-1 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-xl group-hover:bg-purple-700 transition">
+                  <span className="flex-shrink-0 mt-1 px-5 py-2.5 bg-steps-blue-600 text-white text-sm font-semibold rounded-xl border-t border-white/20 shadow-press-blue group-hover:shadow-press-blue-hover group-hover:-translate-y-0.5 transition-all">
                     Apply
                   </span>
                 </div>
@@ -241,7 +245,7 @@ export default function StudentHub() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
             <p className="text-gray-500 text-sm">You haven&apos;t applied to any events yet.</p>
             {openEvents.length > 0 && (
-              <p className="text-purple-600 text-sm mt-2 font-medium">Check out the open events above!</p>
+              <p className="text-steps-blue-600 text-sm mt-2 font-medium">Check out the open events above!</p>
             )}
           </div>
         ) : (
@@ -278,7 +282,7 @@ export default function StudentHub() {
                     {!isPast && app.status === 'submitted' && (
                       <a
                         href={`/apply/${app.event.slug}?edit=1`}
-                        className="flex-shrink-0 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-800 font-medium border border-purple-200 rounded-xl hover:bg-purple-50 transition"
+                        className="flex-shrink-0 px-3 py-1.5 text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition"
                       >
                         Edit
                       </a>
@@ -300,7 +304,7 @@ export default function StudentHub() {
           {!editing && profile && (
             <button
               onClick={() => setEditing(true)}
-              className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+              className="text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium"
             >
               Edit
             </button>
@@ -319,7 +323,7 @@ export default function StudentHub() {
                   <input
                     type="text" value={firstName}
                     onChange={e => setFirstName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition"
                   />
                 </div>
                 <div>
@@ -327,7 +331,7 @@ export default function StudentHub() {
                   <input
                     type="text" value={lastName}
                     onChange={e => setLastName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition"
                   />
                 </div>
               </div>
@@ -342,7 +346,7 @@ export default function StudentHub() {
                 <select
                   value={yearGroup}
                   onChange={e => setYearGroup(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
                 >
                   <option value="">Select…</option>
                   <option value={12}>Year 12</option>
@@ -356,7 +360,7 @@ export default function StudentHub() {
                 <select
                   value={schoolType}
                   onChange={e => setSchoolType(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
                 >
                   <option value="">Select…</option>
                   {SCHOOL_TYPE_OPTIONS.map(o => (
@@ -377,7 +381,7 @@ export default function StudentHub() {
                         type="radio" name="fsm"
                         checked={freeSchoolMeals === opt.v}
                         onChange={() => setFreeSchoolMeals(opt.v)}
-                        className="accent-purple-600"
+                        className="accent-steps-blue-600"
                       />
                       <span className="text-sm text-gray-700">{opt.l}</span>
                     </label>
@@ -390,7 +394,7 @@ export default function StudentHub() {
                 <select
                   value={incomeBand}
                   onChange={e => setIncomeBand(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
                 >
                   <option value="">Select…</option>
                   {INCOME_OPTIONS.map(o => (
@@ -406,13 +410,14 @@ export default function StudentHub() {
                 >
                   Cancel
                 </button>
-                <button
+                <PressableButton
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex-1 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 text-sm"
+                  size="sm"
+                  fullWidth
                 >
                   {saving ? 'Saving…' : 'Save changes'}
-                </button>
+                </PressableButton>
               </div>
             </div>
           ) : (
@@ -440,9 +445,10 @@ export default function StudentHub() {
         </div>
       </div>
 
-      <p className="text-center text-xs text-gray-400 mt-8">
-        <em>Virtus non origo</em> — Character, not origin
-      </p>
+        <p className="text-center text-xs text-slate-400 mt-12 tracking-wide uppercase">
+          <em className="not-italic">Virtus non origo</em> &nbsp;·&nbsp; Character, not origin
+        </p>
+      </div>
     </div>
   )
 }

@@ -203,7 +203,7 @@ export default function PortalPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <Spinner className="h-6 w-6 text-purple-600" />
+          <Spinner className="h-6 w-6 text-steps-blue-600" />
           <span className="text-gray-600">Loading portal...</span>
         </div>
       </div>
@@ -246,7 +246,7 @@ export default function PortalPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-steps-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl font-bold text-white tracking-tight">SF</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Steps Foundation</h1>
@@ -270,7 +270,7 @@ export default function PortalPage() {
                 placeholder="your.email@example.com"
                 required
                 disabled={loading}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -283,7 +283,7 @@ export default function PortalPage() {
             <button
               type="submit"
               disabled={loading || !email}
-              className="w-full py-3 px-4 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-steps-blue-600 text-white font-medium rounded-xl hover:bg-steps-blue-700 focus:ring-2 focus:ring-steps-blue-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? <><Spinner /> Sending code...</> : 'Send verification code'}
             </button>
@@ -293,7 +293,7 @@ export default function PortalPage() {
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-400">
               Haven&rsquo;t applied yet?{' '}
-              <Link href="/apply/man-group-office-visit" className="text-purple-600 hover:text-purple-700 font-medium">
+              <Link href="/apply/man-group-office-visit" className="text-steps-blue-600 hover:text-steps-blue-700 font-medium">
                 Apply for an event
               </Link>
             </p>
@@ -315,7 +315,7 @@ export default function PortalPage() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-steps-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
@@ -341,7 +341,7 @@ export default function PortalPage() {
                 placeholder="000000"
                 required
                 disabled={loading}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition text-center text-2xl tracking-[0.3em] font-mono disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition text-center text-2xl tracking-[0.3em] font-mono disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -354,7 +354,7 @@ export default function PortalPage() {
             <button
               type="submit"
               disabled={loading || otpCode.length !== 6}
-              className="w-full py-3 px-4 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-steps-blue-600 text-white font-medium rounded-xl hover:bg-steps-blue-700 focus:ring-2 focus:ring-steps-blue-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? <><Spinner /> Verifying...</> : 'Verify & sign in'}
             </button>
@@ -373,7 +373,7 @@ export default function PortalPage() {
                 const { error: resendErr } = await sendOtp(email)
                 if (resendErr) setError(resendErr)
               }}
-              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+              className="text-sm text-steps-blue-600 hover:text-steps-blue-700 font-medium"
             >
               Resend code
             </button>
@@ -392,7 +392,7 @@ export default function PortalPage() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <span className="font-semibold text-gray-900">
-            Steps <span className="text-purple-600">Foundation</span>
+            Steps <span className="text-steps-blue-600">Foundation</span>
             <span className="text-gray-400 font-normal ml-2 text-sm">Student Portal</span>
           </span>
           <div className="flex items-center gap-3">
@@ -431,7 +431,7 @@ export default function PortalPage() {
               <p className="text-gray-500 mb-4">You haven&rsquo;t submitted any applications yet.</p>
               <Link
                 href="/apply/man-group-office-visit"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-steps-blue-600 text-white text-sm font-medium rounded-lg hover:bg-steps-blue-700 transition"
               >
                 Apply for Man Group Office Visit
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -480,14 +480,14 @@ export default function PortalPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-purple-50 rounded-lg px-4 py-3">
-                          <p className="text-sm text-purple-800 mb-3">
+                        <div className="bg-steps-blue-50 rounded-lg px-4 py-3">
+                          <p className="text-sm text-steps-blue-800 mb-3">
                             You&rsquo;ve been accepted! Please confirm your attendance so we can save your spot.
                           </p>
                           <button
                             onClick={() => handleRsvp(app.id)}
                             disabled={rsvpLoading === app.id}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-steps-blue-600 text-white text-sm font-medium rounded-lg hover:bg-steps-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {rsvpLoading === app.id ? (
                               <><Spinner className="h-4 w-4" /> Confirming...</>

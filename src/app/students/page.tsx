@@ -235,18 +235,18 @@ export default function StudentsDashboard() {
             value={filters.search}
             onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
             placeholder="Search name, email, school…"
-            className="w-72 px-3 py-2 text-sm rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-72 px-3 py-2 text-sm rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-steps-blue-500"
           />
           <button
             onClick={() => setPanelOpen(o => !o)}
             className={`px-3 py-2 text-sm rounded-md border flex items-center gap-2 ${panelOpen || activeFilterCount > 0
-              ? 'bg-indigo-600 text-white border-indigo-600'
+              ? 'bg-steps-blue-600 text-white border-steps-blue-600'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
             Sort &amp; Filter
             {activeFilterCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-white/90 text-indigo-700 text-[11px] font-semibold">{activeFilterCount}</span>
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-white/90 text-steps-blue-700 text-[11px] font-semibold">{activeFilterCount}</span>
             )}
           </button>
         </div>
@@ -278,8 +278,8 @@ export default function StudentsDashboard() {
                 {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
               <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <button onClick={() => setSortDir('desc')} className={`px-3 py-1.5 text-sm ${sortDir === 'desc' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}>Descending</button>
-                <button onClick={() => setSortDir('asc')} className={`px-3 py-1.5 text-sm border-l border-gray-200 dark:border-gray-700 ${sortDir === 'asc' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}>Ascending</button>
+                <button onClick={() => setSortDir('desc')} className={`px-3 py-1.5 text-sm ${sortDir === 'desc' ? 'bg-steps-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}>Descending</button>
+                <button onClick={() => setSortDir('asc')} className={`px-3 py-1.5 text-sm border-l border-gray-200 dark:border-gray-700 ${sortDir === 'asc' ? 'bg-steps-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}>Ascending</button>
               </div>
             </div>
           </Segment>
@@ -353,7 +353,7 @@ export default function StudentsDashboard() {
                     <button
                       key={n}
                       onClick={() => setFilters(f => ({ ...f, smiMin: n }))}
-                      className={`px-2.5 py-1 text-xs ${i > 0 ? 'border-l border-gray-200 dark:border-gray-700' : ''} ${filters.smiMin === n ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}
+                      className={`px-2.5 py-1 text-xs ${i > 0 ? 'border-l border-gray-200 dark:border-gray-700' : ''} ${filters.smiMin === n ? 'bg-steps-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}
                     >{n === 0 ? 'Any' : `At least ${n}`}</button>
                   ))}
                 </div>
@@ -390,7 +390,7 @@ export default function StudentsDashboard() {
             </div>
             <button
               onClick={() => setFilters(defaultFilters())}
-              className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+              className="text-sm text-steps-blue-600 dark:text-steps-blue-400 hover:underline"
             >
               Clear all filters
             </button>
@@ -445,7 +445,7 @@ export default function StudentsDashboard() {
                       type="checkbox"
                       checked={visibleIds.length > 0 && visibleIds.every(id => selected.has(id))}
                       onChange={toggleSelectAll}
-                      className="rounded border-gray-300 dark:border-gray-600 accent-indigo-600"
+                      className="rounded border-gray-300 dark:border-gray-600 accent-steps-blue-600"
                     />
                   </th>
                   <Th>Name</Th>
@@ -457,17 +457,17 @@ export default function StudentsDashboard() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {filtered.slice(0, 500).map(s => (
-                  <tr key={s.id} className={`${selected.has(s.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : s.eligibility === 'ineligible' ? 'bg-red-50/70 dark:bg-red-900/10 hover:bg-red-100/70 dark:hover:bg-red-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'}`}>
+                  <tr key={s.id} className={`${selected.has(s.id) ? 'bg-steps-blue-50/50 dark:bg-steps-blue-900/10' : s.eligibility === 'ineligible' ? 'bg-red-50/70 dark:bg-red-900/10 hover:bg-red-100/70 dark:hover:bg-red-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'}`}>
                     <td className="px-2 py-2">
                       <input
                         type="checkbox"
                         checked={selected.has(s.id)}
                         onChange={() => toggleSelect(s.id)}
-                        className="rounded border-gray-300 dark:border-gray-600 accent-indigo-600"
+                        className="rounded border-gray-300 dark:border-gray-600 accent-steps-blue-600"
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <Link href={`/students/${s.id}`} className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+                      <Link href={`/students/${s.id}`} className="font-medium text-steps-blue-600 dark:text-steps-blue-400 hover:underline">
                         {s.first_name || ''} {s.last_name || ''}
                       </Link>
                     </td>
@@ -597,7 +597,7 @@ function Kpi({ label, value, accent, warn }: { label: string; value: number; acc
   return (
     <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4">
       <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</div>
-      <div className={`mt-1 text-2xl font-semibold ${accent ? 'text-indigo-600 dark:text-indigo-400' : warn ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-gray-100'}`}>
+      <div className={`mt-1 text-2xl font-semibold ${accent ? 'text-steps-blue-600 dark:text-steps-blue-400' : warn ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-gray-100'}`}>
         {value.toLocaleString()}
       </div>
     </div>
@@ -634,7 +634,7 @@ function TriToggle({ value, onChange }: { value: TriBool; onChange: (v: TriBool)
         <button
           key={o.v}
           onClick={() => onChange(o.v)}
-          className={`px-2.5 py-1 text-xs ${i > 0 ? 'border-l border-gray-200 dark:border-gray-700' : ''} ${value === o.v ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}
+          className={`px-2.5 py-1 text-xs ${i > 0 ? 'border-l border-gray-200 dark:border-gray-700' : ''} ${value === o.v ? 'bg-steps-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300'}`}
         >{o.label}</button>
       ))}
     </div>
@@ -656,7 +656,7 @@ function ChipList({ options, selected, onToggle }: {
             key={o.value}
             onClick={() => onToggle(o.value)}
             className={`px-2 py-1 rounded-full text-xs border ${active
-              ? 'bg-indigo-600 text-white border-indigo-600'
+              ? 'bg-steps-blue-600 text-white border-steps-blue-600'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
           >{o.label}</button>
         )

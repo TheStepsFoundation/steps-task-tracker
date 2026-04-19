@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { TopNav } from '@/components/TopNav'
 
 export const metadata: Metadata = {
   title: 'Apply — The Steps Foundation',
@@ -7,7 +8,8 @@ export const metadata: Metadata = {
 
 export default function ApplyLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-steps-blue-50 via-white to-steps-blue-50">
+      <TopNav homeHref="/my" />
       {children}
     </div>
   )

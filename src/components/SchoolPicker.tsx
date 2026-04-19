@@ -156,7 +156,7 @@ export default function SchoolPicker({
               setOpen(true)
               setTimeout(() => inputRef.current?.focus(), 0)
             }}
-            className="flex-1 min-w-0 text-left px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 hover:border-indigo-400 disabled:opacity-60"
+            className="flex-1 min-w-0 text-left px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 hover:border-steps-blue-400 disabled:opacity-60"
           >
             <span className="block truncate">{displayLabel}</span>
           </button>
@@ -217,7 +217,7 @@ export default function SchoolPicker({
               onClick={() => commitSchool(s)}
               className={`w-full text-left px-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
                 i === active
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100'
+                  ? 'bg-steps-blue-50 dark:bg-steps-blue-900/30 text-steps-blue-900 dark:text-steps-blue-100'
                   : 'text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >

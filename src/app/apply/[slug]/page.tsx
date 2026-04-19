@@ -652,7 +652,7 @@ export default function ApplyPage() {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full mx-auto mb-4" />
+          <div className="animate-spin w-8 h-8 border-2 border-steps-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-gray-500 text-sm">Loading event…</p>
         </div>
       </div>
@@ -674,10 +674,10 @@ export default function ApplyPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 text-sm font-medium px-3 py-1 rounded-full mb-4">
+        <div className="inline-flex items-center gap-2 bg-steps-blue-100 text-steps-blue-700 text-sm font-medium px-3 py-1 rounded-full mb-4">
           The Steps Foundation
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{event.name}</h1>
+        <h1 className="font-display text-3xl sm:text-4xl font-black text-steps-dark tracking-tight mb-2">{event.name}</h1>
         <p className="text-gray-500 text-sm">
           {event.event_date ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
           {event.time_start ? ` \u00b7 ${event.time_start}${event.time_end ? ' \u2013 ' + event.time_end : ''}` : ''}
@@ -691,15 +691,15 @@ export default function ApplyPage() {
           {(['email', 'otp', 'details', 'application'] as Step[]).map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                step === s ? 'bg-purple-600 text-white' :
+                step === s ? 'bg-steps-blue-600 text-white' :
                 (['email', 'otp', 'details', 'application'].indexOf(step) > i)
-                  ? 'bg-purple-200 text-purple-700' : 'bg-gray-200 text-gray-500'
+                  ? 'bg-steps-blue-200 text-steps-blue-700' : 'bg-gray-200 text-gray-500'
               }`}>
                 {i + 1}
               </div>
               {i < 3 && <div className={`w-8 h-0.5 ${
                 (['email', 'otp', 'details', 'application'].indexOf(step) > i)
-                  ? 'bg-purple-300' : 'bg-gray-200'
+                  ? 'bg-steps-blue-300' : 'bg-gray-200'
               }`} />}
             </div>
           ))}
@@ -728,7 +728,7 @@ export default function ApplyPage() {
                 window.location.href = '/my'
               }
             }}
-            className="text-sm text-gray-400 hover:text-purple-600 transition"
+            className="text-sm text-gray-400 hover:text-steps-blue-600 transition"
           >
             ← Back to Student Hub
           </button>
@@ -786,7 +786,7 @@ export default function ApplyPage() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 autoFocus
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition mb-3"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-3"
               />
               <label htmlFor="loginPw" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
@@ -798,19 +798,19 @@ export default function ApplyPage() {
                 onChange={e => setLoginPassword(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handlePasswordLogin()}
                 placeholder="Your password"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition mb-4"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-4"
               />
               <button
                 onClick={handlePasswordLogin}
                 disabled={loading || !email.trim() || !loginPassword}
-                className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue flex items-center justify-center gap-2"
               >
                 {loading ? <Spinner /> : null}
                 {loading ? 'Signing in...' : 'Sign in'}
               </button>
               <button
                 onClick={() => { setLoginMode('otp'); setError(null) }}
-                className="w-full mt-3 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                className="w-full mt-3 py-2 text-sm text-steps-blue-600 hover:text-steps-blue-700 font-medium"
               >
                 First time? Send a verification code instead
               </button>
@@ -833,19 +833,19 @@ export default function ApplyPage() {
                 onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
                 placeholder="you@example.com"
                 autoFocus
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition mb-4"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-4"
               />
               <button
                 onClick={handleSendOtp}
                 disabled={loading || !email.trim()}
-                className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue flex items-center justify-center gap-2"
               >
                 {loading ? <Spinner /> : null}
                 {loading ? 'Sending code...' : 'Send verification code'}
               </button>
               <button
                 onClick={() => { setLoginMode('password'); setError(null) }}
-                className="w-full mt-3 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                className="w-full mt-3 py-2 text-sm text-steps-blue-600 hover:text-steps-blue-700 font-medium"
               >
                 Already have a password? Sign in instead
               </button>
@@ -877,19 +877,19 @@ export default function ApplyPage() {
             onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
             placeholder="000000"
             autoFocus
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition text-center text-2xl tracking-[0.3em] font-mono mb-4"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition text-center text-2xl tracking-[0.3em] font-mono mb-4"
           />
           <button
             onClick={handleVerifyOtp}
             disabled={loading || otpCode.length < 6}
-            className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue flex items-center justify-center gap-2"
           >
             {loading ? <Spinner /> : null}
             {loading ? 'Verifying...' : 'Verify'}
           </button>
           <button
             onClick={() => { setStep('email'); setOtpCode(''); setError(null) }}
-            className="w-full mt-3 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+            className="w-full mt-3 py-2 text-sm text-steps-blue-600 hover:text-steps-blue-700 font-medium"
           >
             Use a different email
           </button>
@@ -902,7 +902,7 @@ export default function ApplyPage() {
       {step === 'details' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           {existingStudent && (
-            <div className="mb-6 p-4 bg-purple-50 border border-purple-100 rounded-xl text-purple-700 text-sm">
+            <div className="mb-6 p-4 bg-steps-blue-50 border border-steps-blue-100 rounded-xl text-steps-blue-700 text-sm">
               Welcome back! We&apos;ve pre-filled your details from your last application.
               Please review and update anything that&apos;s changed.
             </div>
@@ -920,7 +920,7 @@ export default function ApplyPage() {
               </label>
               <input id="firstName" type="text" value={firstName}
                 onChange={e => setFirstName(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition" />
             </div>
             <div>
               <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -928,7 +928,7 @@ export default function ApplyPage() {
               </label>
               <input id="lastName" type="text" value={lastName}
                 onChange={e => setLastName(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition" />
             </div>
           </div>
 
@@ -954,7 +954,7 @@ export default function ApplyPage() {
             </label>
             <select id="yearGroup" value={yearGroup}
               onChange={e => setYearGroup(e.target.value ? Number(e.target.value) : '')}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white">
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white">
               <option value="">Select…</option>
               <option value={12}>Year 12</option>
               <option value={13}>Year 13</option>
@@ -985,7 +985,7 @@ export default function ApplyPage() {
                     <input type="radio" name="schoolType" value={opt.value}
                       checked={schoolType === opt.value}
                       onChange={e => setSchoolType(e.target.value)}
-                      className="mt-0.5 accent-purple-600" />
+                      className="mt-0.5 accent-steps-blue-600" />
                     <span className="text-sm text-gray-700">{opt.label}</span>
                   </label>
                 ))}
@@ -1000,7 +1000,7 @@ export default function ApplyPage() {
                     <input type="radio" name="schoolType" value={opt.value}
                       checked={schoolType === opt.value}
                       onChange={e => setSchoolType(e.target.value)}
-                      className="mt-0.5 accent-purple-600" />
+                      className="mt-0.5 accent-steps-blue-600" />
                     <span className="text-sm text-gray-700">{opt.label}</span>
                   </label>
                 ))}
@@ -1014,7 +1014,7 @@ export default function ApplyPage() {
               {[{ v: 'yes', l: 'Yes' }, { v: 'no', l: 'No' }, { v: 'prefer_not_to_say', l: 'Prefer not to say' }].map(opt => (
                 <label key={opt.v} className="flex items-center gap-3 py-1.5 cursor-pointer">
                   <input type="radio" name="income" value={opt.v} checked={householdIncome === opt.v}
-                    onChange={e => setHouseholdIncome(e.target.value)} className="accent-purple-600" />
+                    onChange={e => setHouseholdIncome(e.target.value)} className="accent-steps-blue-600" />
                   <span className="text-sm text-gray-700">{opt.l}</span>
                 </label>
               ))}
@@ -1033,7 +1033,7 @@ export default function ApplyPage() {
                   <input type="radio" name="fsm" value={opt.v}
                     checked={freeSchoolMeals === opt.v}
                     onChange={e => setFreeSchoolMeals(e.target.value)}
-                    className="accent-purple-600" />
+                    className="accent-steps-blue-600" />
                   <span className="text-sm text-gray-700">{opt.l}</span>
                 </label>
               ))}
@@ -1048,12 +1048,12 @@ export default function ApplyPage() {
               </p>
               <textarea id="additionalContext" value={additionalContext}
                 onChange={e => setAdditionalContext(e.target.value)} rows={3}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition resize-none" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none" />
             </div>
           </div>
 
           <button onClick={handleDetailsNext}
-            className="w-full py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+            className="w-full py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue">
             Continue
           </button>
         </div>
@@ -1088,7 +1088,7 @@ export default function ApplyPage() {
               value={gcseResults}
               onChange={e => setGcseResults(e.target.value.replace(/\D/g, ''))}
               placeholder="e.g. 999887766"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition font-mono tracking-wider"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition font-mono tracking-wider"
             />
           </div>
 
@@ -1114,7 +1114,7 @@ export default function ApplyPage() {
 
                   <select value={q.qualType}
                     onChange={e => updateQualification(idx, 'qualType', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition mb-2">
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-2">
                     {QUAL_TYPES.map(qt => (
                       <option key={qt.value} value={qt.value}>{qt.label}</option>
                     ))}
@@ -1123,7 +1123,7 @@ export default function ApplyPage() {
                   <div className={`grid gap-2 ${q.qualType === 'ib' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <select value={q.subject}
                       onChange={e => updateQualification(idx, 'subject', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition">
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition">
                       <option value="">Select subject…</option>
                       {(SUBJECTS[q.qualType] ?? []).map(s => (
                         <option key={s} value={s}>{s}</option>
@@ -1134,7 +1134,7 @@ export default function ApplyPage() {
                     {q.qualType === 'ib' && (
                       <select value={q.level ?? ''}
                         onChange={e => updateQualification(idx, 'level', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition">
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition">
                         <option value="">Level…</option>
                         {IB_LEVELS.map(l => (
                           <option key={l} value={l}>{l}</option>
@@ -1144,7 +1144,7 @@ export default function ApplyPage() {
 
                     <select value={q.grade}
                       onChange={e => updateQualification(idx, 'grade', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition">
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition">
                       <option value="">Grade…</option>
                       {(GRADES[q.qualType] ?? []).map(g => (
                         <option key={g} value={g}>{g}</option>
@@ -1154,7 +1154,7 @@ export default function ApplyPage() {
 
                   {q.subject === '__other' && (
                     <input type="text" placeholder="Type your subject name…"
-                      className="w-full mt-2 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                      className="w-full mt-2 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition"
                       onChange={e => {
                         const val = e.target.value
                         setQualifications(prev => prev.map((qq, i) =>
@@ -1168,7 +1168,7 @@ export default function ApplyPage() {
             </div>
 
             <button type="button" onClick={addQualification}
-              className="mt-3 w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-purple-600 font-medium hover:border-purple-300 hover:bg-purple-50 transition">
+              className="mt-3 w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-steps-blue-600 font-medium hover:border-steps-blue-300 hover:bg-steps-blue-50 transition">
               + Add another subject
             </button>
           </div>
@@ -1180,9 +1180,9 @@ export default function ApplyPage() {
               {/* Page indicator */}
               <div className="flex items-center gap-2 mb-4">
                 {formPages.map((pg, pi) => (
-                  <div key={pg.id} className={`flex items-center gap-1 text-xs ${pi === customPageIdx ? 'text-purple-600 font-semibold' : 'text-gray-400'}`}>
+                  <div key={pg.id} className={`flex items-center gap-1 text-xs ${pi === customPageIdx ? 'text-steps-blue-600 font-semibold' : 'text-gray-400'}`}>
                     {pi > 0 && <span className="text-gray-300 mx-1">→</span>}
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${pi === customPageIdx ? 'bg-purple-600 text-white' : pi < customPageIdx ? 'bg-purple-200 text-purple-700' : 'bg-gray-200 text-gray-500'}`}>{pi + 1}</span>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${pi === customPageIdx ? 'bg-steps-blue-600 text-white' : pi < customPageIdx ? 'bg-steps-blue-200 text-steps-blue-700' : 'bg-gray-200 text-gray-500'}`}>{pi + 1}</span>
                     <span className="hidden sm:inline">{pg.title}</span>
                   </div>
                 ))}
@@ -1233,7 +1233,7 @@ export default function ApplyPage() {
                     }
                     setCustomPageIdx(customPageIdx + 1)
                   }}
-                    className="flex-1 py-2 bg-purple-600 text-white text-sm font-medium rounded-xl hover:bg-purple-700 transition">
+                    className="flex-1 py-2 bg-steps-blue-600 text-white text-sm font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150">
                     Next →
                   </button>
                 )}
@@ -1265,7 +1265,7 @@ export default function ApplyPage() {
                   <input type="radio" name="attribution" value={opt.value}
                     checked={attribution === opt.value}
                     onChange={e => setAttribution(e.target.value)}
-                    className="accent-purple-600" />
+                    className="accent-steps-blue-600" />
                   <span className="text-sm text-gray-700">{opt.label}</span>
                 </label>
               ))}
@@ -1281,7 +1281,7 @@ export default function ApplyPage() {
             </button>
             <button onClick={handleSubmit}
               disabled={alreadyApplied && !hasFormChanges}
-              className="flex-1 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              className="flex-1 py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue">
               {alreadyApplied ? (hasFormChanges ? 'Update application' : 'No changes to update') : 'Submit application'}
             </button>
           </div>
@@ -1317,13 +1317,13 @@ export default function ApplyPage() {
           <div className="border-t border-gray-100 pt-6 flex flex-col items-center gap-3">
             <button
               onClick={() => setStep('details')}
-              className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition text-sm"
+              className="px-6 py-2.5 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 text-sm"
             >
               Edit my application
             </button>
             <a
               href="/my"
-              className="px-6 py-2.5 text-sm text-purple-600 hover:text-purple-800 font-medium"
+              className="px-6 py-2.5 text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium"
             >
               Go to Student Hub
             </a>
@@ -1368,16 +1368,16 @@ export default function ApplyPage() {
               <div className="space-y-3 mb-4">
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)}
                   placeholder="Create a password (min 6 characters)"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition" />
                 <input type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}
                   placeholder="Confirm password"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition" />
               </div>
               <div className="flex gap-3">
                 <a href="/my"
                   className="px-6 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium">No thanks, go to hub</a>
                 <button onClick={handlePasswordUpgrade} disabled={loading || password.length < 6}
-                  className="flex-1 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  className="flex-1 py-2.5 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue flex items-center justify-center gap-2">
                   {loading ? <Spinner /> : null}
                   Save password
                 </button>
@@ -1396,7 +1396,7 @@ export default function ApplyPage() {
               )}
               <a
                 href="/my"
-                className="inline-block px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition text-sm"
+                className="inline-block px-6 py-2.5 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 text-sm"
               >
                 Go to Student Hub
               </a>
@@ -1405,8 +1405,8 @@ export default function ApplyPage() {
         </div>
       )}
 
-      <p className="text-center text-xs text-gray-400 mt-8">
-        <em>Virtus non origo</em> — Character, not origin
+      <p className="text-center text-xs text-slate-400 mt-10 tracking-wide uppercase">
+        <em className="not-italic">Virtus non origo</em> &nbsp;·&nbsp; Character, not origin
       </p>
     </div>
   )

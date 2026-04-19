@@ -28,9 +28,9 @@ export const TEAM_MEMBERS = DEFAULT_TEAM_MEMBERS
 
 // Default workflows
 const DEFAULT_WORKFLOWS: Workflow[] = [
-  { id: 'event-4', name: '#4 The Great Lock-In', short: '#4', color: 'bg-purple-500' },
+  { id: 'event-4', name: '#4 The Great Lock-In', short: '#4', color: 'bg-steps-blue-500' },
   { id: 'event-3', name: '#3 Degree Apprenticeship', short: '#3', color: 'bg-blue-500' },
-  { id: 'event-2', name: '#2 Oxbridge Workshop', short: '#2', color: 'bg-indigo-500' },
+  { id: 'event-2', name: '#2 Oxbridge Workshop', short: '#2', color: 'bg-steps-blue-500' },
   { id: 'event-1', name: '#1 Starting Point', short: '#1', color: 'bg-violet-500' },
   { id: 'schools', name: 'Schools', short: 'SCH', color: 'bg-green-500' },
   { id: 'partnerships', name: 'Partnerships', short: 'PTN', color: 'bg-amber-500' },

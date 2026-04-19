@@ -142,13 +142,13 @@ export default function EmailTemplatesPage() {
       <div className="flex items-end justify-between gap-4 mb-6">
         <div>
           <div className="mb-2">
-            <Link href="/students/events" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">&larr; Events</Link>
+            <Link href="/students/events" className="text-sm text-steps-blue-600 dark:text-steps-blue-400 hover:underline">&larr; Events</Link>
           </div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Email Templates</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Global templates with optional per-event overrides.</p>
         </div>
         {!isEditing && (
-          <button onClick={startAdd} className="px-4 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
+          <button onClick={startAdd} className="px-4 py-2 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700">
             + New template
           </button>
         )}
@@ -252,7 +252,7 @@ export default function EmailTemplatesPage() {
                       {TEMPLATE_TYPES.find(tt => tt.code === t.type)?.label ?? t.type}
                     </span>
                     {t.event_name && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-steps-blue-50 text-steps-blue-700 dark:bg-steps-blue-900/30 dark:text-steps-blue-400">
                         {t.event_name}
                       </span>
                     )}
@@ -265,7 +265,7 @@ export default function EmailTemplatesPage() {
                   <div className="text-sm text-gray-500 dark:text-gray-400 truncate">Subject: {t.subject}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => startEdit(t)} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Edit</button>
+                  <button onClick={() => startEdit(t)} className="text-xs text-steps-blue-600 dark:text-steps-blue-400 hover:underline">Edit</button>
                   <button onClick={() => remove(t.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                 </div>
               </div>

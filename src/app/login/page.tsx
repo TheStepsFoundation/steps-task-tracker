@@ -79,7 +79,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <svg className="animate-spin h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-6 w-6 text-steps-blue-600" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
@@ -90,16 +90,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-steps-blue-50 to-steps-blue-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl font-bold text-white tracking-tight">SF</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Steps Foundation</h1>
-          <p className="text-gray-500 mt-2">
-            {isSignUp ? 'Create your account' : 'Sign in to the team intranet'}
+        <div className="flex flex-col items-center text-center mb-8">
+          <img
+            src="/tsf-logo-dark.png"
+            alt="The Steps Foundation"
+            className="h-16 w-auto mb-5"
+          />
+          <h1 className="font-display text-2xl sm:text-3xl font-black text-steps-dark tracking-tight">Team Intranet</h1>
+          <p className="text-slate-500 mt-2">
+            {isSignUp ? 'Create your account' : 'Sign in to continue'}
           </p>
         </div>
 
@@ -117,7 +119,7 @@ export default function LoginPage() {
               placeholder="you@example.com"
               required
               disabled={loading}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -134,7 +136,7 @@ export default function LoginPage() {
               required
               minLength={6}
               disabled={loading}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
             {isSignUp && (
               <p className="text-xs text-gray-400 mt-1">Must be at least 6 characters</p>
@@ -154,7 +156,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !email || !password}
-            className="w-full py-3 px-4 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-steps-blue-500 focus-visible:ring-offset-2 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -219,7 +221,7 @@ export default function LoginPage() {
               setIsSignUp(!isSignUp)
               setMessage(null)
             }}
-            className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+            className="text-sm text-steps-blue-600 hover:text-steps-blue-700 font-medium"
           >
             {isSignUp ? 'Already have an account? Sign in' : 'First time? Create account'}
           </button>
@@ -227,7 +229,7 @@ export default function LoginPage() {
 
         {/* Student Portal Link */}
         <div className="mt-4 text-center">
-          <Link href="/student-portal" className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+          <Link href="/student-portal" className="text-sm text-steps-blue-600 hover:text-steps-blue-700 font-medium">
             Student? Go to Student Portal →
           </Link>
         </div>

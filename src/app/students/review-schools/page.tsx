@@ -133,7 +133,7 @@ export default function ReviewSchoolsPage() {
         <div>
           <Link
             href="/students"
-            className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="text-xs text-steps-blue-600 dark:text-steps-blue-400 hover:underline"
           >
             ← Back to students
           </Link>
@@ -331,7 +331,7 @@ function CandidateButton({
     sim >= 0.95
       ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
       : sim >= 0.8
-        ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40'
+        ? 'border-steps-blue-200 dark:border-steps-blue-800 bg-steps-blue-50 dark:bg-steps-blue-900/20 hover:bg-steps-blue-100 dark:hover:bg-steps-blue-900/40'
         : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
   const meta = [candidate.town, candidate.postcode, candidate.phase, candidate.type_group]
     .filter(Boolean)
@@ -353,7 +353,7 @@ function CandidateButton({
               sim >= 0.95
                 ? 'text-emerald-700 dark:text-emerald-300'
                 : sim >= 0.8
-                  ? 'text-indigo-700 dark:text-indigo-300'
+                  ? 'text-steps-blue-700 dark:text-steps-blue-300'
                   : 'text-gray-500 dark:text-gray-400'
             }`}
           >

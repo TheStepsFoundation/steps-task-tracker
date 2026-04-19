@@ -232,7 +232,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
         </div>
       ))}
       <button onClick={() => onOptionsChange([...options, { value: "", label: "" }])}
-        className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">+ Add option</button>
+        className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add option</button>
     </div>
   )
 
@@ -274,7 +274,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
         </div>
       ))}
       <button onClick={() => onConditionsChange([...conditions, { fieldId: "", operator: "equals", value: "" }])}
-        className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">+ Add condition</button>
+        className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add condition</button>
     </div>
   )
 
@@ -289,7 +289,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
           Application Form Builder
         </h4>
         <button onClick={addPage}
-          className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">
+          className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">
           + Add page
         </button>
       </div>
@@ -325,7 +325,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
               onClick={() => setActivePage(pi)}
               className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition flex items-center gap-1.5 ${
                 pi === activePage
-                  ? "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                  ? "bg-steps-blue-100 dark:bg-steps-blue-900/30 text-steps-blue-700 dark:text-steps-blue-300 border border-steps-blue-200 dark:border-steps-blue-800"
                   : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent"
               }`}>
               {page.title}
@@ -358,7 +358,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
           {/* Conditional routing */}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
             <button onClick={() => setEditingRouting(editingRouting === activePage ? null : activePage)}
-              className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1">
+              className="text-[10px] text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline flex items-center gap-1">
               🔀 Page routing rules
               <span className="text-gray-400">{editingRouting === activePage ? "▲" : "▼"}</span>
             </button>
@@ -405,7 +405,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
                   const rules = [...(activePageObj.routing?.rules ?? []), { conditions: [{ fieldId: "", operator: "equals" as const, value: "" }], goToPageId: "" }]
                   updatePageMeta(activePage, { routing: { ...activePageObj.routing, rules } })
                 }}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">+ Add routing rule</button>
+                  className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add routing rule</button>
               </div>
             )}
           </div>
@@ -430,10 +430,10 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
               {/* Header row */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs w-8 h-6 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 rounded">
+                  <span className="text-xs w-8 h-6 flex items-center justify-center font-bold text-steps-blue-600 dark:text-steps-blue-400 bg-steps-blue-50 dark:bg-steps-blue-900/20 rounded">
                     {typeMeta?.icon ?? "?"}
                   </span>
-                  <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                  <span className="text-xs font-medium text-steps-blue-600 dark:text-steps-blue-400">
                     {typeMeta?.label ?? field.type}
                   </span>
                   <span className="text-[10px] text-gray-400">{field.id}</span>
@@ -470,7 +470,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
                 <label className="flex items-center gap-2 mb-2 cursor-pointer">
                   <input type="checkbox" checked={field.required}
                     onChange={e => updateField(idx, { required: e.target.checked })}
-                    className="accent-indigo-600" />
+                    className="accent-steps-blue-600" />
                   <span className="text-xs text-gray-600 dark:text-gray-400">Required</span>
                 </label>
               )}
@@ -652,7 +652,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
                                 subs[si] = { ...subs[si], required: e.target.checked }
                                 updateField(idx, { config: { ...field.config, subFields: subs } })
                               }}
-                              className="accent-indigo-600" />
+                              className="accent-steps-blue-600" />
                             Req
                           </label>
                           {(field.config?.subFields?.length ?? 0) > 1 && (
@@ -666,7 +666,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
                       <button onClick={() => {
                         const subs = [...(field.config?.subFields ?? []), { id: `sf_${Date.now()}`, type: "text" as const, label: "", required: false }]
                         updateField(idx, { config: { ...field.config, subFields: subs } })
-                      }} className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">+ Add sub-field</button>
+                      }} className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add sub-field</button>
                     </div>
                   </div>
                 </div>
@@ -723,11 +723,11 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
       {/* ---- Add field type picker ---- */}
       {!showTypePicker ? (
         <button onClick={() => setShowTypePicker(true)}
-          className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition">
+          className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:border-steps-blue-400 hover:bg-steps-blue-50 dark:hover:bg-steps-blue-900/10 transition">
           + Add custom field
         </button>
       ) : (
-        <div className="p-3 border border-indigo-200 dark:border-indigo-800 rounded-lg bg-indigo-50 dark:bg-indigo-900/20">
+        <div className="p-3 border border-steps-blue-200 dark:border-steps-blue-800 rounded-lg bg-steps-blue-50 dark:bg-steps-blue-900/20">
           {(["basic", "choice", "advanced", "layout"] as const).map(cat => {
             const types = FIELD_TYPES.filter(ft => ft.category === cat)
             return (
@@ -736,8 +736,8 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
                 <div className="grid grid-cols-2 gap-1.5">
                   {types.map(ft => (
                     <button key={ft.value} onClick={() => addField(ft.value)}
-                      className="text-left p-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition flex items-start gap-2">
-                      <span className="w-9 h-9 shrink-0 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded">
+                      className="text-left p-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-steps-blue-400 dark:hover:border-steps-blue-500 transition flex items-start gap-2">
+                      <span className="w-9 h-9 shrink-0 flex items-center justify-center text-sm font-bold text-steps-blue-600 dark:text-steps-blue-400 bg-steps-blue-50 dark:bg-steps-blue-900/30 rounded">
                         {ft.icon}
                       </span>
                       <div className="min-w-0">

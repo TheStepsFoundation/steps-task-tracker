@@ -16,7 +16,7 @@ export function DroppableColumn({ id, children, className = '' }: DroppableColum
     <div 
       ref={setNodeRef}
       className={`${className} transition-all duration-150 ease-out ${
-        isOver ? 'ring-2 ring-purple-400 ring-inset bg-purple-50/70 scale-[1.01]' : ''
+        isOver ? 'ring-2 ring-steps-blue-400 ring-inset bg-steps-blue-50/70 scale-[1.01]' : ''
       }`}
     >
       {children}

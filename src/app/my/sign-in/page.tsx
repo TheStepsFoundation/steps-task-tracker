@@ -4,13 +4,19 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { sendOtp, verifyOtp, signInWithPassword, getExistingSession } from '@/lib/apply-api'
 import Link from 'next/link'
+import Image from 'next/image'
+import { PressableButton } from '@/components/PressableButton'
 
 // ---------------------------------------------------------------------------
-// Hub Sign-In — lightweight auth page that redirects to /hub on success.
+// Hub Sign-In — lightweight auth page that redirects to /my on success.
 // Supports email+password (returning students) and OTP (first-time / forgot).
 // ---------------------------------------------------------------------------
 
 type Step = 'email' | 'otp' | 'redirecting'
+
+const INPUT_CLASSES =
+  'w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white ' +
+  'placeholder:text-slate-400 focus:ring-2 focus:ring-steps-blue-500 focus:border-steps-blue-500 outline-none transition-shadow'
 
 export default function HubSignInPage() {
   const router = useRouter()
@@ -30,14 +36,11 @@ export default function HubSignInPage() {
     })
   })
 
-  // --- Password sign-in ---
   const handlePasswordSignIn = async () => {
-    setError(null)
-    setLoading(true)
+    setError(null); setLoading(true)
     const { error: err } = await signInWithPassword(email, password)
     setLoading(false)
     if (err) {
-      // If "Invalid login credentials", suggest OTP
       if (err.toLowerCase().includes('invalid')) {
         setError('Incorrect password. Try signing in with a verification code instead.')
       } else {
@@ -45,14 +48,11 @@ export default function HubSignInPage() {
       }
       return
     }
-    setStep('redirecting')
-    router.replace('/my')
+    setStep('redirecting'); router.replace('/my')
   }
 
-  // --- OTP flow ---
   const handleSendOtp = async () => {
-    setError(null)
-    setLoading(true)
+    setError(null); setLoading(true)
     const { error: err } = await sendOtp(email)
     setLoading(false)
     if (err) { setError(err); return }
@@ -60,166 +60,169 @@ export default function HubSignInPage() {
   }
 
   const handleVerifyOtp = async () => {
-    setError(null)
-    setLoading(true)
+    setError(null); setLoading(true)
     const { error: err } = await verifyOtp(email, otpCode)
     setLoading(false)
     if (err) { setError(err); return }
-    setStep('redirecting')
-    router.replace('/my')
+    setStep('redirecting'); router.replace('/my')
   }
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   if (step === 'redirecting') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500 animate-pulse">Signing you in…</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-500 animate-pulse">Signing you in…</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Student Hub</h1>
-          <p className="mt-2 text-gray-600">
-            Sign in to view your applications and account details.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5">
-          {/* Email field (always shown) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="your@email.com"
-              value={email}
-              onChange={e => { setEmail(e.target.value); setError(null) }}
-              disabled={step === 'otp'}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && email.trim()) {
-                  if (useOtp) handleSendOtp()
-                  else handlePasswordSignIn()
-                }
-              }}
+    <div className="min-h-screen bg-gradient-to-br from-steps-blue-50 via-white to-white flex flex-col">
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="flex flex-col items-center text-center mb-8">
+            <Image
+              src="/tsf-logo-dark.png"
+              alt="The Steps Foundation"
+              width={220}
+              height={55}
+              priority
+              className="h-14 w-auto mb-6"
             />
+            <h1 className="font-display text-3xl font-black text-steps-dark tracking-tight">
+              Student Hub
+            </h1>
+            <p className="mt-2 text-slate-600 max-w-sm">
+              Sign in to view your applications and account details.
+            </p>
           </div>
 
-          {/* ---- Password mode ---- */}
-          {step === 'email' && !useOtp && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input
-                  type="password"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={e => { setPassword(e.target.value); setError(null) }}
-                  onKeyDown={e => { if (e.key === 'Enter') handlePasswordSignIn() }}
-                />
-              </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-7 space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <input
+                type="email"
+                className={INPUT_CLASSES}
+                placeholder="your@email.com"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setError(null) }}
+                disabled={step === 'otp'}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && email.trim()) {
+                    if (useOtp) handleSendOtp()
+                    else handlePasswordSignIn()
+                  }
+                }}
+              />
+            </div>
 
-              <button
-                onClick={handlePasswordSignIn}
-                disabled={loading || !email.trim() || !password}
-                className="w-full bg-indigo-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? 'Signing in…' : 'Sign in'}
-              </button>
+            {step === 'email' && !useOtp && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                  <input
+                    type="password"
+                    className={INPUT_CLASSES}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={e => { setPassword(e.target.value); setError(null) }}
+                    onKeyDown={e => { if (e.key === 'Enter') handlePasswordSignIn() }}
+                  />
+                </div>
 
-              <button
-                type="button"
-                onClick={() => { setUseOtp(true); setError(null) }}
-                className="w-full text-sm text-indigo-600 hover:text-indigo-800 py-1"
-              >
-                Use a verification code instead
-              </button>
-            </>
-          )}
+                <PressableButton
+                  onClick={handlePasswordSignIn}
+                  disabled={loading || !email.trim() || !password}
+                  fullWidth
+                >
+                  {loading ? 'Signing in…' : 'Sign in'}
+                </PressableButton>
 
-          {/* ---- OTP mode: send code ---- */}
-          {step === 'email' && useOtp && (
-            <>
-              <button
-                onClick={handleSendOtp}
-                disabled={loading || !email.trim()}
-                className="w-full bg-indigo-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? 'Sending…' : 'Send verification code'}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => { setUseOtp(true); setError(null) }}
+                  className="w-full text-sm text-steps-blue-600 hover:text-steps-blue-800 py-1 font-medium"
+                >
+                  Use a verification code instead
+                </button>
+              </>
+            )}
 
-              <button
-                type="button"
-                onClick={() => { setUseOtp(false); setError(null) }}
-                className="w-full text-sm text-indigo-600 hover:text-indigo-800 py-1"
-              >
-                Sign in with password instead
-              </button>
-            </>
-          )}
+            {step === 'email' && useOtp && (
+              <>
+                <PressableButton
+                  onClick={handleSendOtp}
+                  disabled={loading || !email.trim()}
+                  fullWidth
+                >
+                  {loading ? 'Sending…' : 'Send verification code'}
+                </PressableButton>
 
-          {/* ---- OTP mode: verify code ---- */}
-          {step === 'otp' && (
-            <>
-              <p className="text-sm text-gray-600">
-                We sent a 6-digit code to <span className="font-medium">{email}</span>.
-              </p>
+                <button
+                  type="button"
+                  onClick={() => { setUseOtp(false); setError(null) }}
+                  className="w-full text-sm text-steps-blue-600 hover:text-steps-blue-800 py-1 font-medium"
+                >
+                  Sign in with password instead
+                </button>
+              </>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Verification code
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm tracking-widest text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  placeholder="000000"
-                  value={otpCode}
-                  onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setError(null) }}
-                  onKeyDown={e => { if (e.key === 'Enter') handleVerifyOtp() }}
-                />
-              </div>
+            {step === 'otp' && (
+              <>
+                <p className="text-sm text-slate-600">
+                  We sent a 6-digit code to <span className="font-medium text-steps-dark">{email}</span>.
+                </p>
 
-              <button
-                onClick={handleVerifyOtp}
-                disabled={loading || otpCode.length < 6}
-                className="w-full bg-indigo-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? 'Verifying…' : 'Verify & sign in'}
-              </button>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Verification code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    className={`${INPUT_CLASSES} tracking-widest text-center font-semibold`}
+                    placeholder="000000"
+                    value={otpCode}
+                    onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setError(null) }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleVerifyOtp() }}
+                  />
+                </div>
 
-              <button
-                type="button"
-                onClick={() => { setStep('email'); setOtpCode(''); setError(null) }}
-                className="w-full text-sm text-gray-500 hover:text-gray-700 py-1"
-              >
-                ← Back
-              </button>
-            </>
-          )}
+                <PressableButton
+                  onClick={handleVerifyOtp}
+                  disabled={loading || otpCode.length < 6}
+                  fullWidth
+                >
+                  {loading ? 'Verifying…' : 'Verify & sign in'}
+                </PressableButton>
 
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-          )}
+                <button
+                  type="button"
+                  onClick={() => { setStep('email'); setOtpCode(''); setError(null) }}
+                  className="w-full text-sm text-slate-500 hover:text-slate-700 py-1"
+                >
+                  ← Back
+                </button>
+              </>
+            )}
+
+            {error && (
+              <p className="text-sm text-steps-berry bg-steps-berry/10 rounded-lg px-3 py-2">{error}</p>
+            )}
+          </div>
+
+          <div className="mt-6 text-center text-sm text-slate-500">
+            <Link href="https://thestepsfoundation.com" className="hover:text-steps-blue-600 transition-colors">
+              ← Back to The Steps Foundation
+            </Link>
+          </div>
         </div>
+      </main>
 
-        {/* Footer links */}
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <Link href="https://thestepsfoundation.com" className="hover:text-indigo-600 transition-colors">
-            ← Back to The Steps Foundation
-          </Link>
-        </div>
-      </div>
+      <footer className="py-6 text-center text-xs text-slate-400 tracking-wide uppercase">
+        <em className="not-italic">Virtus non origo</em> &nbsp;&middot;&nbsp; Character, not origin
+      </footer>
     </div>
   )
 }

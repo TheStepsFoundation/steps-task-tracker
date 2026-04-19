@@ -32,10 +32,14 @@ export default function StudentsLayout({ children }: { children: React.ReactNode
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/students" className="font-semibold text-gray-900 dark:text-gray-100">
-              Steps <span className="text-indigo-600 dark:text-indigo-400">Students</span>
+          <div className="flex items-center gap-6">
+            <Link href="/hub" aria-label="Steps Foundation — Hub" className="inline-flex items-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-steps-blue focus-visible:ring-offset-2">
+              <img src="/tsf-logo-dark.png" alt="The Steps Foundation" className="h-10 w-auto dark:hidden" />
+              <img src="/tsf-logo-white.png" alt="The Steps Foundation" className="h-10 w-auto hidden dark:block" />
             </Link>
+            <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-steps-blue-50 text-steps-blue-700 dark:bg-steps-blue-900/30 dark:text-steps-blue-300">
+              Students
+            </span>
             <nav className="hidden sm:flex items-center gap-1 text-sm">
               <Link href="/hub" className="px-3 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">Hub</Link>
               <Link href="/" className="px-3 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">Task Tracker</Link>

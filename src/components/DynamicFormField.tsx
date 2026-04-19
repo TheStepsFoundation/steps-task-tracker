@@ -21,7 +21,7 @@ type Props = {
   allValues?: Record<string, FieldValue>  // for conditional visibility
 }
 
-const inputClass = 'w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition bg-white text-sm'
+const inputClass = 'w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white text-sm'
 
 // ---------------------------------------------------------------------------
 // Conditional visibility evaluator
@@ -153,7 +153,7 @@ export default function DynamicFormField({ field, value, onChange, allValues }: 
                 onClick={() => set(opt.v)}
                 className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition ${
                   (value as string) === opt.v
-                    ? 'border-purple-500 bg-purple-50 text-purple-700'
+                    ? 'border-steps-blue-500 bg-steps-blue-50 text-steps-blue-700'
                     : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                 }`}>
                 {opt.l}
@@ -190,7 +190,7 @@ export default function DynamicFormField({ field, value, onChange, allValues }: 
             <label key={opt.value} className="flex items-center gap-3 py-1.5 cursor-pointer">
               <input type="radio" name={`field_${field.id}`} value={opt.value}
                 checked={(value as string) === opt.value} onChange={e => set(e.target.value)}
-                className="accent-purple-600" />
+                className="accent-steps-blue-600" />
               <span className="text-sm text-gray-700">{opt.label}</span>
             </label>
           ))}
@@ -262,7 +262,7 @@ function ScaleField({ field, value, onChange }: {
           <button key={p} type="button" onClick={() => onChange(String(p))}
             className={`w-10 h-10 rounded-lg border-2 text-sm font-medium transition ${
               value === String(p)
-                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                ? 'border-steps-blue-500 bg-steps-blue-50 text-steps-blue-700'
                 : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
             }`}>
             {p}
@@ -304,7 +304,7 @@ function CheckboxListField({ field, value, onChange }: {
             <input type="checkbox" checked={selected.includes(opt.value)}
               onChange={() => toggle(opt.value)}
               disabled={!selected.includes(opt.value) && !!max && selected.length >= max}
-              className="mt-0.5 accent-purple-600" />
+              className="mt-0.5 accent-steps-blue-600" />
             <span className="text-sm text-gray-700">{opt.label}</span>
           </label>
         ))}
@@ -395,7 +395,7 @@ function PairedDropdownField({ field, value, onChange }: {
         ))}
       </div>
       <button type="button" onClick={addRow}
-        className="mt-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm text-purple-600 font-medium hover:border-purple-300 hover:bg-purple-50 transition">
+        className="mt-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm text-steps-blue-600 font-medium hover:border-steps-blue-300 hover:bg-steps-blue-50 transition">
         + Add row
       </button>
     </div>
@@ -451,12 +451,12 @@ function MatrixField({ field, value, onChange }: {
                       <input type="checkbox"
                         checked={(current[row.value] ?? '').split(',').includes(col.value)}
                         onChange={() => handleMulti(row.value, col.value)}
-                        className="accent-purple-600" />
+                        className="accent-steps-blue-600" />
                     ) : (
                       <input type="radio" name={`matrix_${field.id}_${row.value}`}
                         checked={current[row.value] === col.value}
                         onChange={() => handleSingle(row.value, col.value)}
-                        className="accent-purple-600" />
+                        className="accent-steps-blue-600" />
                     )}
                   </td>
                 ))}
@@ -550,7 +550,7 @@ function RepeatableGroupField({ field, value, onChange }: {
       </div>
       {entries.length < maxEntries && (
         <button type="button" onClick={addEntry}
-          className="mt-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm text-purple-600 font-medium hover:border-purple-300 hover:bg-purple-50 transition">
+          className="mt-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm text-steps-blue-600 font-medium hover:border-steps-blue-300 hover:bg-steps-blue-50 transition">
           {addLabel}
         </button>
       )}

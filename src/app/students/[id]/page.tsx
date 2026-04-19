@@ -141,7 +141,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <Link href="/students" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">← All students</Link>
+        <Link href="/students" className="text-sm text-steps-blue-600 dark:text-steps-blue-400 hover:underline">← All students</Link>
         {toast && <span className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded">{toast}</span>}
       </div>
 
@@ -165,7 +165,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
           )}
           <Badge label={`Score ${enriched.engagement_score}`} tone="indigo" />
           {!editing ? (
-            <button onClick={startEdit} className="ml-2 px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Edit</button>
+            <button onClick={startEdit} className="ml-2 px-3 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700">Edit</button>
           ) : (
             <div className="flex gap-2 ml-2">
               <button onClick={() => setEditing(false)} disabled={saving} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200">Cancel</button>
@@ -452,7 +452,7 @@ function Badge({ label, tone }: { label: string; tone: 'emerald' | 'amber' | 'in
   const map = {
     emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+    indigo: 'bg-steps-blue-100 text-steps-blue-700 dark:bg-steps-blue-900/30 dark:text-steps-blue-400',
   }
   return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${map[tone]}`}>{label}</span>
 }
@@ -612,7 +612,7 @@ function ProgressionSection({ studentId }: { studentId: string }) {
         {!isEditing && (
           <button
             onClick={startAdd}
-            className="px-3 py-1.5 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+            className="px-3 py-1.5 text-xs rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700"
           >
             + Add record
           </button>
@@ -750,7 +750,7 @@ function ProgressionSection({ studentId }: { studentId: string }) {
                 <div className="flex items-start justify-between gap-4 mb-2">
                   <div className="flex items-center gap-2">
                     {r.current_stage && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-steps-blue-100 text-steps-blue-700 dark:bg-steps-blue-900/30 dark:text-steps-blue-400">
                         {stageLabel}
                       </span>
                     )}
@@ -759,7 +759,7 @@ function ProgressionSection({ studentId }: { studentId: string }) {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => startEdit(r)} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Edit</button>
+                    <button onClick={() => startEdit(r)} className="text-xs text-steps-blue-600 dark:text-steps-blue-400 hover:underline">Edit</button>
                     <button onClick={() => remove(r.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                   </div>
                 </div>

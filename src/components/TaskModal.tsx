@@ -143,7 +143,7 @@ export function TaskModal({
             </button>
             <button
               onClick={() => { handleSave(); }}
-              className="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition"
+              className="px-4 py-2 bg-steps-blue-600 text-white font-medium rounded-lg hover:bg-steps-blue-700 transition"
             >
               Save
             </button>
@@ -172,7 +172,7 @@ export function TaskModal({
             onClick={() => setActiveTab('basic')}
             className={`flex-1 px-4 py-3 text-sm font-medium transition ${
               activeTab === 'basic'
-                ? 'text-purple-600 border-b-2 border-purple-600'
+                ? 'text-steps-blue-600 border-b-2 border-steps-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -182,13 +182,13 @@ export function TaskModal({
             onClick={() => setActiveTab('attachments')}
             className={`flex-1 px-4 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
               activeTab === 'attachments'
-                ? 'text-purple-600 border-b-2 border-purple-600'
+                ? 'text-steps-blue-600 border-b-2 border-steps-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Attachments
             {editedTask.attachments && editedTask.attachments.length > 0 && (
-              <span className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded-full">
+              <span className="bg-steps-blue-100 text-steps-blue-600 text-xs px-2 py-0.5 rounded-full">
                 {editedTask.attachments.length}
               </span>
             )}
@@ -205,7 +205,7 @@ export function TaskModal({
                   type="text"
                   value={editedTask.title}
                   onChange={e => setEditedTask({ ...editedTask, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none"
                 />
               </div>
 
@@ -216,7 +216,7 @@ export function TaskModal({
                   value={editedTask.description}
                   onChange={e => setEditedTask({ ...editedTask, description: e.target.value })}
                   rows={2}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none resize-none"
                 />
               </div>
 
@@ -231,7 +231,7 @@ export function TaskModal({
                       workflow: e.target.value || null,
                       subWorkflow: e.target.value === editedTask.subWorkflow ? null : editedTask.subWorkflow
                     })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none bg-white"
                   >
                     <option value="">None</option>
                     {workflows.filter(w => !w.archived).map(w => (
@@ -244,7 +244,7 @@ export function TaskModal({
                   <select
                     value={editedTask.subWorkflow || ''}
                     onChange={e => setEditedTask({ ...editedTask, subWorkflow: e.target.value || null })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none bg-white"
                   >
                     <option value="">None</option>
                     {workflows.filter(w => w.id !== editedTask.workflow && !w.archived).map(w => (
@@ -271,7 +271,7 @@ export function TaskModal({
                         setEditedTask({ ...editedTask, status: newStatus })
                       }
                     }}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none bg-white"
                   >
                     <option value="todo">To Do</option>
                     <option value="in-progress">In Progress</option>
@@ -284,7 +284,7 @@ export function TaskModal({
                   <select
                     value={editedTask.priority}
                     onChange={e => setEditedTask({ ...editedTask, priority: e.target.value as Priority })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none bg-white"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -300,7 +300,7 @@ export function TaskModal({
                   type="date"
                   value={editedTask.dueDate}
                   onChange={e => setEditedTask({ ...editedTask, dueDate: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none"
                 />
               </div>
 
@@ -334,11 +334,11 @@ export function TaskModal({
                       }}
                       className={`flex items-center gap-2 p-3 rounded-lg border-2 transition ${
                         editedTask.assignee === member.id
-                          ? 'border-purple-500 bg-purple-50'
+                          ? 'border-steps-blue-500 bg-steps-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-sm font-medium">
+                      <div className="w-8 h-8 rounded-full bg-steps-blue-100 flex items-center justify-center text-steps-blue-700 text-sm font-medium">
                         {member.avatar}
                       </div>
                       <span className="text-sm font-medium text-gray-700 truncate">{member.name.split(' ')[0]}</span>
@@ -397,7 +397,7 @@ export function TaskModal({
                         subtasks: [...editedTask.subtasks, newSubtask],
                       })
                     }}
-                    className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                    className="text-sm text-steps-blue-600 hover:text-steps-blue-700 font-medium"
                   >
                     + Add subtask
                   </button>
@@ -442,7 +442,7 @@ export function TaskModal({
                             newSubtasks[index] = { ...subtask, personId: parseInt(e.target.value) }
                             setEditedTask({ ...editedTask, subtasks: newSubtasks })
                           }}
-                          className={`px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none min-w-[120px] ${subtask.completed ? 'opacity-60' : ''}`}
+                          className={`px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none min-w-[120px] ${subtask.completed ? 'opacity-60' : ''}`}
                         >
                           <option value={0}>Unassigned</option>
                           {teamMembers.map(m => (
@@ -459,7 +459,7 @@ export function TaskModal({
                               setEditedTask({ ...editedTask, subtasks: newSubtasks })
                             }}
                             placeholder="What are they doing?"
-                            className={`w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${subtask.completed ? 'line-through opacity-60' : ''}`}
+                            className={`w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none ${subtask.completed ? 'line-through opacity-60' : ''}`}
                           />
                         </div>
                         <select
@@ -469,7 +469,7 @@ export function TaskModal({
                             newSubtasks[index] = { ...subtask, intensity: e.target.value as Intensity }
                             setEditedTask({ ...editedTask, subtasks: newSubtasks })
                           }}
-                          className={`px-2 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none ${intensityColors[subtask.intensity]} ${subtask.completed ? 'opacity-60' : ''}`}
+                          className={`px-2 py-2 border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none ${intensityColors[subtask.intensity]} ${subtask.completed ? 'opacity-60' : ''}`}
                         >
                           {INTENSITY_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -500,7 +500,7 @@ export function TaskModal({
                 <div className="flex items-center gap-4 text-sm text-gray-400 pt-4 border-t border-gray-100">
                   {task.createdBy && (
                     <span className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-medium">
+                      <div className="w-6 h-6 rounded-full bg-steps-blue-100 flex items-center justify-center text-steps-blue-700 text-xs font-medium">
                         {task.createdBy.split('@')[0].slice(0, 2).toUpperCase()}
                       </div>
                       <span>Created by <span className="text-gray-600">{task.createdBy.split('@')[0]}</span></span>
@@ -519,7 +519,7 @@ export function TaskModal({
             /* Attachments Tab */
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-purple-300 hover:bg-purple-50 transition">
+                <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-steps-blue-300 hover:bg-steps-blue-50 transition">
                   <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -567,7 +567,7 @@ export function TaskModal({
                       })
                     }
                   }}
-                  className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition"
+                  className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-steps-blue-300 hover:bg-steps-blue-50 transition"
                 >
                   <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -705,7 +705,7 @@ export function TaskModal({
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-5 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition"
+                className="px-5 py-2.5 bg-steps-blue-600 text-white font-medium rounded-lg hover:bg-steps-blue-700 transition"
               >
                 Save Changes
               </button>

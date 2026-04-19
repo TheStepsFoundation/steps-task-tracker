@@ -21,7 +21,7 @@ export const priorityColors: Record<Priority, string> = {
 export const statusColors: Record<Status, string> = {
   'todo': 'bg-gray-200 text-gray-700',
   'in-progress': 'bg-yellow-200 text-yellow-800',
-  'review': 'bg-purple-200 text-purple-700',
+  'review': 'bg-steps-blue-200 text-steps-blue-700',
   'done': 'bg-green-200 text-green-700',
 }
 
@@ -41,7 +41,7 @@ export const intensityColors: Record<Intensity, string> = {
 }
 
 export const WORKFLOW_COLORS = [
-  'bg-purple-500', 'bg-blue-500', 'bg-indigo-500', 'bg-violet-500',
+  'bg-steps-blue-500', 'bg-blue-500', 'bg-steps-blue-500', 'bg-violet-500',
   'bg-green-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500',
   'bg-pink-500', 'bg-teal-500', 'bg-orange-500', 'bg-emerald-500',
 ]

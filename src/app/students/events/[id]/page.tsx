@@ -886,7 +886,7 @@ export default function EventDetailPage() {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-red-600 dark:text-red-400">Event not found.</div>
-        <Link href="/students/events" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mt-2 inline-block">
+        <Link href="/students/events" className="text-sm text-steps-blue-600 dark:text-steps-blue-400 hover:underline mt-2 inline-block">
           Back to Events
         </Link>
       </main>
@@ -906,7 +906,7 @@ export default function EventDetailPage() {
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <div className="mb-4">
-        <Link href="/students/events" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+        <Link href="/students/events" className="text-sm text-steps-blue-600 dark:text-steps-blue-400 hover:underline">
           &larr; Events
         </Link>
       </div>
@@ -920,7 +920,7 @@ export default function EventDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Event</h2>
               <div className="flex items-center gap-2">
                 <button onClick={cancelEditing} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
-                <button onClick={saveEditing} disabled={editSaving || !editDraft.name || !editDraft.slug} className="px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{editSaving ? 'Saving…' : 'Save changes'}</button>
+                <button onClick={saveEditing} disabled={editSaving || !editDraft.name || !editDraft.slug} className="px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 disabled:opacity-50">{editSaving ? 'Saving…' : 'Save changes'}</button>
               </div>
             </div>
 
@@ -1028,11 +1028,11 @@ export default function EventDetailPage() {
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{event.name}</h1>
-                  <button onClick={startEditing} className="p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Edit event details">
+                  <button onClick={startEditing} className="p-1 rounded-md text-gray-400 hover:text-steps-blue-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Edit event details">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                   </button>
                   <a href={`/apply/${event.slug}`} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800 dark:hover:bg-purple-900/30 transition-colors">
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-steps-blue-50 text-steps-blue-700 border border-steps-blue-200 hover:bg-steps-blue-100 dark:bg-steps-blue-900/20 dark:text-steps-blue-400 dark:border-steps-blue-800 dark:hover:bg-steps-blue-900/30 transition-colors">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     Sign up form
                   </a>
@@ -1043,13 +1043,13 @@ export default function EventDetailPage() {
                   <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
                     event.status === 'open' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
                     event.status === 'closed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                    event.status === 'completed' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
+                    event.status === 'completed' ? 'bg-steps-blue-100 text-steps-blue-700 dark:bg-steps-blue-900/30 dark:text-steps-blue-400' :
                     'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                   }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${
                       event.status === 'open' ? 'bg-emerald-500' :
                       event.status === 'closed' ? 'bg-red-500' :
-                      event.status === 'completed' ? 'bg-indigo-500' :
+                      event.status === 'completed' ? 'bg-steps-blue-500' :
                       'bg-gray-400'
                     }`} />
                     {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
@@ -1115,12 +1115,12 @@ export default function EventDetailPage() {
                 </div>
                 {rsvpStats.accepted > 0 && (
                   <div className="text-center">
-                    <div className="text-2xl font-semibold text-purple-600 dark:text-purple-400">{rsvpStats.confirmed}</div>
+                    <div className="text-2xl font-semibold text-steps-blue-600 dark:text-steps-blue-400">{rsvpStats.confirmed}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">RSVPs</div>
                   </div>
                 )}
                 <div className="text-center">
-                  <div className="text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{attendedCount}</div>
+                  <div className="text-2xl font-semibold text-steps-blue-600 dark:text-steps-blue-400">{attendedCount}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">Attended</div>
                 </div>
               </div>
@@ -1145,7 +1145,7 @@ export default function EventDetailPage() {
                   onClick={() => { setStatusFilter(s.code); setSelected(new Set()) }}
                   className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                     statusFilter === s.code
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-steps-blue-600 text-white'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
@@ -1169,7 +1169,7 @@ export default function EventDetailPage() {
               onClick={() => setShowFilters(f => !f)}
               className={`px-3 py-1.5 text-sm rounded-md border transition-colors flex items-center gap-1.5 ${
                 showFilters || yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at' || minGradeScore > 0 || hiddenCols.size > 0
-                  ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'
+                  ? 'border-steps-blue-300 bg-steps-blue-50 text-steps-blue-700 dark:border-steps-blue-600 dark:bg-steps-blue-900/20 dark:text-steps-blue-400'
                   : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
@@ -1178,13 +1178,13 @@ export default function EventDetailPage() {
               </svg>
               Filter & Sort
               {(yearGroupFilter !== 'all' || schoolTypeFilter !== 'all' || sortKey !== 'submitted_at' || minGradeScore > 0 || hiddenCols.size > 0) && (
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-steps-blue-500" />
               )}
             </button>
 
             <button
               onClick={() => setShowInvite(true)}
-              className="ml-auto px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
+              className="ml-auto px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 whitespace-nowrap"
             >
               Invite Students
             </button>
@@ -1310,7 +1310,7 @@ export default function EventDetailPage() {
                             autoHidden
                               ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed line-through'
                               : isVisible
-                                ? 'border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
+                                ? 'border-steps-blue-200 dark:border-steps-blue-700 bg-steps-blue-50 dark:bg-steps-blue-900/20 text-steps-blue-700 dark:text-steps-blue-400'
                                 : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through'
                           }`}
                           title={autoHidden ? 'Auto-hidden (filtering by status)' : isVisible ? 'Click to hide' : 'Click to show'}
@@ -1367,7 +1367,7 @@ export default function EventDetailPage() {
 
               <button
                 onClick={() => openCompose()}
-                className="px-2.5 py-1 rounded text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                className="px-2.5 py-1 rounded text-xs font-medium bg-steps-blue-600 text-white hover:bg-steps-blue-700 transition-colors"
               >
                 Email only
               </button>
@@ -1421,7 +1421,7 @@ export default function EventDetailPage() {
                       key={app.id}
                       className={`border-b border-gray-100 dark:border-gray-800/50 transition-colors ${
                         app.eligibility === 'ineligible' ? 'bg-red-50 dark:bg-red-900/10' :
-                        selected.has(app.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                        selected.has(app.id) ? 'bg-steps-blue-50/50 dark:bg-steps-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
                       }`}
                     >
                       <td className="p-3">
@@ -1435,7 +1435,7 @@ export default function EventDetailPage() {
                       <td className="p-3">
                         <Link
                           href={`/students/${app.student_id}`}
-                          className={`font-medium hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                          className={`font-medium hover:text-steps-blue-600 dark:hover:text-steps-blue-400 ${
                             app.eligibility === 'ineligible'
                               ? 'text-red-700 dark:text-red-400'
                               : 'text-gray-900 dark:text-gray-100'
@@ -1478,7 +1478,7 @@ export default function EventDetailPage() {
                         key={app.id}
                         className={`border-b border-gray-100 dark:border-gray-800/50 transition-colors ${
                           app.eligibility === 'ineligible' ? 'bg-red-50 dark:bg-red-900/10' :
-                          selected.has(app.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                          selected.has(app.id) ? 'bg-steps-blue-50/50 dark:bg-steps-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
                         }`}
                       >
                         {/* Dynamic columns based on visibility & order */}
@@ -1802,7 +1802,7 @@ export default function EventDetailPage() {
                   </div>
                   <div className="w-48 mx-auto mt-3 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-indigo-500 transition-all"
+                      className="h-full rounded-full bg-steps-blue-500 transition-all"
                       style={{ width: `${sendProgress.total > 0 ? ((sendProgress.sent + sendProgress.failed) / sendProgress.total) * 100 : 0}%` }}
                     />
                   </div>
@@ -1845,7 +1845,7 @@ export default function EventDetailPage() {
                   <button
                     onClick={() => setEmailStep('preview')}
                     disabled={!emailSubject.trim() || !emailBody.trim() || getRecipients().length === 0}
-                    className="px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 disabled:opacity-50"
                   >
                     Preview
                   </button>
@@ -1877,7 +1877,7 @@ export default function EventDetailPage() {
               {emailStep === 'done' && (
                 <button
                   onClick={() => { setShowCompose(false); setNotifyAction(null); setSelected(new Set()) }}
-                  className="px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700"
                 >
                   Done
                 </button>

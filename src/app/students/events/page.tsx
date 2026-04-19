@@ -10,7 +10,7 @@ const STATUS_BADGE: Record<string, { label: string; classes: string }> = {
   draft:     { label: 'Draft',     classes: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
   open:      { label: 'Open',      classes: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
   closed:    { label: 'Closed',    classes: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  completed: { label: 'Completed', classes: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  completed: { label: 'Completed', classes: 'bg-steps-blue-50 text-steps-blue-700 dark:bg-steps-blue-900/30 dark:text-steps-blue-400' },
 }
 
 export default function EventsOverview() {
@@ -84,7 +84,7 @@ export default function EventsOverview() {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               statusFilter === s
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-steps-blue-600 text-white'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}
           >
@@ -131,7 +131,7 @@ function EventCard({ event }: { event: EventWithStats }) {
   return (
     <Link
       href={`/students/events/${event.id}`}
-      className="block rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm transition-all"
+      className="block rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-steps-blue-300 dark:hover:border-steps-blue-700 hover:shadow-sm transition-all"
     >
       <div className="p-5">
         {/* Top row: name + status badge */}
@@ -159,7 +159,7 @@ function EventCard({ event }: { event: EventWithStats }) {
           <Stat label="Accepted" value={event.accepted_count} color="text-emerald-600 dark:text-emerald-400" />
           <Stat label="Rejected" value={event.rejected_count} color="text-gray-500 dark:text-gray-400" />
           <Stat label="Waitlisted" value={event.waitlisted_count} color="text-amber-600 dark:text-amber-400" />
-          <Stat label="Attended" value={event.attended_count} color="text-indigo-600 dark:text-indigo-400" />
+          <Stat label="Attended" value={event.attended_count} color="text-steps-blue-600 dark:text-steps-blue-400" />
           {event.capacity != null && event.total_applicants > 0 && (
             <div className="ml-auto hidden sm:block">
               <FillBar accepted={event.accepted_count} capacity={event.capacity} />
@@ -204,7 +204,7 @@ function Kpi({ label, value, accent, warn }: { label: string; value: number; acc
     <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4">
       <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</div>
       <div className={`mt-1 text-2xl font-semibold ${
-        accent ? 'text-indigo-600 dark:text-indigo-400'
+        accent ? 'text-steps-blue-600 dark:text-steps-blue-400'
           : warn ? 'text-amber-600 dark:text-amber-400'
           : 'text-gray-900 dark:text-gray-100'
       }`}>

@@ -77,7 +77,7 @@ export function DraggableTaskCard({
       className={`group relative bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-all duration-200 ease-out cursor-pointer ${
         isDragging ? 'opacity-60 shadow-lg scale-[1.02]' : ''
       } ${
-        isPrimaryAssignee ? 'border-purple-300 ring-2 ring-purple-200' : 'border-gray-100'
+        isPrimaryAssignee ? 'border-steps-blue-300 ring-2 ring-steps-blue-200' : 'border-gray-100'
       } ${
         allSubtasksCompleted ? 'opacity-60' : ''
       }`}
@@ -183,7 +183,7 @@ export function DraggableTaskCard({
         </span>
         <div className="flex -space-x-2 ml-auto">
           {member ? (
-            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-[10px] font-medium border-2 border-white" title={member.name}>
+            <div className="w-6 h-6 rounded-full bg-steps-blue-100 flex items-center justify-center text-steps-blue-700 text-[10px] font-medium border-2 border-white" title={member.name}>
               {member.avatar}
             </div>
           ) : (

@@ -80,7 +80,7 @@ export function SubtaskCompletionModal({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 text-purple-600">
+          <div className="flex items-center gap-2 text-steps-blue-600">
             <ClockIcon />
             <h2 className="text-lg font-semibold text-gray-900">How long did it take?</h2>
           </div>
@@ -114,7 +114,7 @@ export function SubtaskCompletionModal({
                 }}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                   selectedHours === opt.value && !showCustom
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-steps-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -131,7 +131,7 @@ export function SubtaskCompletionModal({
                 setSelectedHours(null)
               }}
               className={`text-sm font-medium transition ${
-                showCustom ? 'text-purple-600' : 'text-gray-500 hover:text-gray-700'
+                showCustom ? 'text-steps-blue-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {showCustom ? '← Back to presets' : 'Enter custom hours →'}
@@ -147,7 +147,7 @@ export function SubtaskCompletionModal({
                   value={customHours}
                   onChange={(e) => setCustomHours(e.target.value)}
                   placeholder="e.g. 2.5"
-                  className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                  className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none"
                   autoFocus
                 />
                 <span className="text-sm text-gray-500">hours</span>
@@ -157,8 +157,8 @@ export function SubtaskCompletionModal({
 
           {/* Preview intensity change */}
           {isValid && (
-            <div className="mb-4 p-3 bg-purple-50 rounded-lg">
-              <p className="text-sm text-purple-700">
+            <div className="mb-4 p-3 bg-steps-blue-50 rounded-lg">
+              <p className="text-sm text-steps-blue-700">
                 {(() => {
                   const hours = showCustom ? parseFloat(customHours) : selectedHours!
                   const newIntensity = hoursToIntensity(hours)
@@ -183,7 +183,7 @@ export function SubtaskCompletionModal({
           <button
             onClick={handleConfirm}
             disabled={!isValid}
-            className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2 bg-steps-blue-600 text-white rounded-lg hover:bg-steps-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Mark Complete
           </button>
