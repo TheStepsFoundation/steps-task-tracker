@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EventRow, fetchEvent } from '@/lib/events-api'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-provider'
+import InviteStudentsModal from "@/components/InviteStudentsModal"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,6 +120,7 @@ export default function EventDetailPage() {
 
   // Email compose state
   const [showCompose, setShowCompose] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
   const [templates, setTemplates] = useState<{ id: string; name: string; type: string; subject: string; body_html: string; event_id: string | null }[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [emailSubject, setEmailSubject] = useState('')
@@ -667,8 +669,14 @@ export default function EventDetailPage() {
               placeholder="Search name, email, school…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="ml-auto px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 w-64"
+              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 w-64"
             />
+            <button
+              onClick={() => setShowInvite(true)}
+              className="ml-auto px-4 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
+            >
+              Invite Students
+            </button>
           </div>
 
           {/* Bulk actions */}
@@ -1102,6 +1110,17 @@ export default function EventDetailPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Invite Students Modal */}
+      {showInvite && event && (
+        <InviteStudentsModal
+          eventId={eventId}
+          eventName={event.name}
+          eventSlug={event.slug}
+          teamMemberUuid={(teamMember as any)?.auth_uuid ?? null}
+          onClose={() => setShowInvite(false)}
+          onSent={() => { window.location.reload() }}
+        />
       )}
     </main>
   )
