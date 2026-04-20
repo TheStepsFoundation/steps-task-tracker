@@ -188,7 +188,9 @@ export default function ApplyPage() {
 
   const [step, setStep] = useState<Step>('loading')
   const [email, setEmail] = useState('')
-  const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password')
+  // Default to OTP since most applicants are new — existing accounts get a
+  // prominent 'Sign in with password' link below the Send-code button.
+  const [loginMode, setLoginMode] = useState<'password' | 'otp'>('otp')
   const [loginPassword, setLoginPassword] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [existingStudent, setExistingStudent] = useState<StudentSelf | null>(null)
@@ -899,12 +901,20 @@ export default function ApplyPage() {
                 {loading ? <Spinner /> : null}
                 {loading ? 'Sending code...' : 'Send verification code'}
               </button>
-              <button
-                onClick={() => { setLoginMode('password'); setError(null) }}
-                className="w-full mt-3 py-2 text-sm text-gray-500 hover:text-gray-700 font-medium"
-              >
-                &larr; Already have an account? Sign in with password
-              </button>
+              <div className="mt-6 pt-5 border-t border-gray-100">
+                <p className="text-xs text-gray-500 text-center mb-3">
+                  Already have a Steps account?
+                </p>
+                <button
+                  onClick={() => { setLoginMode('password'); setError(null) }}
+                  className="w-full py-3 px-4 bg-white text-steps-blue-700 font-semibold rounded-xl border-2 border-steps-blue-500 hover:bg-steps-blue-50 focus:ring-2 focus:ring-steps-blue-500 focus:ring-offset-2 transition"
+                >
+                  Sign in with password
+                </button>
+                <p className="text-[11px] text-gray-400 text-center mt-2">
+                  Faster if you&rsquo;ve applied before.
+                </p>
+              </div>
             </>
           )}
         </div>
