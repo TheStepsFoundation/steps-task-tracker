@@ -412,6 +412,14 @@ export default function ApplyPage() {
     setTimeout(() => { restoringRef.current = false }, 100)
   }, [event?.id, email, step]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Scroll to the top of the page whenever the user advances (or goes back) a
+  // step or a custom form page. Without this, long pages keep their scroll
+  // position from the previous page so users land mid-form.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [step, customPageIdx])
+
   // --- Qualification row helpers ---
   const addQualification = () => {
     setQualifications(prev => [...prev, { qualType: 'a_level', subject: '', grade: '' }])
