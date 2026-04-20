@@ -1482,8 +1482,15 @@ export default function EventDetailPage() {
 
   const customFieldCols = useMemo(() => {
     if (!event?.form_config) return []
-    const cfg = event.form_config as { fields?: { id: string; label: string; type: string }[] }
-    return (cfg.fields ?? [])
+    type Field = { id: string; label: string; type: string }
+    const cfg = event.form_config as { fields?: Field[]; pages?: { fields?: Field[] }[] }
+    // Form schema may use top-level fields (legacy) or nested pages[].fields (current). Collect from both and de-dupe by id.
+    const seen = new Set<string>()
+    const all: Field[] = []
+    for (const f of [...(cfg.fields ?? []), ...((cfg.pages ?? []).flatMap(p => p.fields ?? []))]) {
+      if (f && f.id && !seen.has(f.id))  { seen.add(f.id); all.push(f) }
+    }
+    return all
       // Exclude display-only fields (no student response to show in a column).
       .filter(f => f.type !== 'section_heading' && f.type !== 'media')
       .map(f => ({ id: f.id, label: stripToText(f.label), type: f.type }))
