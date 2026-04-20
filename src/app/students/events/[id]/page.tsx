@@ -641,8 +641,12 @@ export default function EventDetailPage() {
 
   // View state persistence — load once, save on change, keyed by event ID.
   // Survives refresh so admins don't have to re-customise the table every visit.
+  // `v2` bump: stale hiddenCols from v1 were hiding new custom form fields
+  // (e.g. Man Group "divisions of interest" / "question for employee"). The
+  // key bump resets everyone's saved view so the new columns are visible by
+  // default. Can be bumped again if a future migration changes column IDs.
   const [viewHydrated, setViewHydrated] = useState(false)
-  const viewStorageKey = `steps:event-view:${eventId}`
+  const viewStorageKey = `steps:event-view:v2:${eventId}`
 
   useEffect(() => {
     if (!eventId) return

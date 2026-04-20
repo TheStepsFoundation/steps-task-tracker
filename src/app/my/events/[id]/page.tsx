@@ -32,12 +32,18 @@ function formatDate(d: string | null): string {
   })
 }
 
-// Map form_config custom field keys to their labels so we can render the
-// student's responses nicely. form_config shape: { custom_fields: [{id, label, type, options?, required}...] }
+// Map form_config field keys to their labels so we can render the student's
+// responses nicely. The source of truth for the shape is `form_config.fields`
+// (set by the admin form-builder in `students/events/[id]/page.tsx`). An older
+// version of this helper looked at `custom_fields`, which is the wrong key and
+// meant no answers ever rendered in the hub. We read both keys defensively in
+// case any event was ever stored with the older shape.
 function formConfigCustomFields(formConfig: Record<string, unknown> | null | undefined): Array<{ id: string; label: string; type: string }> {
   if (!formConfig) return []
-  const arr = (formConfig as { custom_fields?: unknown }).custom_fields
-  if (!Array.isArray(arr)) return []
+  const fc = formConfig as { fields?: unknown; custom_fields?: unknown }
+  const arr = Array.isArray(fc.fields)
+    ? fc.fields
+    : Array.isArray(fc.custom_fields) ? fc.custom_fields : []
   return arr.filter((f): f is { id: string; label: string; type: string } =>
     typeof f === 'object' && f !== null && typeof (f as { id?: unknown }).id === 'string' &&
     typeof (f as { label?: unknown }).label === 'string' && typeof (f as { type?: unknown }).type === 'string'
