@@ -403,8 +403,10 @@ export default function ApplyPage() {
     // Restore custom fields
     if (draft.customFieldValues) setCustomFieldValues(draft.customFieldValues as Record<string, FieldValue>)
 
-    // Restore step (but only if they were past details)
-    if (draft.step === 'application') setStep('application')
+    // NOTE: we intentionally do NOT auto-restore step = 'application' here.
+    // Returning users should always re-review their pre-filled details (page 3)
+    // before advancing to the form (page 4). Their saved answers are still in
+    // localStorage, so a single Next click on details takes them straight back.
 
     // Allow saving again after a tick
     setTimeout(() => { restoringRef.current = false }, 100)
