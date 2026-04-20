@@ -339,11 +339,13 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
               {raw.additional_context ? (
                 <Field label="Anything else" className="sm:col-span-2">{stringifyAnswer(raw.additional_context)}</Field>
               ) : null}
-              {customFields.map(f => (
-                <Field key={f.id} label={f.label} className="sm:col-span-2">
-                  {stringifyAnswer(customResponses[f.id])}
-                </Field>
-              ))}
+              {customFields
+                .filter(f => f.type !== 'section_heading' && f.type !== 'media')
+                .map(f => (
+                  <Field key={f.id} label={f.label} className="sm:col-span-2">
+                    {stringifyAnswer(customResponses[f.id])}
+                  </Field>
+                ))}
             </div>
           </div>
         )}

@@ -9,7 +9,7 @@ export type FormFieldType =
   | 'text' | 'textarea' | 'number' | 'email' | 'phone' | 'date' | 'url'
   | 'dropdown' | 'radio' | 'checkbox_list' | 'ranked_dropdown' | 'yes_no'
   | 'scale' | 'paired_dropdown' | 'matrix' | 'repeatable_group'
-  | 'section_heading'
+  | 'section_heading' | 'media'
 
 export type ConditionalRule = {
   fieldId: string
@@ -68,6 +68,9 @@ export type FormFieldConfig = {
     addButtonLabel?: string
     // Conditional visibility
     showIf?: ConditionalRule[]
+    // Media field
+    mediaUrl?: string
+    mediaType?: 'image' | 'pdf'
   }
 }
 

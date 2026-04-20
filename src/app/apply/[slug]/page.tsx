@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
 import DynamicFormField, { type FieldValue, evaluateConditions } from '@/components/DynamicFormField'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import type { FormFieldConfig, FormPage, EventRow } from '@/lib/events-api'
 import { fetchEventBySlug } from '@/lib/events-api'
 import {
@@ -1301,7 +1302,10 @@ export default function ApplyPage() {
                 <h3 className="text-base font-semibold text-gray-900 mb-1">{formPages[customPageIdx].title}</h3>
               )}
               {formPages[customPageIdx]?.description && (
-                <p className="text-sm text-gray-500 mb-4">{formPages[customPageIdx].description}</p>
+                <p
+                  className="text-sm text-gray-500 mb-4 rich-html"
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(formPages[customPageIdx].description) }}
+                />
               )}
 
               {/* Page fields */}

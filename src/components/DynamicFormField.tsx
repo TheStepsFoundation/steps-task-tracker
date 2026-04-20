@@ -73,6 +73,51 @@ export default function DynamicFormField({ field, value, onChange, allValues }: 
         </div>
       )
 
+    // ----- Media (image or PDF) — display only, no input -----
+    case 'media': {
+      const url = field.config?.mediaUrl
+      if (!url) return null
+      const mediaType = field.config?.mediaType ?? 'image'
+      return (
+        <div className="mb-5">
+          {mediaType === 'pdf' ? (
+            <div className="rounded-xl overflow-hidden border border-gray-200 bg-white">
+              <iframe
+                src={url}
+                title={field.label || 'Embedded PDF'}
+                className="w-full h-[480px]"
+              />
+            </div>
+          ) : (
+            <div className="rounded-xl overflow-hidden border border-gray-200 bg-white flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={field.description || field.label || 'Form media'}
+                className="max-w-full h-auto"
+              />
+            </div>
+          )}
+          {field.label && (
+            <p className="mt-2 text-sm text-gray-700 font-medium">{field.label}</p>
+          )}
+          {field.description && (
+            <p className="mt-0.5 text-xs text-gray-500">{field.description}</p>
+          )}
+          {mediaType === 'pdf' && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-xs text-steps-blue-600 hover:underline"
+            >
+              Open PDF in a new tab ↗
+            </a>
+          )}
+        </div>
+      )
+    }
+
     // ----- Text -----
     case 'text':
       return (

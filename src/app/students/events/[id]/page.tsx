@@ -1465,7 +1465,10 @@ export default function EventDetailPage() {
   const customFieldCols = useMemo(() => {
     if (!event?.form_config) return []
     const cfg = event.form_config as { fields?: { id: string; label: string; type: string }[] }
-    return (cfg.fields ?? []).map(f => ({ id: f.id, label: f.label, type: f.type }))
+    return (cfg.fields ?? [])
+      // Exclude display-only fields (no student response to show in a column).
+      .filter(f => f.type !== 'section_heading' && f.type !== 'media')
+      .map(f => ({ id: f.id, label: f.label, type: f.type }))
   }, [event])
   // Compute the effective ordered list of all visible columns (built-in + custom)
   const allColumns = useMemo(() => {

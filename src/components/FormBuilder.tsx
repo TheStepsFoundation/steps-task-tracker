@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import type { FormFieldConfig, FormFieldType, FormPage, ConditionalRule } from "@/lib/events-api"
+import LinkableInput from "./LinkableInput"
+import MediaUploader from "./MediaUploader"
 
 // ---------------------------------------------------------------------------
 // Field type categories with icons
@@ -37,6 +39,7 @@ const FIELD_TYPES: FieldTypeMeta[] = [
   { value: "repeatable_group",label: "Repeatable group", desc: "Set of fields students can repeat", icon: "↻",   category: "advanced" },
   // Layout
   { value: "section_heading", label: "Section heading", desc: "Visual break with title + description", icon: "H",  category: "layout" },
+  { value: "media",           label: "Image or PDF",    desc: "Show a photo or embedded PDF to students", icon: "🖼️", category: "layout" },
 ]
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -251,7 +254,7 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
             onChange={e => { const u = [...conditions]; u[ci] = { ...u[ci], fieldId: e.target.value }; onConditionsChange(u) }}
             className={`flex-1 min-w-[120px] ${inputClass}`}>
             <option value="">Select field…</option>
-            {allFields.filter(f => f.type !== "section_heading").map(f => (
+            {allFields.filter(f => f.type !== "section_heading" && f.type !== "media").map(f => (
               <option key={f.id} value={f.id}>{f.label || f.id}</option>
             ))}
           </select>
@@ -349,9 +352,12 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
             </div>
             <div>
               <label className="block text-[10px] text-gray-500 mb-0.5">Page description (optional)</label>
-              <input value={activePageObj.description ?? ""}
-                onChange={e => updatePageMeta(activePage, { description: e.target.value || undefined })}
-                className={inputClass} />
+              <LinkableInput
+                value={activePageObj.description ?? ""}
+                onChange={html => updatePageMeta(activePage, { description: html || undefined })}
+                placeholder="e.g. Watch an Introduction to Man Group before you apply"
+                ariaLabel="Page description"
+              />
             </div>
           </div>
 
@@ -451,10 +457,16 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
               {/* Label (section_heading uses it as the heading text) */}
               <div className="mb-2">
                 <label className="block text-xs text-gray-500 mb-0.5">
-                  {field.type === "section_heading" ? "Heading text" : "Label"}
+                  {field.type === "section_heading" ? "Heading text" : field.type === "media" ? "Caption (optional)" : "Label"}
                 </label>
                 <input value={field.label} onChange={e => updateField(idx, { label: e.target.value })}
-                  placeholder={field.type === "section_heading" ? "e.g. About your academics" : "e.g. Which areas interest you most?"}
+                  placeholder={
+                    field.type === "section_heading"
+                      ? "e.g. About your academics"
+                      : field.type === "media"
+                        ? "e.g. Introduction to Man Group"
+                        : "e.g. Which areas interest you most?"
+                  }
                   className={inputClass} />
               </div>
 
@@ -465,8 +477,8 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
                   placeholder="Helper text shown below the label" className={inputClass} />
               </div>
 
-              {/* Required toggle (not for section_heading) */}
-              {field.type !== "section_heading" && (
+              {/* Required toggle (not for section_heading or media — both are display-only) */}
+              {field.type !== "section_heading" && field.type !== "media" && (
                 <label className="flex items-center gap-2 mb-2 cursor-pointer">
                   <input type="checkbox" checked={field.required}
                     onChange={e => updateField(idx, { required: e.target.checked })}
@@ -700,8 +712,26 @@ export default function FormBuilder({ fields, pages, onChange }: Props) {
                 </div>
               )}
 
+              {/* Media uploader (image or PDF) */}
+              {field.type === "media" && (
+                <div className="mb-2">
+                  <MediaUploader
+                    url={field.config?.mediaUrl ?? ""}
+                    mediaType={field.config?.mediaType ?? "image"}
+                    onChange={(mediaUrl, mediaType) =>
+                      updateField(idx, {
+                        config: { ...field.config, mediaUrl: mediaUrl || undefined, mediaType },
+                      })
+                    }
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Tip: keep files under 10 MB. Students see images inline and PDFs in an embedded viewer.
+                  </p>
+                </div>
+              )}
+
               {/* Conditional visibility */}
-              {field.type !== "section_heading" && (
+              {field.type !== "section_heading" && field.type !== "media" && (
                 <details className="mb-1">
                   <summary className="text-[10px] text-gray-400 cursor-pointer hover:text-gray-600">
                     🔀 Conditional visibility ({(field.config?.showIf ?? []).length} rules)

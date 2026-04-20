@@ -47,3 +47,22 @@ h1, h2, h3, h4, h5, h6, .font-display {
 html {
   accent-color: rgb(var(--steps-blue));
 }
+
+/* Sanitised rich text (form-builder page description, etc.) — standard blue underlined links. */
+.rich-html a {
+  color: rgb(var(--steps-blue));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.rich-html a:hover {
+  color: rgb(var(--steps-blue));
+  opacity: 0.85;
+}
+
+/* Placeholder for LinkableInput's contenteditable when empty. */
+.linkable-input:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
