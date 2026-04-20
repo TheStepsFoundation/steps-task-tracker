@@ -43,12 +43,71 @@ function formConfigCustomFields(formConfig: Record<string, unknown> | null | und
   )
 }
 
+const QUAL_TYPE_LABEL: Record<string, string> = {
+  a_level: 'A-Level',
+  ib: 'IB',
+  btec: 'BTEC',
+  t_level: 'T-Level',
+  pre_u: 'Pre-U',
+}
+
+type QualEntry = { qualType?: string; subject?: string; grade?: string; level?: string }
+
+function isQualEntry(v: unknown): v is QualEntry {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return (
+    (typeof o.subject === 'string' || o.subject === undefined) &&
+    (typeof o.grade === 'string' || o.grade === undefined) &&
+    (typeof o.qualType === 'string' || o.qualType === undefined)
+  )
+}
+
+function formatQualEntry(q: QualEntry): string {
+  const typeLabel = q.qualType ? (QUAL_TYPE_LABEL[q.qualType] ?? q.qualType.replace(/_/g, ' ')) : ''
+  const level = q.level ? ` ${q.level}` : ''
+  const subject = q.subject || ''
+  const grade = q.grade || ''
+  const left = [typeLabel + level, subject].filter(Boolean).join(' ')
+  if (!left && !grade) return ''
+  if (!grade) return left
+  if (!left) return grade
+  return `${left} — ${grade}`
+}
+
+// Coerce any answer value to a display string. Never returns "[object Object]".
 function stringifyAnswer(val: unknown): string {
   if (val == null) return '—'
-  if (Array.isArray(val)) return val.length ? val.map(String).join(', ') : '—'
   if (typeof val === 'boolean') return val ? 'Yes' : 'No'
+  if (Array.isArray(val)) {
+    if (!val.length) return '—'
+    const parts = val.map(item => {
+      if (item == null) return ''
+      if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') return String(item)
+      if (isQualEntry(item)) return formatQualEntry(item)
+      // Unknown object shape — best-effort JSON fallback instead of "[object Object]"
+      try { return JSON.stringify(item) } catch { return '' }
+    }).map(s => s.trim()).filter(Boolean)
+    return parts.length ? parts.join(', ') : '—'
+  }
+  if (typeof val === 'object') {
+    // Single object — best-effort JSON fallback
+    try { const s = JSON.stringify(val); return s === '{}' ? '—' : s } catch { return '—' }
+  }
   const str = String(val).trim()
   return str.length ? str : '—'
+}
+
+// Render qualifications as a typed, readable list rather than a comma-joined blob.
+function renderQualifications(val: unknown): React.ReactNode {
+  if (!Array.isArray(val) || val.length === 0) return '—'
+  const entries = val.filter(isQualEntry).map(formatQualEntry).filter(Boolean)
+  if (entries.length === 0) return '—'
+  return (
+    <ul className="space-y-0.5">
+      {entries.map((line, i) => <li key={i}>{line}</li>)}
+    </ul>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -274,7 +333,7 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
 
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 mt-5">
               <Field label="GCSE results">{stringifyAnswer(raw.gcse_results)}</Field>
-              <Field label="Current / predicted qualifications">{stringifyAnswer(raw.qualifications)}</Field>
+              <Field label="Current / predicted qualifications">{renderQualifications(raw.qualifications)}</Field>
               <Field label="Household income (under £40k)">{stringifyAnswer(raw.household_income_under_40k)}</Field>
               <Field label="Free school meals">{stringifyAnswer(raw.free_school_meals_raw)}</Field>
               {raw.additional_context ? (
