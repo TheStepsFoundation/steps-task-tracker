@@ -73,7 +73,7 @@ function computeEligibility(app: {
   // State, grammar, and independent_bursary (fee-paying with 90%+ bursary) all qualify.
   if (st === 'state' || st === 'grammar' || st === 'independent_bursary') return 'eligible'
   // Plain private/independent (no bursary) does not qualify.
-  if (st === 'private' || st === 'independent') return 'ineligible'
+  if (st === 'independent') return 'ineligible'
   return 'unknown'
 }
 
@@ -720,6 +720,7 @@ export default function EventDetailPage() {
       slug: event.slug,
       event_date: event.event_date ?? '',
       location: event.location ?? '',
+      location_full: event.location_full ?? '',
       format: event.format ?? '',
       description: event.description ?? '',
       capacity: event.capacity,
@@ -751,6 +752,7 @@ export default function EventDetailPage() {
       if (editDraft.slug && editDraft.slug !== event.slug) patch.slug = editDraft.slug
       if ((editDraft.event_date ?? '') !== (event.event_date ?? '')) patch.event_date = editDraft.event_date || null
       if ((editDraft.location ?? '') !== (event.location ?? '')) patch.location = editDraft.location || null
+      if ((editDraft.location_full ?? '') !== (event.location_full ?? '')) patch.location_full = editDraft.location_full || null
       if ((editDraft.format ?? '') !== (event.format ?? '')) patch.format = editDraft.format || null
       if ((editDraft.description ?? '') !== (event.description ?? '')) patch.description = editDraft.description || null
       if (editDraft.capacity !== event.capacity) patch.capacity = editDraft.capacity ?? null
@@ -1337,6 +1339,7 @@ export default function EventDetailPage() {
         ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
         : 'TBC')
       .replace(/\{\{event_location\}\}/g, event?.location ?? 'TBC')
+      .replace(/\{\{event_location_full\}\}/g, event?.location_full ?? event?.location ?? 'TBC')
       .replace(/\{\{event_time\}\}/g, [event?.time_start, event?.time_end].filter(Boolean).join(' – ') || 'TBC')
       .replace(/\{\{dress_code\}\}/g, event?.dress_code ?? '')
       .replace(/\{\{portal_link\}\}/g, 'https://the-steps-foundation-intranet.vercel.app/my')
@@ -1611,12 +1614,30 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Row 3: Location + Capacity + Dress code */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Row 3a: Public location (shown to everyone pre-acceptance) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Location</label>
-                <input value={editDraft.location ?? ''} onChange={e => setEditDraft(d => ({ ...d, location: e.target.value }))} className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Public location <span className="text-gray-400 font-normal">(shown to all applicants)</span></label>
+                <input
+                  value={editDraft.location ?? ''}
+                  onChange={e => setEditDraft(d => ({ ...d, location: e.target.value }))}
+                  placeholder="e.g. Central London — in-person"
+                  className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Full address <span className="text-gray-400 font-normal">(revealed only to accepted students)</span></label>
+                <input
+                  value={editDraft.location_full ?? ''}
+                  onChange={e => setEditDraft(d => ({ ...d, location_full: e.target.value }))}
+                  placeholder="e.g. Riverbank House, 2 Swan Lane, London EC4R 3AD"
+                  className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                />
+              </div>
+            </div>
+
+            {/* Row 3b: Capacity + Dress code */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Capacity</label>
                 <input type="number" value={editDraft.capacity ?? ''} onChange={e => setEditDraft(d => ({ ...d, capacity: e.target.value ? parseInt(e.target.value) : null }))} className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />

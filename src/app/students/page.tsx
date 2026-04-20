@@ -43,7 +43,6 @@ function smiCount(s: { free_school_meals: boolean | null; parental_income_band: 
 const SCHOOL_TYPES: { value: SchoolType; label: string }[] = [
   { value: 'state', label: 'State' },
   { value: 'grammar', label: 'Grammar' },
-  { value: 'private', label: 'Private' },
   { value: 'independent', label: 'Independent' },
   { value: 'independent_bursary', label: 'Independent (90%+ bursary)' },
 ]

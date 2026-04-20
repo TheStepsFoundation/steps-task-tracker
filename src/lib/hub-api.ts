@@ -27,6 +27,7 @@ export type HubEvent = {
   slug: string
   event_date: string | null
   location: string | null
+  location_full: string | null
   format: string | null
   description: string | null
   time_start: string | null
@@ -127,7 +128,7 @@ export async function fetchMyApplications(): Promise<HubApplication[]> {
   const eventIds = [...new Set(data.map(a => a.event_id))]
   const { data: events } = await supabase
     .from('events')
-    .select('id, name, slug, event_date, location, format, description, time_start, time_end, status, applications_open_at, applications_close_at, banner_image_url, hub_image_url, banner_focal_x, banner_focal_y, hub_focal_x, hub_focal_y')
+    .select('id, name, slug, event_date, location, location_full, format, description, time_start, time_end, status, applications_open_at, applications_close_at, banner_image_url, hub_image_url, banner_focal_x, banner_focal_y, hub_focal_x, hub_focal_y')
     .in('id', eventIds)
 
   const eventMap = new Map((events ?? []).map(e => [e.id, e]))
@@ -149,7 +150,7 @@ export async function fetchOpenEvents(): Promise<HubEvent[]> {
 
   const { data } = await supabase
     .from('events')
-    .select('id, name, slug, event_date, location, format, description, time_start, time_end, status, applications_open_at, applications_close_at, banner_image_url, hub_image_url, banner_focal_x, banner_focal_y, hub_focal_x, hub_focal_y')
+    .select('id, name, slug, event_date, location, location_full, format, description, time_start, time_end, status, applications_open_at, applications_close_at, banner_image_url, hub_image_url, banner_focal_x, banner_focal_y, hub_focal_x, hub_focal_y')
     .is('deleted_at', null)
     .eq('status', 'open')
     .lte('applications_open_at', now)
@@ -166,7 +167,7 @@ export async function fetchOpenEvents(): Promise<HubEvent[]> {
 export async function fetchAllEvents(): Promise<HubEvent[]> {
   const { data } = await supabase
     .from('events')
-    .select('id, name, slug, event_date, location, format, description, time_start, time_end, status, applications_open_at, applications_close_at, banner_image_url, hub_image_url, banner_focal_x, banner_focal_y, hub_focal_x, hub_focal_y')
+    .select('id, name, slug, event_date, location, location_full, format, description, time_start, time_end, status, applications_open_at, applications_close_at, banner_image_url, hub_image_url, banner_focal_x, banner_focal_y, hub_focal_x, hub_focal_y')
     .is('deleted_at', null)
     .order('event_date', { ascending: false })
 
@@ -181,6 +182,69 @@ export async function withdrawApplication(applicationId: string): Promise<{ erro
   const { error } = await supabase.rpc('withdraw_application', { p_application_id: applicationId })
   if (error) return { error: error.message }
   return { error: null }
+}
+
+// ---------------------------------------------------------------------------
+// Fetch event overview (event + my application if any, with raw response)
+// ---------------------------------------------------------------------------
+
+export type HubApplicationDetail = {
+  id: string
+  status: string
+  created_at: string
+  updated_at: string | null
+  raw_response: Record<string, unknown> | null
+}
+
+export type EventOverview = {
+  event: (HubEvent & {
+    form_config: Record<string, unknown> | null
+    interest_options: string[] | null
+    dress_code: string | null
+    capacity: number | null
+  }) | null
+  application: HubApplicationDetail | null
+  profile: { id: string; first_name: string | null; last_name: string | null } | null
+}
+
+export async function fetchEventOverview(eventId: string): Promise<EventOverview> {
+  const email = await currentUserEmail()
+
+  // Event
+  const { data: event } = await supabase
+    .from('events')
+    .select('id, name, slug, event_date, location, location_full, format, description, time_start, time_end, dress_code, capacity, status, applications_open_at, applications_close_at, interest_options, form_config, banner_image_url, hub_image_url, banner_focal_x, banner_focal_y, hub_focal_x, hub_focal_y')
+    .eq('id', eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (!email) return { event: (event as EventOverview['event']) ?? null, application: null, profile: null }
+
+  // Profile
+  const { data: profile } = await supabase
+    .from('students')
+    .select('id, first_name, last_name')
+    .eq('personal_email', email)
+    .maybeSingle()
+
+  if (!profile) return { event: (event as EventOverview['event']) ?? null, application: null, profile: null }
+
+  // Application (most recent non-deleted for this event+student)
+  const { data: app } = await supabase
+    .from('applications')
+    .select('id, status, created_at, updated_at, raw_response')
+    .eq('student_id', profile.id)
+    .eq('event_id', eventId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return {
+    event: (event as EventOverview['event']) ?? null,
+    application: (app as HubApplicationDetail | null) ?? null,
+    profile,
+  }
 }
 
 // ---------------------------------------------------------------------------

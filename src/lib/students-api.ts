@@ -21,7 +21,7 @@ export const ATTRIBUTION_SOURCES: { value: string; label: string }[] = [
   { value: 'unknown',           label: 'Unknown' },
 ]
 
-export type SchoolType = 'state' | 'grammar' | 'private' | 'independent' | 'independent_bursary'
+export type SchoolType = 'state' | 'grammar' | 'independent' | 'independent_bursary'
 export type Eligibility = 'eligible' | 'ineligible' | 'unknown'
 
 export type StudentRow = {
@@ -102,7 +102,7 @@ export function enrich(s: StudentRow, apps: ApplicationRow[]): EnrichedStudent {
   const eligibility: Eligibility =
     s.school_type === 'state' || s.school_type === 'grammar' || s.school_type === 'independent_bursary'
       ? 'eligible'
-      : s.school_type === 'private' || s.school_type === 'independent'
+      : s.school_type === 'independent'
         ? 'ineligible'
         : 'unknown'
   return {
@@ -134,7 +134,7 @@ function computeEligibility(row: EnrichedStudent): EnrichedStudent {
   const eligibility: Eligibility =
     row.school_type === 'state' || row.school_type === 'grammar' || row.school_type === 'independent_bursary'
       ? 'eligible'
-      : row.school_type === 'private' || row.school_type === 'independent'
+      : row.school_type === 'independent'
         ? 'ineligible'
         : 'unknown'
   row.smi_count = smi_count

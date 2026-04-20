@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
 import { TopNav } from '@/components/TopNav'
 import { PressableButton } from '@/components/PressableButton'
+import Link from 'next/link'
 import {
   fetchProfile, updateProfile, fetchMyApplications, fetchOpenEvents,
   signOut, getAuthEmail, withdrawApplication,
   type HubApplication, type HubEvent, type ProfileUpdate,
 } from '@/lib/hub-api'
+import { getDisplayLocation } from '@/lib/event-display'
 import type { StudentSelf } from '@/lib/apply-api'
 import { supabase } from '@/lib/supabase'
 
@@ -247,31 +249,26 @@ export default function StudentHub() {
       {openEvents.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Apply now</h2>
-          <div className="space-y-3">
-            {openEvents.map(event => (
-              <a
+          <div className="space-y-4">
+            {openEvents.map(event => {
+              const publicLocation = getDisplayLocation(event, false)
+              return (
+              <Link
                 key={event.id}
-                href={`/apply/${event.slug}`}
-                className="block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 transition group"
+                href={`/my/events/${event.id}`}
+                className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 transition group"
               >
-                <div className="flex items-stretch gap-4 p-5">
-                  {event.hub_image_url && (
-                    <div className="flex-shrink-0 w-28 sm:w-40 aspect-[16/9] rounded-xl overflow-hidden bg-gray-100 self-start">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={event.hub_image_url} alt={event.name} className="w-full h-full object-cover" style={{ objectPosition: `${event.hub_focal_x ?? 50}% ${event.hub_focal_y ?? 50}%` }} />
-                    </div>
-                  )}
-                  <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 group-hover:text-steps-blue-700 transition">
+                <div className="flex items-stretch min-h-[160px] sm:min-h-[200px]">
+                  <div className="flex-1 min-w-0 p-5 sm:p-6 flex flex-col">
+                    <h3 className="font-semibold text-gray-900 text-lg group-hover:text-steps-blue-700 transition">
                       {event.name}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1.5">
                       {event.event_date && <span>{formatDate(event.event_date)}</span>}
                       {event.time_start && (
                         <span>{event.time_start}{event.time_end ? ` – ${event.time_end}` : ''}</span>
                       )}
-                      {event.location && <span>{event.location}</span>}
+                      {publicLocation && <span>{publicLocation}</span>}
                       {event.format && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                           {event.format === 'in_person' ? 'In person' : event.format === 'online' ? 'Online' : event.format}
@@ -279,21 +276,34 @@ export default function StudentHub() {
                       )}
                     </div>
                     {event.description && (
-                      <p className="text-sm text-gray-500 mt-2 line-clamp-2">{event.description}</p>
+                      <p className="text-sm text-gray-500 mt-3 line-clamp-3">{event.description}</p>
                     )}
-                    {event.applications_close_at && (
-                      <p className="text-xs text-steps-blue-600 font-medium mt-2">
-                        Applications close {new Date(event.applications_close_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </p>
-                    )}
+                    <div className="mt-auto pt-3 flex items-center justify-between gap-3">
+                      {event.applications_close_at ? (
+                        <p className="text-xs text-steps-blue-600 font-medium">
+                          Applications close {new Date(event.applications_close_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      ) : <span />}
+                      <span className="flex-shrink-0 px-4 py-2 bg-steps-blue-600 text-white text-sm font-semibold rounded-xl border-t border-white/20 shadow-press-blue group-hover:shadow-press-blue-hover group-hover:-translate-y-0.5 transition-all">
+                        View &amp; apply
+                      </span>
+                    </div>
                   </div>
-                  <span className="flex-shrink-0 mt-1 px-5 py-2.5 bg-steps-blue-600 text-white text-sm font-semibold rounded-xl border-t border-white/20 shadow-press-blue group-hover:shadow-press-blue-hover group-hover:-translate-y-0.5 transition-all">
-                    Apply
-                  </span>
+                  {event.hub_image_url && (
+                    <div className="flex-shrink-0 w-32 sm:w-60 self-stretch bg-gray-100 relative border-l border-gray-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={event.hub_image_url}
+                        alt={event.name}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        style={{ objectPosition: `${event.hub_focal_x ?? 50}% ${event.hub_focal_y ?? 50}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
-                </div>
-              </a>
-            ))}
+              </Link>
+              )
+            })}
           </div>
         </div>
       )}
@@ -313,26 +323,23 @@ export default function StudentHub() {
         ) : (
           <div className="space-y-3">
             {applications.map(app => {
-              const s = STATUS_LABELS[app.status] ?? { label: app.status, color: 'bg-gray-100 text-gray-600' }
+              const statusMeta = STATUS_LABELS[app.status] ?? { label: app.status, color: 'bg-gray-100 text-gray-600' }
               const isPast = app.event.event_date && new Date(app.event.event_date) < new Date()
+              const canSeeFull = app.status === 'accepted'
+              const displayLocation = getDisplayLocation(app.event, canSeeFull)
+              const stopNav = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation() }
               return (
-                <div
+                <Link
                   key={app.id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"
+                  href={`/my/events/${app.event.id}`}
+                  className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 transition group"
                 >
-                  <div className="flex items-start gap-3">
-                    {app.event.hub_image_url && (
-                      <div className="flex-shrink-0 w-24 sm:w-32 aspect-[16/9] rounded-xl overflow-hidden bg-gray-100 self-start">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={app.event.hub_image_url} alt={app.event.name} className="w-full h-full object-cover" style={{ objectPosition: `${app.event.hub_focal_x ?? 50}% ${app.event.hub_focal_y ?? 50}%` }} />
-                      </div>
-                    )}
-                    <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
-                    <div className="flex-1 min-w-0">
+                  <div className="flex items-stretch min-h-[140px] sm:min-h-[180px]">
+                    <div className="flex-1 min-w-0 p-5 sm:p-6 flex flex-col">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900">{app.event.name}</h3>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
-                          {s.label}
+                        <h3 className="font-semibold text-gray-900 text-lg group-hover:text-steps-blue-700 transition">{app.event.name}</h3>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusMeta.color}`}>
+                          {statusMeta.label}
                         </span>
                         {isPast && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-400">
@@ -340,36 +347,47 @@ export default function StudentHub() {
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1.5">
                         {app.event.event_date && <span>{formatDate(app.event.event_date)}</span>}
-                        {app.event.location && <span>{app.event.location}</span>}
+                        {displayLocation && <span>{displayLocation}</span>}
                       </div>
                       <p className="text-xs text-gray-400 mt-2">
                         Applied {new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
-                    </div>
-                    {!isPast && app.status !== 'withdrew' && app.status !== 'rejected' && (
-                      <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2">
-                        {app.status === 'submitted' && (
-                          <a
-                            href={`/apply/${app.event.slug}?edit=1`}
-                            className="px-3 py-1.5 text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition text-center"
+                      {!isPast && app.status !== 'withdrew' && app.status !== 'rejected' && (
+                        <div className="mt-auto pt-3 flex flex-wrap gap-2">
+                          {app.status === 'submitted' && (
+                            <a
+                              href={`/apply/${app.event.slug}?edit=1`}
+                              onClick={e => e.stopPropagation()}
+                              className="px-3 py-1.5 text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition text-center"
+                            >
+                              Edit application
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={e => { stopNav(e); setWithdrawTarget(app); setWithdrawError(null) }}
+                            className="px-3 py-1.5 text-sm text-steps-berry hover:text-white font-medium border border-steps-berry/40 rounded-xl hover:bg-steps-berry transition"
                           >
-                            Edit
-                          </a>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => { setWithdrawTarget(app); setWithdrawError(null) }}
-                          className="px-3 py-1.5 text-sm text-steps-berry hover:text-white font-medium border border-steps-berry/40 rounded-xl hover:bg-steps-berry transition"
-                        >
-                          Withdraw
-                        </button>
+                            Withdraw
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {app.event.hub_image_url && (
+                      <div className="flex-shrink-0 w-32 sm:w-56 self-stretch bg-gray-100 relative border-l border-gray-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={app.event.hub_image_url}
+                          alt={app.event.name}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          style={{ objectPosition: `${app.event.hub_focal_x ?? 50}% ${app.event.hub_focal_y ?? 50}%` }}
+                        />
                       </div>
                     )}
                   </div>
-                  </div>
-                </div>
+                </Link>
               )
             })}
           </div>

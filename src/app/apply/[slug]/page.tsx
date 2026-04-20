@@ -722,7 +722,7 @@ export default function ApplyPage() {
   return (
     <>
       {event.banner_image_url && (
-        <div className="w-full bg-steps-blue-50">
+        <div className="w-full bg-white">
           <div className="max-w-5xl mx-auto">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

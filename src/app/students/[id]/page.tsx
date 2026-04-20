@@ -246,7 +246,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
                 <option value="">Unknown</option>
                 <option value="state">State non-selective</option>
                 <option value="grammar">State selective / grammar</option>
-                <option value="private">Private / independent (no bursary)</option>
+                <option value="independent">Independent (fee-paying)</option>
                 <option value="independent_bursary">Independent with 90%+ bursary</option>
               </select>
             </div>
@@ -397,7 +397,7 @@ function schoolTypeLabel(v: string | null | undefined) {
   if (!v) return null
   if (v === 'state') return 'State'
   if (v === 'grammar') return 'Grammar'
-  if (v === 'private' || v === 'independent') return 'Private'
+  if (v === 'independent') return 'Independent'
   if (v === 'independent_bursary') return 'Independent (90%+ bursary)'
   return v
 }

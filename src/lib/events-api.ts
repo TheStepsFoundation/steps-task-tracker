@@ -77,6 +77,7 @@ export type EventRow = {
   slug: string
   event_date: string | null
   location: string | null
+  location_full: string | null
   format: string | null
   description: string | null
   capacity: number | null
@@ -111,7 +112,7 @@ export type EventWithStats = EventRow & {
 // =============================================================================
 
 const EVENT_COLUMNS =
-  'id,name,slug,event_date,location,format,description,capacity,time_start,time_end,dress_code,status,applications_open_at,applications_close_at,interest_options,form_config,banner_image_url,hub_image_url,banner_focal_x,banner_focal_y,hub_focal_x,hub_focal_y,created_at'
+  'id,name,slug,event_date,location,location_full,format,description,capacity,time_start,time_end,dress_code,status,applications_open_at,applications_close_at,interest_options,form_config,banner_image_url,hub_image_url,banner_focal_x,banner_focal_y,hub_focal_x,hub_focal_y,created_at'
 
 /**
  * Fetch all events (non-deleted) ordered by date descending.
@@ -187,7 +188,7 @@ export async function fetchEventsWithStats(): Promise<EventWithStats[]> {
 export async function updateEvent(
   id: string,
   patch: Partial<Pick<EventRow,
-    'name' | 'slug' | 'location' | 'format' | 'time_start' | 'time_end' | 'dress_code' |
+    'name' | 'slug' | 'location' | 'location_full' | 'format' | 'time_start' | 'time_end' | 'dress_code' |
     'status' | 'capacity' | 'description' | 'event_date' | 'applications_open_at' | 'applications_close_at' | 'interest_options' | 'form_config' | 'banner_image_url' | 'hub_image_url' | 'banner_focal_x' | 'banner_focal_y' | 'hub_focal_x' | 'hub_focal_y'
   >>,
 ): Promise<EventRow> {
