@@ -41,6 +41,9 @@ type Applicant = {
   parental_income_band: string | null
   qualifications: QualEntry[]
   customFields: Record<string, unknown>
+  engagementScore: number
+  attendedCount: number
+  submittedCount: number
   eligibility: 'eligible' | 'ineligible' | 'unknown'
   gradeScore: number
 }
@@ -223,12 +226,14 @@ type SortDir = 'asc' | 'desc'
 
 
 // Built-in columns for the applicants table
-type BuiltInColId = 'school_type' | 'status' | 'grades' | 'rsvp' | 'attended'
-const DEFAULT_BUILTIN_COLS: BuiltInColId[] = ['school_type', 'status', 'grades', 'rsvp', 'attended']
+type BuiltInColId = 'school_type' | 'status' | 'grades' | 'engagement' | 'past_events' | 'rsvp' | 'attended'
+const DEFAULT_BUILTIN_COLS: BuiltInColId[] = ['school_type', 'status', 'grades', 'engagement', 'past_events', 'rsvp', 'attended']
 const BUILTIN_COL_LABELS: Record<BuiltInColId, string> = {
   school_type: 'School Type',
   status: 'Status',
   grades: 'Grades (Score)',
+  engagement: 'Engagement',
+  past_events: 'Past Events',
   rsvp: 'RSVP',
   attended: 'Attended',
 }
@@ -646,7 +651,7 @@ export default function EventDetailPage() {
   // key bump resets everyone's saved view so the new columns are visible by
   // default. Can be bumped again if a future migration changes column IDs.
   const [viewHydrated, setViewHydrated] = useState(false)
-  const viewStorageKey = `steps:event-view:v2:${eventId}`
+  const viewStorageKey = `steps:event-view:v3:${eventId}`
 
   useEffect(() => {
     if (!eventId) return
@@ -918,6 +923,25 @@ export default function EventDetailPage() {
       }
     }
 
+    // Pull engagement metrics from the students_enriched view so we can surface
+    // cumulative engagement score and "past events attended" — separate from the
+    // academic grade score. Used to spot repeat applicants at a glance.
+    const studentIds = [...new Set((data ?? []).map((r: any) => r.student_id).filter(Boolean))] as string[]
+    const enrichedMap: Record<string, { engagement_score: number; attended_count: number; submitted_count: number }> = {}
+    if (studentIds.length > 0) {
+      const { data: enriched } = await supabase
+        .from('students_enriched')
+        .select('id, engagement_score, attended_count, submitted_count')
+        .in('id', studentIds)
+      for (const e of enriched ?? []) {
+        enrichedMap[e.id] = {
+          engagement_score: e.engagement_score ?? 0,
+          attended_count: e.attended_count ?? 0,
+          submitted_count: e.submitted_count ?? 0,
+        }
+      }
+    }
+
     const mapped: Applicant[] = (data ?? []).map((row: any) => {
       const s = row.students
       const rsvp = row.application_rsvp
@@ -968,6 +992,9 @@ export default function EventDetailPage() {
         parental_income_band: s.parental_income_band ?? null,
         qualifications: quals,
         customFields,
+        engagementScore: enrichedMap[row.student_id]?.engagement_score ?? 0,
+        attendedCount: enrichedMap[row.student_id]?.attended_count ?? 0,
+        submittedCount: enrichedMap[row.student_id]?.submitted_count ?? 0,
         eligibility,
         gradeScore: scoreGrades(quals),
       }
@@ -1914,7 +1941,7 @@ export default function EventDetailPage() {
             </button>
 
             {/* Email queue status — shown when there's activity on this event, until admin dismisses */}
-            {!queueDismissed && (queueStats.queued > 0 || queueStats.sending > 0 || queueStats.sent > 0 || queueStats.failed > 0) && (
+            {!queueDismissed && (queueStats.queued > 0 || queueStats.sending > 0 || queueStats.failed > 0) && (
               <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs">
                 <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 <span className="text-gray-500 dark:text-gray-400">Email queue:</span>
@@ -1968,7 +1995,7 @@ export default function EventDetailPage() {
 
             <button
               onClick={() => setShowInvite(true)}
-              className={`${!queueDismissed && (queueStats.queued > 0 || queueStats.sending > 0 || queueStats.sent > 0 || queueStats.failed > 0) ? '' : 'ml-auto '}px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 whitespace-nowrap`}
+              className={`${!queueDismissed && (queueStats.queued > 0 || queueStats.sending > 0 || queueStats.failed > 0) ? '' : 'ml-auto '}px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 whitespace-nowrap`}
             >
               Invite Students
             </button>
@@ -2182,7 +2209,7 @@ export default function EventDetailPage() {
             {applicants.length === 0 ? 'No applications yet.' : 'No applicants match your filters.'}
           </div>
         ) : (
-          <div className="overflow-x-auto overflow-y-visible" style={{ minHeight: Math.max((paged.length + 5) * 48, 336) }}>
+          <div className="overflow-x-scroll overflow-y-visible always-scrollbar" style={{ minHeight: Math.max((paged.length + 5) * 48, 336) }}>
             <table className="text-sm w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -2337,6 +2364,27 @@ export default function EventDetailPage() {
                                 </svg>
                               )}
                             </button>
+                          </td>
+                        )
+                        // Built-in: engagement score (cumulative, from students_enriched)
+                        if (col.id === 'engagement') return (
+                          <td key={col.id} className="p-3 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-sm font-medium" title="Cumulative engagement score across all Steps events (separate from academic grades)">
+                              {app.engagementScore}
+                            </span>
+                          </td>
+                        )
+                        // Built-in: past events attended (repeat-applicant signal)
+                        if (col.id === 'past_events') return (
+                          <td key={col.id} className="p-3 whitespace-nowrap">
+                            {app.submittedCount > 1 ? (
+                              <span className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300" title={`${app.attendedCount} attended · ${app.submittedCount} total applications`}>
+                                <span className="font-medium">{app.attendedCount}</span>
+                                <span className="text-xs text-gray-400 dark:text-gray-500">/ {app.submittedCount}</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400 dark:text-gray-500" title="First-time applicant">New</span>
+                            )}
                           </td>
                         )
                         // Custom field columns (id starts with cf_)

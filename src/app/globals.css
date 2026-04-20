@@ -66,3 +66,17 @@ html {
   color: #9ca3af;
   pointer-events: none;
 }
+
+
+/* Always-visible horizontal scrollbar — used on admin tables so users
+   on trackpads/mice with fading overlay scrollbars still get a
+   draggable track. */
+.always-scrollbar { scrollbar-width: auto; scrollbar-color: rgb(156 163 175) rgb(243 244 246); }
+.always-scrollbar::-webkit-scrollbar { height: 12px; width: 12px; -webkit-appearance: none; }
+.always-scrollbar::-webkit-scrollbar-track { background: rgb(243 244 246); border-radius: 6px; }
+.always-scrollbar::-webkit-scrollbar-thumb { background: rgb(156 163 175); border-radius: 6px; border: 2px solid rgb(243 244 246); }
+.always-scrollbar::-webkit-scrollbar-thumb:hover { background: rgb(107 114 128); }
+.dark .always-scrollbar { scrollbar-color: rgb(75 85 99) rgb(31 41 55); }
+.dark .always-scrollbar::-webkit-scrollbar-track { background: rgb(31 41 55); }
+.dark .always-scrollbar::-webkit-scrollbar-thumb { background: rgb(75 85 99); border-color: rgb(31 41 55); }
+.dark .always-scrollbar::-webkit-scrollbar-thumb:hover { background: rgb(107 114 128); }
