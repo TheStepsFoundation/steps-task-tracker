@@ -107,6 +107,26 @@ export default function HubSignInPage() {
             </p>
           </div>
 
+          {/* Man Group applicant shortcut — for people who landed here by mistake */}
+          <Link
+            href="/apply/man-group-office-visit"
+            className="group block mb-5 rounded-2xl border border-steps-blue-200 bg-gradient-to-br from-steps-blue-50 to-white px-5 py-4 hover:border-steps-blue-400 hover:shadow-sm transition-all"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-steps-blue-600 font-semibold">
+                  Applying to the Man Group office visit?
+                </p>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  Start your application here — no account needed.
+                </p>
+              </div>
+              <span className="text-steps-blue-600 text-lg group-hover:translate-x-0.5 transition-transform">
+                →
+              </span>
+            </div>
+          </Link>
+
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-7 space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
