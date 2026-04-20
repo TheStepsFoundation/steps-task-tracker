@@ -252,9 +252,16 @@ export default function StudentHub() {
               <a
                 key={event.id}
                 href={`/apply/${event.slug}`}
-                className="block bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-steps-blue-200 transition group"
+                className="block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 transition group"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-stretch gap-4 p-5">
+                  {event.hub_image_url && (
+                    <div className="flex-shrink-0 w-28 sm:w-40 aspect-[16/9] rounded-xl overflow-hidden bg-gray-100 self-start">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={event.hub_image_url} alt={event.name} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 group-hover:text-steps-blue-700 transition">
                       {event.name}
@@ -284,6 +291,7 @@ export default function StudentHub() {
                     Apply
                   </span>
                 </div>
+                </div>
               </a>
             ))}
           </div>
@@ -312,7 +320,14 @@ export default function StudentHub() {
                   key={app.id}
                   className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    {app.event.hub_image_url && (
+                      <div className="flex-shrink-0 w-24 sm:w-32 aspect-[16/9] rounded-xl overflow-hidden bg-gray-100 self-start">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={app.event.hub_image_url} alt={app.event.name} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-gray-900">{app.event.name}</h3>
@@ -352,6 +367,7 @@ export default function StudentHub() {
                         </button>
                       </div>
                     )}
+                  </div>
                   </div>
                 </div>
               )

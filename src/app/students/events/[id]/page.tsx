@@ -432,6 +432,113 @@ function ToolbarBtn(
 }
 
 // ---------------------------------------------------------------------------
+// EventImageUploader — small reusable upload slot for banner/hub-image
+// ---------------------------------------------------------------------------
+
+function EventImageUploader({
+  label,
+  hint,
+  aspect,
+  eventId,
+  kind,
+  value,
+  onChange,
+}: {
+  label: string
+  hint: string
+  aspect: string  // tailwind aspect class e.g. 'aspect-[4/1]'
+  eventId: string
+  kind: 'banner' | 'hub'
+  value: string | null | undefined
+  onChange: (url: string | null) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleFile = async (file: File) => {
+    setError(null)
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
+      setError('Use JPG, PNG, WebP or GIF.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Max file size is 5 MB.')
+      return
+    }
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const objectKey = `${kind}/${eventId}-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase
+        .storage
+        .from('event-banners')
+        .upload(objectKey, file, { cacheControl: '3600', upsert: true, contentType: file.type })
+      if (upErr) throw upErr
+      const { data: pub } = supabase.storage.from('event-banners').getPublicUrl(objectKey)
+      if (!pub?.publicUrl) throw new Error('Could not resolve public URL')
+      onChange(pub.publicUrl)
+    } catch (err: any) {
+      console.error('upload failed', err)
+      setError(err?.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-2">{hint}</p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = '' }}
+      />
+      {value ? (
+        <div className={`relative w-full ${aspect} rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt={label} className="w-full h-full object-cover" />
+          <div className="absolute top-2 right-2 flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="px-2.5 py-1 text-xs font-medium rounded-md bg-white/90 text-gray-700 border border-gray-200 hover:bg-white shadow-sm disabled:opacity-50"
+            >
+              {uploading ? 'Uploading…' : 'Replace'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              disabled={uploading}
+              className="px-2.5 py-1 text-xs font-medium rounded-md bg-white/90 text-red-600 border border-red-200 hover:bg-red-50 shadow-sm disabled:opacity-50"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className={`w-full ${aspect} flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:border-steps-blue-400 hover:bg-steps-blue-50 dark:hover:bg-steps-blue-950/30 text-gray-500 dark:text-gray-400 hover:text-steps-blue-700 transition-colors disabled:opacity-50`}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className="text-sm font-medium">{uploading ? 'Uploading…' : 'Click to upload'}</span>
+        </button>
+      )}
+      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -562,6 +669,8 @@ export default function EventDetailPage() {
       applications_open_at: event.applications_open_at ? event.applications_open_at.slice(0, 16) : '',
       applications_close_at: event.applications_close_at ? event.applications_close_at.slice(0, 16) : '',
       form_config: event.form_config ?? { fields: [] },
+      banner_image_url: event.banner_image_url,
+      hub_image_url: event.hub_image_url,
     })
     setEditing(true)
   }
@@ -588,6 +697,9 @@ export default function EventDetailPage() {
       const closeAt = editDraft.applications_close_at ? new Date(editDraft.applications_close_at as string).toISOString() : null
       if (openAt !== (event.applications_open_at ?? null)) patch.applications_open_at = openAt
       if (closeAt !== (event.applications_close_at ?? null)) patch.applications_close_at = closeAt
+
+      if ((editDraft.banner_image_url ?? null) !== (event.banner_image_url ?? null)) patch.banner_image_url = editDraft.banner_image_url ?? null
+      if ((editDraft.hub_image_url ?? null) !== (event.hub_image_url ?? null)) patch.hub_image_url = editDraft.hub_image_url ?? null
 
       // Always include form_config if it was edited
       const currentFormConfig = JSON.stringify(event.form_config ?? { fields: [] })
@@ -1462,6 +1574,31 @@ export default function EventDetailPage() {
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Description</label>
               <textarea rows={3} value={editDraft.description ?? ''} onChange={e => setEditDraft(d => ({ ...d, description: e.target.value }))} className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 resize-y" />
+            </div>
+
+            {/* Row 5b: Event images */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Event images</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <EventImageUploader
+                  label="Application banner"
+                  hint="Wide hero shown at the top of /apply/{slug}. Recommended 1600×400 (4:1)."
+                  aspect="aspect-[4/1]"
+                  eventId={event.id}
+                  kind="banner"
+                  value={editDraft.banner_image_url}
+                  onChange={url => setEditDraft(d => ({ ...d, banner_image_url: url }))}
+                />
+                <EventImageUploader
+                  label="Student hub card image"
+                  hint="Thumbnail shown on the student hub event cards. Recommended 1200×675 (16:9)."
+                  aspect="aspect-[16/9]"
+                  eventId={event.id}
+                  kind="hub"
+                  value={editDraft.hub_image_url}
+                  onChange={url => setEditDraft(d => ({ ...d, hub_image_url: url }))}
+                />
+              </div>
             </div>
 
             {/* Row 6: Custom form fields */}
