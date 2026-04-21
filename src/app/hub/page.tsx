@@ -37,7 +37,9 @@ export default function HubPage() {
 
   useEffect(() => {
     if (loading) return
+    console.log('[hub] mounted: user=', !!user, 'isTeamMember=', isTeamMember, 'path=', typeof window!=='undefined'?window.location.pathname:'ssr')
     if (!user || !isTeamMember) {
+      console.log('[hub] redirecting to /login')
       router.push('/login')
     }
   }, [user, loading, isTeamMember, router])

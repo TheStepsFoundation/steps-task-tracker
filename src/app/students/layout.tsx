@@ -11,11 +11,30 @@ export default function StudentsLayout({ children }: { children: React.ReactNode
   const router = useRouter()
   const pathname = usePathname()
 
+  // Grace period: when loading flips to false but teamMember hasn't been
+  // set yet (briefly possible on fast page loads where the team_members
+  // fetch lags the session read), don't redirect immediately — give it up
+  // to 1.2s to settle. If user is missing entirely (truly signed out),
+  // redirect immediately.
   useEffect(() => {
-    if (loading) return
-    if (!user || !isTeamMember) {
-      router.push('/login')
+    if (loading) {
+      console.log('[students-layout] loading=true, waiting')
+      return
     }
+    if (!user) {
+      console.log('[students-layout] no user, redirecting to /login')
+      router.push('/login')
+      return
+    }
+    if (!isTeamMember) {
+      console.log('[students-layout] user present but not team member yet — waiting up to 1.2s')
+      const t = setTimeout(() => {
+        console.log('[students-layout] grace period expired, isTeamMember=', isTeamMember, '— redirecting to /login')
+        router.push('/login')
+      }, 1200)
+      return () => clearTimeout(t)
+    }
+    console.log('[students-layout] guard passed: user + isTeamMember')
   }, [user, loading, isTeamMember, router])
 
   if (loading || !user || !isTeamMember) {

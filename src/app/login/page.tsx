@@ -38,7 +38,9 @@ export default function LoginPage() {
 
   // If user is already logged in AND is a team member, redirect to home
   useEffect(() => {
+    console.log('[login] state: authLoading=', authLoading, 'user=', !!user, 'isTeamMember=', isTeamMember, 'path=', typeof window!=='undefined'?window.location.pathname:'ssr')
     if (!authLoading && user && isTeamMember) {
+      console.log('[login] redirecting to /hub — user is authed team member')
       router.push('/hub')
     }
   }, [user, authLoading, isTeamMember, router])

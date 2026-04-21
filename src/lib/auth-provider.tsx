@@ -8,6 +8,15 @@ import { supabase } from './supabase'
 // Types
 // ---------------------------------------------------------------------------
 
+const AUTH_LOG_ENABLED = true
+function alog(...args: any[]) {
+  if (!AUTH_LOG_ENABLED) return
+  const ts = new Date().toISOString().slice(11, 23)
+  // eslint-disable-next-line no-console
+  console.log(`[auth ${ts}]`, ...args)
+}
+
+
 type TeamMember = {
   auth_uuid: string
   id: number
@@ -97,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     newSession: Session | null,
   ) => {
     try {
+      alog('handleAuthChange event=', event, 'hasSession=', !!newSession, 'email=', newSession?.user?.email)
       setSession(newSession)
       const newUser = newSession?.user ?? null
       setUser(newUser)
@@ -116,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Real auth event — validate team membership.
       const result = await checkTeamMembership(newUser.email)
+      alog('team check result:', result.status, 'for', newUser.email)
 
       if (result.status === 'member') {
         setTeamMember(result.row)
@@ -143,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // from before the client split (e.g. a student who used the admin
       // client when both shared a key). Without this, the admin tab would
       // boot with a stale student session and get bounced to /login forever.
+      alog('not a team member — clearing teamMember state. event=', event, 'path=', typeof window !== 'undefined' ? window.location.pathname : 'ssr')
       setTeamMember(null)
       if (event === 'INITIAL_SESSION') {
         try {
@@ -161,11 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Do NOT clear team state on unexpected errors — same reasoning as
       // the 'unknown' branch above. Let the user keep working.
     } finally {
+      alog('setLoading(false) from handleAuthChange')
       setLoading(false)
     }
   }, [checkTeamMembership])
 
   useEffect(() => {
+    alog('AuthProvider useEffect init on path=', typeof window !== 'undefined' ? window.location.pathname : 'ssr')
     // AuthProvider is strictly for ADMIN routes. Student-facing routes
     // (/my, /apply) manage their own Supabase session independently. If we
     // run the admin auth flow on those routes we can race with or clobber
@@ -201,6 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // re-check on TOKEN_REFRESHED — crucial for avoiding mid-session logouts.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        alog('onAuthStateChange listener fired event=', event, 'hasSession=', !!session)
         try {
           await handleAuthChange(event, session)
         } catch (err) {
