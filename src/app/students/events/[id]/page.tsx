@@ -43,7 +43,10 @@ type Applicant = {
   customFields: Record<string, unknown>
   engagementScore: number
   attendedCount: number
+  acceptedCount: number
   submittedCount: number
+  totalApplications: number
+  noShowCount: number
   eligibility: 'eligible' | 'ineligible' | 'unknown'
   gradeScore: number
 }
@@ -927,17 +930,20 @@ export default function EventDetailPage() {
     // cumulative engagement score and "past events attended" — separate from the
     // academic grade score. Used to spot repeat applicants at a glance.
     const studentIds = [...new Set((data ?? []).map((r: any) => r.student_id).filter(Boolean))] as string[]
-    const enrichedMap: Record<string, { engagement_score: number; attended_count: number; submitted_count: number }> = {}
+    const enrichedMap: Record<string, { engagement_score: number; attended_count: number; accepted_count: number; submitted_count: number; total_applications: number; no_show_count: number }> = {}
     if (studentIds.length > 0) {
       const { data: enriched } = await supabase
         .from('students_enriched')
-        .select('id, engagement_score, attended_count, submitted_count')
+        .select('id, engagement_score, attended_count, accepted_count, submitted_count, total_applications, no_show_count')
         .in('id', studentIds)
       for (const e of enriched ?? []) {
         enrichedMap[e.id] = {
           engagement_score: e.engagement_score ?? 0,
           attended_count: e.attended_count ?? 0,
+          accepted_count: e.accepted_count ?? 0,
           submitted_count: e.submitted_count ?? 0,
+          total_applications: e.total_applications ?? 0,
+          no_show_count: e.no_show_count ?? 0,
         }
       }
     }
@@ -994,7 +1000,10 @@ export default function EventDetailPage() {
         customFields,
         engagementScore: enrichedMap[row.student_id]?.engagement_score ?? 0,
         attendedCount: enrichedMap[row.student_id]?.attended_count ?? 0,
+        acceptedCount: enrichedMap[row.student_id]?.accepted_count ?? 0,
         submittedCount: enrichedMap[row.student_id]?.submitted_count ?? 0,
+        totalApplications: enrichedMap[row.student_id]?.total_applications ?? 0,
+        noShowCount: enrichedMap[row.student_id]?.no_show_count ?? 0,
         eligibility,
         gradeScore: scoreGrades(quals),
       }
@@ -2390,19 +2399,38 @@ export default function EventDetailPage() {
                             </span>
                           </td>
                         )
-                        // Built-in: past events attended (repeat-applicant signal)
-                        if (col.id === 'past_events') return (
-                          <td key={col.id} className="p-3 whitespace-nowrap">
-                            {app.submittedCount > 1 ? (
-                              <span className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300" title={`${app.attendedCount} attended · ${app.submittedCount} total applications`}>
-                                <span className="font-medium">{app.attendedCount}</span>
-                                <span className="text-xs text-gray-400 dark:text-gray-500">/ {app.submittedCount}</span>
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-400 dark:text-gray-500" title="First-time applicant">New</span>
-                            )}
-                          </td>
-                        )
+                        // Built-in: past events — attended / past applications ratio.
+                        // Subtract the current application's contribution so the cell shows
+                        // *past* activity only (not counting the row you're currently viewing).
+                        if (col.id === 'past_events') {
+                          const pastApps = Math.max(0, (app.totalApplications ?? 0) - 1)
+                          const pastAttended = Math.max(0, (app.attendedCount ?? 0) - (app.attended ? 1 : 0))
+                          const pastAccepted = Math.max(0, (app.acceptedCount ?? 0) - (app.status === 'accepted' ? 1 : 0))
+                          const pastNoShows = app.noShowCount ?? 0
+                          // Perfect attendance: they attended every event we accepted them to,
+                          // with at least 2 under their belt so the tick carries weight.
+                          const perfect = pastAttended === pastAccepted && pastAccepted >= 2
+                          const tooltip = pastApps === 0
+                            ? 'First-time applicant'
+                            : `${pastAttended} attended · ${pastApps} past application${pastApps === 1 ? '' : 's'}${pastNoShows > 0 ? ` · ${pastNoShows} no-show${pastNoShows === 1 ? '' : 's'}` : ''}`
+                          return (
+                            <td key={col.id} className="p-3 whitespace-nowrap">
+                              {pastApps === 0 ? (
+                                <span className="text-xs text-gray-400 dark:text-gray-500" title={tooltip}>New</span>
+                              ) : (
+                                <span className={`inline-flex items-center gap-1 text-sm ${perfect ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`} title={tooltip}>
+                                  <span className="font-medium">{pastAttended}</span>
+                                  <span className="text-xs text-gray-400 dark:text-gray-500">/ {pastApps}</span>
+                                  {perfect && (
+                                    <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </span>
+                              )}
+                            </td>
+                          )
+                        }
                         // Custom field columns (id starts with cf_)
                         const cfId = col.id.replace(/^cf_/, '')
                         const val = app.customFields[cfId]
