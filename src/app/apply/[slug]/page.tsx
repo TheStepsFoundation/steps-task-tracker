@@ -247,6 +247,18 @@ export default function ApplyPage() {
   // Effective label / help-text for a standard field (override → default).
   const stdLabel = (id: string, fallback: string) => stdOverrides[id]?.label ?? fallback
   const stdDesc  = (id: string, fallback?: string) => stdOverrides[id]?.description ?? fallback ?? ''
+  // Is this standard question hidden for this event? Identity-critical fields are never hidden.
+  const LOCKED_STD_IDS = new Set(['std_name', 'std_email', 'std_school'])
+  const stdHidden = (id: string): boolean => {
+    if (LOCKED_STD_IDS.has(id)) return false
+    return stdOverrides[id]?.hidden === true
+  }
+  // Word-count helpers used in validation below.
+  const wordCount = (s: string | null | undefined) => {
+    if (!s) return 0
+    const t = s.trim()
+    return t ? t.split(/\s+/).filter(Boolean).length : 0
+  }
 
   // Attribution options: if admin overrode the list, use that; otherwise defaults.
   // If the student has a saved attribution value that is no longer in the active
@@ -605,27 +617,52 @@ export default function ApplyPage() {
     return formFields.length > 0
   }
 
+  /** True when the wrap-up step has anything to show (anything-else or attribution).
+   *  When both are hidden we skip this step entirely and submit straight from
+   *  details/application. */
+  const hasWrapupContent = (): boolean => {
+    return !stdHidden('std_anything_else') || !stdHidden('std_attribution')
+  }
+
   const handleDetailsNext = () => {
     const errs: Record<string, string> = {}
     const order: string[] = []
     if (!firstName.trim()) { errs.firstName = 'Please enter your first name.'; order.push('firstName') }
     if (!lastName.trim()) { errs.lastName = 'Please enter your last name.'; order.push('lastName') }
     if (!school.schoolId && !school.schoolNameRaw) { errs.school = 'Please select or enter your school.'; order.push('school') }
-    if (!yearGroup) { errs.yearGroup = 'Please select your year group.'; order.push('yearGroup') }
-    if (!schoolType) { errs.schoolType = 'Please answer this question.'; order.push('schoolType') }
-    if (!freeSchoolMeals) { errs.freeSchoolMeals = 'Please answer the Free School Meals question.'; order.push('freeSchoolMeals') }
-    if (!householdIncome) { errs.householdIncome = 'Please answer the household income question.'; order.push('householdIncome') }
+    if (!stdHidden('std_year_group') && !yearGroup) { errs.yearGroup = 'Please select your year group.'; order.push('yearGroup') }
+    if (!stdHidden('std_school_type') && !schoolType) { errs.schoolType = 'Please answer this question.'; order.push('schoolType') }
+    if (!stdHidden('std_fsm') && !freeSchoolMeals) { errs.freeSchoolMeals = 'Please answer the Free School Meals question.'; order.push('freeSchoolMeals') }
+    if (!stdHidden('std_income') && !householdIncome) { errs.householdIncome = 'Please answer the household income question.'; order.push('householdIncome') }
+
+    // Optional "additional context" word bounds (only checked when field is shown).
+    if (!stdHidden('std_additional')) {
+      const minW = stdOverrides.std_additional?.minWords
+      const maxW = stdOverrides.std_additional?.maxWords
+      const count = wordCount(additionalContext)
+      if (typeof minW === 'number' && minW > 0 && count > 0 && count < minW) {
+        errs.additionalContext = `Please write at least ${minW} words (currently ${count}).`
+        order.push('additionalContext')
+      } else if (typeof maxW === 'number' && count > maxW) {
+        errs.additionalContext = `Please keep this under ${maxW} words (currently ${count}).`
+        order.push('additionalContext')
+      }
+    }
 
     // GCSE + qualifications (moved from handleSubmit — now live on page 1)
-    if (!gcseResults.trim()) { errs.gcseResults = 'Please enter your GCSE results.'; order.push('gcseResults') }
-    else if (!/^\d+$/.test(gcseResults.trim())) { errs.gcseResults = 'GCSE results should contain only numbers (e.g. 999887766).'; order.push('gcseResults') }
+    if (!stdHidden('std_gcse')) {
+      if (!gcseResults.trim()) { errs.gcseResults = 'Please enter your GCSE results.'; order.push('gcseResults') }
+      else if (!/^\d+$/.test(gcseResults.trim())) { errs.gcseResults = 'GCSE results should contain only numbers (e.g. 999887766).'; order.push('gcseResults') }
+    }
 
     const filledQuals = qualifications.filter(q => q.subject && q.grade)
     const incompleteQuals = qualifications.filter(q => (q.subject && !q.grade) || (!q.subject && q.grade))
     const ibMissingLevel = qualifications.filter(q => q.qualType === 'ib' && q.subject && !q.level)
-    if (filledQuals.length === 0) { errs.qualifications = 'Please add at least one subject with a grade.'; order.push('qualifications') }
-    else if (incompleteQuals.length > 0) { errs.qualifications = 'Please complete all subject rows — each needs both a subject and a grade.'; order.push('qualifications') }
-    else if (ibMissingLevel.length > 0) { errs.qualifications = 'Please select HL or SL for each IB subject.'; order.push('qualifications') }
+    if (!stdHidden('std_qualifications')) {
+      if (filledQuals.length === 0) { errs.qualifications = 'Please add at least one subject with a grade.'; order.push('qualifications') }
+      else if (incompleteQuals.length > 0) { errs.qualifications = 'Please complete all subject rows — each needs both a subject and a grade.'; order.push('qualifications') }
+      else if (ibMissingLevel.length > 0) { errs.qualifications = 'Please select HL or SL for each IB subject.'; order.push('qualifications') }
+    }
 
     setFieldErrors(errs)
     const n = Object.keys(errs).length
@@ -635,8 +672,15 @@ export default function ApplyPage() {
       return
     }
     setError(null)
-    // Skip the event-specific page if the admin didn't configure any custom fields.
-    setStep(hasCustomFields() ? 'application' : 'wrapup')
+    // Skip steps with no content. If there are custom fields, go there.
+    // Else if wrapup has content, go to wrapup. Else submit directly.
+    if (hasCustomFields()) {
+      setStep('application')
+    } else if (hasWrapupContent()) {
+      setStep('wrapup')
+    } else {
+      void handleSubmit()
+    }
   }
 
   /** Validate just the custom fields on the event-specific page before moving to wrap-up. */
@@ -645,9 +689,27 @@ export default function ApplyPage() {
     const order: string[] = []
     // Collect required custom fields — same rules as handleSubmit's custom-fields block.
     for (const field of formFields) {
-      if (!field.required) continue
       const val = customFieldValues[field.id]
       const key = `customField:${field.id}`
+      // Word-count bounds apply to textareas even when the field is optional,
+      // but only once the applicant has written something.
+      if (field.type === 'textarea') {
+        const minW = field.config?.minWords
+        const maxW = field.config?.maxWords
+        const str = typeof val === 'string' ? val : ''
+        const count = wordCount(str)
+        if (typeof minW === 'number' && minW > 0 && count > 0 && count < minW) {
+          errs[key] = `${stripToText(field.label)}: please write at least ${minW} words (currently ${count}).`
+          order.push(key)
+          continue
+        }
+        if (typeof maxW === 'number' && count > maxW) {
+          errs[key] = `${stripToText(field.label)}: please keep this under ${maxW} words (currently ${count}).`
+          order.push(key)
+          continue
+        }
+      }
+      if (!field.required) continue
       if (val === undefined || val === '' || val === null) {
         errs[key] = `Please complete: ${stripToText(field.label)}`
         order.push(key)
@@ -680,7 +742,11 @@ export default function ApplyPage() {
       return
     }
     setError(null)
-    setStep('wrapup')
+    if (hasWrapupContent()) {
+      setStep('wrapup')
+    } else {
+      void handleSubmit()
+    }
   }
 
   const handleSubmit = async () => {
@@ -688,22 +754,42 @@ export default function ApplyPage() {
     const order: string[] = []
 
     // GCSE
-    if (!gcseResults.trim()) { errs.gcseResults = 'Please enter your GCSE results.'; order.push('gcseResults') }
-    else if (!/^\d+$/.test(gcseResults.trim())) { errs.gcseResults = 'GCSE results should contain only numbers (e.g. 999887766).'; order.push('gcseResults') }
+    if (!stdHidden('std_gcse')) {
+      if (!gcseResults.trim()) { errs.gcseResults = 'Please enter your GCSE results.'; order.push('gcseResults') }
+      else if (!/^\d+$/.test(gcseResults.trim())) { errs.gcseResults = 'GCSE results should contain only numbers (e.g. 999887766).'; order.push('gcseResults') }
+    }
 
     // Qualifications
     const filledQuals = qualifications.filter(q => q.subject && q.grade)
     const incompleteQuals = qualifications.filter(q => (q.subject && !q.grade) || (!q.subject && q.grade))
     const ibMissingLevel = qualifications.filter(q => q.qualType === 'ib' && q.subject && !q.level)
-    if (filledQuals.length === 0) { errs.qualifications = 'Please add at least one subject with a grade.'; order.push('qualifications') }
-    else if (incompleteQuals.length > 0) { errs.qualifications = 'Please complete all subject rows — each needs both a subject and a grade.'; order.push('qualifications') }
-    else if (ibMissingLevel.length > 0) { errs.qualifications = 'Please select HL or SL for each IB subject.'; order.push('qualifications') }
+    if (!stdHidden('std_qualifications')) {
+      if (filledQuals.length === 0) { errs.qualifications = 'Please add at least one subject with a grade.'; order.push('qualifications') }
+      else if (incompleteQuals.length > 0) { errs.qualifications = 'Please complete all subject rows — each needs both a subject and a grade.'; order.push('qualifications') }
+      else if (ibMissingLevel.length > 0) { errs.qualifications = 'Please select HL or SL for each IB subject.'; order.push('qualifications') }
+    }
 
     // Custom fields
     for (const field of formFields) {
-      if (!field.required) continue
       const val = customFieldValues[field.id]
       const key = `customField:${field.id}`
+      if (field.type === 'textarea') {
+        const minW = field.config?.minWords
+        const maxW = field.config?.maxWords
+        const str = typeof val === 'string' ? val : ''
+        const count = wordCount(str)
+        if (typeof minW === 'number' && minW > 0 && count > 0 && count < minW) {
+          errs[key] = `${stripToText(field.label)}: please write at least ${minW} words (currently ${count}).`
+          order.push(key)
+          continue
+        }
+        if (typeof maxW === 'number' && count > maxW) {
+          errs[key] = `${stripToText(field.label)}: please keep this under ${maxW} words (currently ${count}).`
+          order.push(key)
+          continue
+        }
+      }
+      if (!field.required) continue
       if (val === undefined || val === '' || val === null) {
         errs[key] = `Please complete: ${stripToText(field.label)}`
         order.push(key)
@@ -729,8 +815,25 @@ export default function ApplyPage() {
       }
     }
 
-    // Attribution
-    if (!attribution) { errs.attribution = 'Please tell us how you heard about this opportunity.'; order.push('attribution') }
+    // Attribution (only required if admin hasn't hidden the question)
+    if (!stdHidden('std_attribution') && !attribution) {
+      errs.attribution = 'Please tell us how you heard about this opportunity.'
+      order.push('attribution')
+    }
+
+    // "Anything else" word bounds (only if the field is shown).
+    if (!stdHidden('std_anything_else')) {
+      const minW = stdOverrides.std_anything_else?.minWords
+      const maxW = stdOverrides.std_anything_else?.maxWords
+      const count = wordCount(anythingElse)
+      if (typeof minW === 'number' && minW > 0 && count > 0 && count < minW) {
+        errs.anythingElse = `Please write at least ${minW} words for "Anything else" (currently ${count}).`
+        order.push('anythingElse')
+      } else if (typeof maxW === 'number' && count > maxW) {
+        errs.anythingElse = `Please keep "Anything else" under ${maxW} words (currently ${count}).`
+        order.push('anythingElse')
+      }
+    }
 
     setFieldErrors(errs)
     const n = Object.keys(errs).length
@@ -889,9 +992,12 @@ export default function ApplyPage() {
         // Progress bubbles. The middle 'application' step is only shown when
         // the admin has configured custom questions; otherwise we collapse to
         // a 4-bubble flow (email -> otp -> details -> wrapup).
-        const progressSteps: Step[] = hasCustomFields()
-          ? ['email', 'otp', 'details', 'application', 'wrapup']
-          : ['email', 'otp', 'details', 'wrapup']
+        const progressSteps: Step[] = (() => {
+          const base: Step[] = ['email', 'otp', 'details']
+          if (hasCustomFields()) base.push('application')
+          if (hasWrapupContent()) base.push('wrapup')
+          return base
+        })()
         const stepIdx = progressSteps.indexOf(step as Step)
         return (
           <div className="flex items-center gap-2 mb-8 justify-center">
@@ -1177,23 +1283,25 @@ export default function ApplyPage() {
           </div>
 
           {/* Year group */}
-          <div className="mb-6" data-error-key="yearGroup">
-            <label htmlFor="yearGroup" className="block text-sm font-medium text-gray-700 mb-1">
-              {stdLabel('std_year_group', 'Year group')} <span className="text-red-400">*</span>
-            </label>
-            {stdDesc('std_year_group') && (
-              <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_year_group')) }} />
-            )}
-            <select id="yearGroup" value={yearGroup}
-              onChange={e => { setYearGroup(e.target.value ? Number(e.target.value) : ''); clearFieldError('yearGroup') }}
-              className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white ${fieldErrors.yearGroup ? 'border-red-400 bg-red-50/30' : 'border-gray-200'}`}>
-              <option value="">Select…</option>
-              <option value={12}>Year 12</option>
-              <option value={13}>Year 13</option>
-              <option value={14}>Gap year</option>
-            </select>
-            {fieldErrors.yearGroup && <p className="mt-1 text-xs text-red-600">{fieldErrors.yearGroup}</p>}
-          </div>
+          {!stdHidden('std_year_group') && (
+            <div className="mb-6" data-error-key="yearGroup">
+              <label htmlFor="yearGroup" className="block text-sm font-medium text-gray-700 mb-1">
+                {stdLabel('std_year_group', 'Year group')} <span className="text-red-400">*</span>
+              </label>
+              {stdDesc('std_year_group') && (
+                <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_year_group')) }} />
+              )}
+              <select id="yearGroup" value={yearGroup}
+                onChange={e => { setYearGroup(e.target.value ? Number(e.target.value) : ''); clearFieldError('yearGroup') }}
+                className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white ${fieldErrors.yearGroup ? 'border-red-400 bg-red-50/30' : 'border-gray-200'}`}>
+                <option value="">Select…</option>
+                <option value={12}>Year 12</option>
+                <option value={13}>Year 13</option>
+                <option value={14}>Gap year</option>
+              </select>
+              {fieldErrors.yearGroup && <p className="mt-1 text-xs text-red-600">{fieldErrors.yearGroup}</p>}
+            </div>
+          )}
 
           {/* --- Contextual & Socioeconomic --- */}
           <div className="border-t border-gray-100 pt-6 mb-6">
@@ -1202,7 +1310,7 @@ export default function ApplyPage() {
               This helps us ensure our events reach students from underrepresented backgrounds.
             </p>
 
-            {isIndependentSchool(school.typeGroup) ? (
+            {!stdHidden('std_school_type') && (isIndependentSchool(school.typeGroup) ? (
               <fieldset className="mb-4" data-error-key="schoolType">
                 <legend className="block text-sm font-medium text-gray-700 mb-2">
                   Does your school provide you with a bursary or scholarship covering 90%+ of fees? <span className="text-red-400">*</span>
@@ -1243,8 +1351,9 @@ export default function ApplyPage() {
                 ))}
                 {fieldErrors.schoolType && <p className="mt-1 text-xs text-red-600">{fieldErrors.schoolType}</p>}
               </fieldset>
-            )}
+            ))}
 
+            {!stdHidden('std_income') && (
             <fieldset className="mb-4" data-error-key="householdIncome">
               <legend className="block text-sm font-medium text-gray-700 mb-2">
                 {stdLabel('std_income', 'Is your average household income less than £40,000?')} <span className="text-red-400">*</span>
@@ -1261,7 +1370,9 @@ export default function ApplyPage() {
               ))}
               {fieldErrors.householdIncome && <p className="mt-1 text-xs text-red-600">{fieldErrors.householdIncome}</p>}
             </fieldset>
+            )}
 
+            {!stdHidden('std_fsm') && (
             <fieldset className="mb-4" data-error-key="freeSchoolMeals">
               <legend className="block text-sm font-medium text-gray-700 mb-2">
                 {stdLabel('std_fsm', 'Are you eligible for Free School Meals?')} <span className="text-red-400">*</span>
@@ -1284,16 +1395,38 @@ export default function ApplyPage() {
               ))}
               {fieldErrors.freeSchoolMeals && <p className="mt-1 text-xs text-red-600">{fieldErrors.freeSchoolMeals}</p>}
             </fieldset>
+            )}
 
-            <div>
-              <label htmlFor="additionalContext" className="block text-sm font-medium text-gray-700 mb-1">
-                {stdLabel('std_additional', 'Any additional contextual information?')}
-              </label>
-              <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_additional', 'E.g. young carer, extenuating circumstances, school disruption, etc.')) }} />
-              <textarea id="additionalContext" value={additionalContext}
-                onChange={e => setAdditionalContext(e.target.value)} rows={3}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none" />
-            </div>
+            {!stdHidden('std_additional') && (
+              <div data-error-key="additionalContext">
+                <label htmlFor="additionalContext" className="block text-sm font-medium text-gray-700 mb-1">
+                  {stdLabel('std_additional', 'Any additional contextual information?')}
+                </label>
+                <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_additional', 'E.g. young carer, extenuating circumstances, school disruption, etc.')) }} />
+                <textarea id="additionalContext" value={additionalContext}
+                  onChange={e => setAdditionalContext(e.target.value)} rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none" />
+                {(() => {
+                  const minW = stdOverrides.std_additional?.minWords
+                  const maxW = stdOverrides.std_additional?.maxWords
+                  if (typeof minW !== 'number' && typeof maxW !== 'number') return null
+                  const count = wordCount(additionalContext)
+                  const over = typeof maxW === 'number' && count > maxW
+                  const under = typeof minW === 'number' && count > 0 && count < minW
+                  const color = over ? 'text-red-600' : under ? 'text-amber-600' : 'text-gray-400'
+                  const bounds = (typeof minW === 'number' && typeof maxW === 'number')
+                    ? `${minW}\u2013${maxW} words`
+                    : typeof minW === 'number' ? `min ${minW} words` : `max ${maxW} words`
+                  return (
+                    <div className={`mt-1 flex justify-between text-[11px] ${color}`}>
+                      <span>{bounds}</span>
+                      <span>{count} {count === 1 ? 'word' : 'words'}</span>
+                    </div>
+                  )
+                })()}
+                {fieldErrors.additionalContext && <p className="mt-1 text-xs text-red-600">{fieldErrors.additionalContext}</p>}
+              </div>
+            )}
           </div>
 
           {/* --- Academic section (fixed) --- */}
@@ -1303,25 +1436,28 @@ export default function ApplyPage() {
           </p>
 
           {/* GCSE results — digits only */}
-          <div className="mb-6" data-error-key="gcseResults">
-            <label htmlFor="gcse" className="block text-sm font-medium text-gray-700 mb-1">
-              {stdLabel('std_gcse', 'Achieved GCSE results')} <span className="text-red-400">*</span>
-            </label>
-            <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_gcse', 'Enter your grades as numbers only, highest to lowest (e.g. 999887766).')) }} />
-            <input
-              id="gcse"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={gcseResults}
-              onChange={e => { setGcseResults(e.target.value.replace(/\D/g, '')); clearFieldError('gcseResults') }}
-              placeholder="e.g. 999887766"
-              className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition font-mono tracking-wider ${fieldErrors.gcseResults ? 'border-red-400 bg-red-50/30' : 'border-gray-200'}`}
-            />
-            {fieldErrors.gcseResults && <p className="mt-1 text-xs text-red-600">{fieldErrors.gcseResults}</p>}
-          </div>
+          {!stdHidden('std_gcse') && (
+            <div className="mb-6" data-error-key="gcseResults">
+              <label htmlFor="gcse" className="block text-sm font-medium text-gray-700 mb-1">
+                {stdLabel('std_gcse', 'Achieved GCSE results')} <span className="text-red-400">*</span>
+              </label>
+              <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_gcse', 'Enter your grades as numbers only, highest to lowest (e.g. 999887766).')) }} />
+              <input
+                id="gcse"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={gcseResults}
+                onChange={e => { setGcseResults(e.target.value.replace(/\D/g, '')); clearFieldError('gcseResults') }}
+                placeholder="e.g. 999887766"
+                className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition font-mono tracking-wider ${fieldErrors.gcseResults ? 'border-red-400 bg-red-50/30' : 'border-gray-200'}`}
+              />
+              {fieldErrors.gcseResults && <p className="mt-1 text-xs text-red-600">{fieldErrors.gcseResults}</p>}
+            </div>
+          )}
 
           {/* --- Qualifications --- */}
+          {!stdHidden('std_qualifications') && (
           <div className="mb-6" data-error-key="qualifications">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {stdLabel('std_qualifications', 'Subjects and predicted/achieved grades')} <span className="text-red-400">*</span>
@@ -1400,6 +1536,7 @@ export default function ApplyPage() {
             </button>
             {fieldErrors.qualifications && <p className="mt-2 text-xs text-red-600">{fieldErrors.qualifications}</p>}
           </div>
+          )}
 
           <button onClick={handleDetailsNext}
             className="w-full py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue">
@@ -1551,17 +1688,39 @@ export default function ApplyPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-6">Before you submit</h2>
 
           {/* --- Anything else (std_anything_else) --- */}
-          <div className="border-t border-gray-100 pt-6 mb-6">
-            <label htmlFor="anythingElse" className="block text-sm font-medium text-gray-700 mb-1">
-              {stdLabel('std_anything_else', 'Anything else you’d like us to know?')}
-            </label>
-            <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_anything_else', 'Optional — share anything else you’d like the team to know about you or your application.')) }} />
-            <textarea id="anythingElse" value={anythingElse}
-              onChange={e => setAnythingElse(e.target.value)} rows={3}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none" />
-          </div>
+          {!stdHidden('std_anything_else') && (
+            <div className="border-t border-gray-100 pt-6 mb-6" data-error-key="anythingElse">
+              <label htmlFor="anythingElse" className="block text-sm font-medium text-gray-700 mb-1">
+                {stdLabel('std_anything_else', 'Anything else you’d like us to know?')}
+              </label>
+              <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_anything_else', 'Optional — share anything else you’d like the team to know about you or your application.')) }} />
+              <textarea id="anythingElse" value={anythingElse}
+                onChange={e => setAnythingElse(e.target.value)} rows={3}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none" />
+              {(() => {
+                const minW = stdOverrides.std_anything_else?.minWords
+                const maxW = stdOverrides.std_anything_else?.maxWords
+                if (typeof minW !== 'number' && typeof maxW !== 'number') return null
+                const count = wordCount(anythingElse)
+                const over = typeof maxW === 'number' && count > maxW
+                const under = typeof minW === 'number' && count > 0 && count < minW
+                const color = over ? 'text-red-600' : under ? 'text-amber-600' : 'text-gray-400'
+                const bounds = (typeof minW === 'number' && typeof maxW === 'number')
+                  ? `${minW}\u2013${maxW} words`
+                  : typeof minW === 'number' ? `min ${minW} words` : `max ${maxW} words`
+                return (
+                  <div className={`mt-1 flex justify-between text-[11px] ${color}`}>
+                    <span>{bounds}</span>
+                    <span>{count} {count === 1 ? 'word' : 'words'}</span>
+                  </div>
+                )
+              })()}
+              {fieldErrors.anythingElse && <p className="mt-1 text-xs text-red-600">{fieldErrors.anythingElse}</p>}
+            </div>
+          )}
 
           {/* --- Attribution + consent --- */}
+          {!stdHidden('std_attribution') && (
           <div className="border-t border-gray-100 pt-6 mb-6">
             <fieldset className="mb-6" data-error-key="attribution">
               <legend className="block text-sm font-medium text-gray-700 mb-2">
@@ -1582,6 +1741,7 @@ export default function ApplyPage() {
               {fieldErrors.attribution && <p className="mt-1 text-xs text-red-600">{fieldErrors.attribution}</p>}
             </fieldset>
           </div>
+          )}
 
           <div className="flex gap-3">
             <button onClick={() => { setStep(hasCustomFields() ? 'application' : 'details'); setError(null) }}

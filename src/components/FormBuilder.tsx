@@ -136,6 +136,8 @@ const STANDARD_QUESTIONS: StandardQuestion[] = [
   { id: "std_anything_else", label: "Anything else you’d like us to know?", type: "textarea", group: "end", section: "Before you submit" },
 ]
 
+const LOCKED_STD_IDS = new Set(['std_name', 'std_email', 'std_school'])
+
 const STANDARD_GROUP_LABELS: Record<'start' | 'middle' | 'end', string> = {
   start: "Near the start — About you",
   middle: "Middle — Contextual & academic",
@@ -172,7 +174,10 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
       next.label === undefined &&
       next.description === undefined &&
       next.options === undefined &&
-      next.retiredOptions === undefined
+      next.retiredOptions === undefined &&
+      next.hidden === undefined &&
+      next.minWords === undefined &&
+      next.maxWords === undefined
     )) {
       delete copy[stdId]
     } else {
@@ -544,6 +549,28 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
                     const effLabel = override.label ?? sq.label
                     const effDescription = override.description ?? sq.description ?? ''
                     const effOptions = override.options ?? sq.defaultOptions ?? []
+                    const isHidden = override.hidden === true
+                    const isLocked = LOCKED_STD_IDS.has(sq.id)
+
+                    // Compact row when this std question has been removed from the form.
+                    if (isHidden) {
+                      return (
+                        <div key={sq.id}
+                          className="p-2.5 rounded-md bg-gray-50 dark:bg-gray-900/30 border border-dashed border-gray-300 dark:border-gray-700 flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium">Removed</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{effLabel}</span>
+                          <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">{sq.id}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStandardOverride(sq.id, { ...override, hidden: undefined })}
+                            className="ml-auto text-[11px] text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline"
+                          >
+                            + Add back
+                          </button>
+                        </div>
+                      )
+                    }
+
                     return (
                       <div key={sq.id}
                         className="p-2.5 rounded-md bg-white/70 dark:bg-gray-900/40 border border-amber-200/70 dark:border-amber-800/60 space-y-2">
@@ -557,9 +584,22 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
                             🔒 Standard
                           </span>
                           {sq.section && (
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 ml-auto">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400 mx-auto">
                               {sq.section}
                             </span>
+                          )}
+                          {!isLocked && (
+                            <button
+                              type="button"
+                              onClick={() => updateStandardOverride(sq.id, { ...override, hidden: true })}
+                              title="Remove this question from the applicant form for this event."
+                              className="ml-auto text-[10px] text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 px-1.5 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                            >
+                              Remove
+                            </button>
+                          )}
+                          {isLocked && (
+                            <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500" title="Identity fields can't be removed">Always included</span>
                           )}
                         </div>
 
@@ -629,6 +669,32 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
                                 ))}
                               </ul>
                             )}
+                          </div>
+                        )}
+
+                        {/* Word bounds — only for textarea-style std questions */}
+                        {sq.type === 'textarea' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Min words (optional)</label>
+                              <input type="number" min={0} value={override.minWords ?? ''}
+                                onChange={e => updateStandardOverride(sq.id, {
+                                  ...override,
+                                  minWords: Number(e.target.value) || undefined,
+                                })}
+                                placeholder="e.g. 50"
+                                className={inputClass} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Max words (optional)</label>
+                              <input type="number" min={0} value={override.maxWords ?? ''}
+                                onChange={e => updateStandardOverride(sq.id, {
+                                  ...override,
+                                  maxWords: Number(e.target.value) || undefined,
+                                })}
+                                placeholder="e.g. 250"
+                                className={inputClass} />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1036,6 +1102,26 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
                     <label className="block text-xs text-gray-500 mb-0.5">Max</label>
                     <input type="number" value={field.config?.max ?? ""}
                       onChange={e => updateField(idx, { config: { ...field.config, max: Number(e.target.value) || undefined } })}
+                      className={inputClass} />
+                  </div>
+                </div>
+              )}
+
+              {/* Textarea word min/max */}
+              {field.type === "textarea" && (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-0.5">Min words</label>
+                    <input type="number" min={0} value={field.config?.minWords ?? ""}
+                      onChange={e => updateField(idx, { config: { ...field.config, minWords: Number(e.target.value) || undefined } })}
+                      placeholder="e.g. 50"
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-0.5">Max words</label>
+                    <input type="number" min={0} value={field.config?.maxWords ?? ""}
+                      onChange={e => updateField(idx, { config: { ...field.config, maxWords: Number(e.target.value) || undefined } })}
+                      placeholder="e.g. 250"
                       className={inputClass} />
                   </div>
                 </div>

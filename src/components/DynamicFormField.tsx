@@ -24,6 +24,15 @@ type Props = {
 
 const inputClass = 'w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white text-sm'
 
+/** Count words the same way we validate (split on whitespace, ignore empties). */
+export function countWords(value: string | undefined | null): number {
+  if (!value) return 0
+  const trimmed = value.trim()
+  if (!trimmed) return 0
+  return trimmed.split(/\s+/).filter(Boolean).length
+}
+
+
 // ---------------------------------------------------------------------------
 // Conditional visibility evaluator
 // ---------------------------------------------------------------------------
@@ -142,14 +151,39 @@ export default function DynamicFormField({ field, value, onChange, allValues }: 
       )
 
     // ----- Textarea -----
-    case 'textarea':
+    case 'textarea': {
+      const textValue = (value as string) ?? ''
+      const wordCount = countWords(textValue)
+      const minWords = field.config?.minWords
+      const maxWords = field.config?.maxWords
+      const hasBounds = typeof minWords === 'number' || typeof maxWords === 'number'
+      const belowMin = typeof minWords === 'number' && wordCount > 0 && wordCount < minWords
+      const aboveMax = typeof maxWords === 'number' && wordCount > maxWords
+      const countColor = aboveMax
+        ? 'text-red-600'
+        : belowMin
+          ? 'text-amber-600'
+          : 'text-gray-400'
+      const boundsLabel = (() => {
+        if (typeof minWords === 'number' && typeof maxWords === 'number') return `${minWords}\u2013${maxWords} words`
+        if (typeof minWords === 'number') return `min ${minWords} words`
+        if (typeof maxWords === 'number') return `max ${maxWords} words`
+        return ''
+      })()
       return (
         <div className="mb-4">
           <FieldLabel field={field} />
-          <textarea value={(value as string) ?? ''} onChange={e => set(e.target.value)}
+          <textarea value={textValue} onChange={e => set(e.target.value)}
             rows={3} placeholder={field.config?.placeholder ?? ''} className={`${inputClass} resize-none`} />
+          {hasBounds && (
+            <div className={`mt-1 flex justify-between text-[11px] ${countColor}`}>
+              <span>{boundsLabel}</span>
+              <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
+            </div>
+          )}
         </div>
       )
+    }
 
     // ----- Number -----
     case 'number':

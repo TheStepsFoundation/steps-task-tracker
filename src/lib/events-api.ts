@@ -31,6 +31,15 @@ export type StandardOverride = {
    * duplicate value.
    */
   retiredOptions?: { value: string; label: string }[]
+  /**
+   * If true, the applicant-facing form skips this standard question entirely
+   * and its required-field validation is bypassed. Identity-critical fields
+   * (name, email, school) ignore this flag and stay visible.
+   */
+  hidden?: boolean
+  /** Word-count bounds for textarea-style standard questions (std_additional, std_anything_else). */
+  minWords?: number
+  maxWords?: number
 }
 
 /** Per-event overrides for standard (auto-included) questions. Keyed by standard-question id (std_*). */
@@ -62,6 +71,9 @@ export type FormFieldConfig = {
     placeholder?: string
     min?: number
     max?: number
+    // Textarea word bounds
+    minWords?: number
+    maxWords?: number
     // Checkbox list
     maxSelections?: number
     // Ranked dropdown
