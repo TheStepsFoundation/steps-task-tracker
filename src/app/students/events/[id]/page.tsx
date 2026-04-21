@@ -44,6 +44,12 @@ type Applicant = {
   parental_income_band: string | null
   qualifications: QualEntry[]
   customFields: Record<string, unknown>
+  // Standard free-text / attribution questions — these are part of the apply
+  // form pool (not custom), but admins can surface them as dashboard columns.
+  additionalContext: string | null
+  anythingElse: string | null
+  attributionSource: string | null
+  attributionChannel: string | null
   engagementScore: number
   attendedCount: number
   acceptedCount: number
@@ -223,7 +229,7 @@ function chipsToTokens(html: string): string {
 
 
 // Available sortable columns
-type SortKey = 'name' | 'school_type' | 'year_group' | 'status' | 'gradeScore' | 'submitted_at'
+type SortKey = 'name' | 'school_type' | 'year_group' | 'status' | 'gradeScore' | 'submitted_at' | 'engagement' | 'past_events' | 'rsvp' | 'attended'
 type SortDir = 'asc' | 'desc'
 
 
@@ -978,6 +984,7 @@ export default function EventDetailPage() {
         .from('applications')
         .select(`
           id, student_id, status, submitted_at, attended, reviewed_by, reviewed_at, raw_response,
+          attribution_source, channel,
           students!inner(first_name, last_name, personal_email, year_group, school_id,
             school_type, bursary_90plus, free_school_meals, parental_income_band,
             schools(name)
@@ -1082,6 +1089,10 @@ export default function EventDetailPage() {
         parental_income_band: s.parental_income_band ?? null,
         qualifications: quals,
         customFields,
+        additionalContext: typeof raw.additional_context === 'string' ? raw.additional_context : null,
+        anythingElse: typeof raw.anything_else === 'string' ? raw.anything_else : null,
+        attributionSource: typeof row.attribution_source === 'string' ? row.attribution_source : null,
+        attributionChannel: typeof row.channel === 'string' ? row.channel : null,
         engagementScore: enrichedMap[row.student_id]?.engagement_score ?? 0,
         attendedCount: enrichedMap[row.student_id]?.attended_count ?? 0,
         acceptedCount: enrichedMap[row.student_id]?.accepted_count ?? 0,
@@ -1135,6 +1146,20 @@ export default function EventDetailPage() {
         case 'status': return dir * a.status.localeCompare(b.status)
         case 'gradeScore': return dir * (a.gradeScore - b.gradeScore)
         case 'submitted_at': return dir * (a.submitted_at ?? '').localeCompare(b.submitted_at ?? '')
+        case 'engagement': return dir * (a.engagementScore - b.engagementScore)
+        // Past events: rank by attended count (the most meaningful engagement signal), breaking ties by accepted then submitted.
+        case 'past_events': {
+          const ap = (a.attendedCount ?? 0) - (a.attended ? 1 : 0)
+          const bp = (b.attendedCount ?? 0) - (b.attended ? 1 : 0)
+          if (ap !== bp) return dir * (ap - bp)
+          const aa = Math.max(0, (a.acceptedCount ?? 0) - (a.status === 'accepted' ? 1 : 0))
+          const ba = Math.max(0, (b.acceptedCount ?? 0) - (b.status === 'accepted' ? 1 : 0))
+          if (aa !== ba) return dir * (aa - ba)
+          return dir * (Math.max(0, (a.totalApplications ?? 0) - 1) - Math.max(0, (b.totalApplications ?? 0) - 1))
+        }
+        // Boolean sort — confirmed/yes first when desc.
+        case 'rsvp': return dir * (Number(b.rsvp_confirmed === true) - Number(a.rsvp_confirmed === true))
+        case 'attended': return dir * (Number(b.attended ? 1 : 0) - Number(a.attended ? 1 : 0))
         default: return 0
       }
     })
@@ -1658,13 +1683,34 @@ export default function EventDetailPage() {
       .filter(f => f.type !== 'section_heading' && f.type !== 'media')
       .map(f => ({ id: f.id, label: stripToText(f.label), type: f.type }))
   }, [event])
-  // Compute the effective ordered list of all visible columns (built-in + custom)
+
+  // Standard-question columns (std_additional, std_anything_else, std_attribution).
+  // These are part of every apply form unless the admin explicitly hides them via
+  // standard_overrides — so we mirror that: if hidden, we don't offer it as a
+  // column either, since there'll be no data to show for new applicants.
+  // Admins can still rename the question via stdOverrides.label; we mirror that
+  // into the column label so the picker matches the apply form.
+  const standardCols = useMemo(() => {
+    if (!event?.form_config) return []
+    const overrides = (event.form_config as { standard_overrides?: StandardOverrides }).standard_overrides ?? {}
+    const entries: { id: string; defaultLabel: string }[] = [
+      { id: 'std_additional',    defaultLabel: 'Any additional contextual information?' },
+      { id: 'std_anything_else', defaultLabel: 'Anything else you’d like us to know?' },
+      { id: 'std_attribution',   defaultLabel: 'How did you hear about this opportunity?' },
+    ]
+    return entries
+      .filter(e => !overrides[e.id]?.hidden)
+      .map(e => ({ id: e.id, label: stripToText(overrides[e.id]?.label ?? e.defaultLabel) }))
+  }, [event])
+  // Compute the effective ordered list of all visible columns (built-in + standard + custom)
   const allColumns = useMemo(() => {
     const builtIn: { id: string; label: string; kind: 'builtin' }[] =
       DEFAULT_BUILTIN_COLS.map(id => ({ id, label: BUILTIN_COL_LABELS[id], kind: 'builtin' as const }))
+    const standard: { id: string; label: string; kind: 'standard' }[] =
+      standardCols.map(c => ({ id: c.id, label: c.label, kind: 'standard' as const }))
     const custom: { id: string; label: string; kind: 'custom' }[] =
       customFieldCols.map(c => ({ id: `cf_${c.id}`, label: c.label, kind: 'custom' as const }))
-    const all = [...builtIn, ...custom]
+    const all = [...builtIn, ...standard, ...custom]
     // Apply custom ordering if set
     if (colOrder.length > 0) {
       const map = new Map(all.map(c => [c.id, c]))
@@ -1675,9 +1721,49 @@ export default function EventDetailPage() {
       return ordered
     }
     return all
-  }, [customFieldCols, colOrder])
+  }, [customFieldCols, standardCols, colOrder])
 
-  const visibleColumns = useMemo(() => {
+  // Which column ids are click-to-sort eligible in the table header. We only
+  // wire inline sort for columns that expose an unambiguous numeric/sortable
+  // signal (the existing Sort-by dropdown still handles everything — this is
+  // additive, not a replacement).
+  const COL_SORT_KEY: Record<string, SortKey> = {
+    name: 'name',
+    school_type: 'school_type',
+    status: 'status',
+    grades: 'gradeScore',
+    engagement: 'engagement',
+    past_events: 'past_events',
+    rsvp: 'rsvp',
+    attended: 'attended',
+  }
+  // First-click direction for each sortable key. Numeric signals default to
+  // "highest first" (desc) since that's what admins almost always want when
+  // scanning grade/engagement scores.
+  const DEFAULT_SORT_DIR: Record<SortKey, SortDir> = {
+    name: 'asc',
+    school_type: 'asc',
+    year_group: 'asc',
+    status: 'asc',
+    gradeScore: 'desc',
+    submitted_at: 'desc',
+    engagement: 'desc',
+    past_events: 'desc',
+    rsvp: 'desc',
+    attended: 'desc',
+  }
+  const handleHeaderSort = (colId: string) => {
+    const key = COL_SORT_KEY[colId]
+    if (!key) return
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir(DEFAULT_SORT_DIR[key] ?? 'desc')
+    }
+  }
+
+    const visibleColumns = useMemo(() => {
     return allColumns.filter(c => {
       if (hiddenCols.has(c.id)) return false
       // Auto-hide status when filtering by a specific status
@@ -2248,6 +2334,10 @@ export default function EventDetailPage() {
                       <option value="year_group">Year Group</option>
                       <option value="status">Status</option>
                       <option value="gradeScore">Grade Score</option>
+                      <option value="engagement">Engagement</option>
+                      <option value="past_events">Past Events</option>
+                      <option value="rsvp">RSVP</option>
+                      <option value="attended">Attended</option>
                     </select>
                     <button
                       onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
@@ -2284,7 +2374,7 @@ export default function EventDetailPage() {
                     allColumns={allColumns.map<ColumnPickerItem>(c => ({
                       id: c.id,
                       label: c.label,
-                      group: c.kind === 'custom' ? 'Form question' : undefined,
+                      group: c.kind === 'custom' ? 'Form question' : c.kind === 'standard' ? 'Standard Q' : undefined,
                       disabled: c.id === 'status' && statusFilter !== 'all',
                       disabledReason: 'Auto-hidden while filtering by status',
                     }))}
@@ -2388,21 +2478,62 @@ export default function EventDetailPage() {
                     />
                   </th>
                   {!hiddenCols.has('name') && (
-                    <th className="p-3 min-w-[160px] sticky left-8 z-20 bg-white dark:bg-gray-900" style={{ boxShadow: '4px 0 8px -4px rgba(0,0,0,0.08)' }}>Name</th>
-                  )}
-                  {visibleColumns.filter(c => c.id !== 'name').map(col => (
-                    <th
-                      key={col.id}
-                      className={
-                        col.id.startsWith('cf_')
-                          ? 'p-3 align-bottom min-w-[260px] max-w-[320px] leading-snug'
-                          : 'p-3 whitespace-nowrap max-w-[200px] truncate'
-                      }
-                      title={col.label}
-                    >
-                      {col.label}
+                    <th className="p-3 min-w-[160px] sticky left-8 z-20 bg-white dark:bg-gray-900" style={{ boxShadow: '4px 0 8px -4px rgba(0,0,0,0.08)' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleHeaderSort('name')}
+                        className={`inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 transition-colors ${
+                          sortKey === 'name' ? 'text-steps-blue-700 dark:text-steps-blue-400' : ''
+                        }`}
+                        title="Click to sort by Name"
+                      >
+                        <span>Name</span>
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                          {sortKey === 'name'
+                            ? (sortDir === 'asc'
+                                ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                : <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />)
+                            : <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />}
+                        </svg>
+                      </button>
                     </th>
-                  ))}
+                  )}
+                  {visibleColumns.filter(c => c.id !== 'name').map(col => {
+                    const sortable = COL_SORT_KEY[col.id] != null
+                    const isActive = sortable && sortKey === COL_SORT_KEY[col.id]
+                    return (
+                      <th
+                        key={col.id}
+                        className={
+                          col.id.startsWith('cf_')
+                            ? 'p-3 align-bottom min-w-[260px] max-w-[320px] leading-snug'
+                            : 'p-3 whitespace-nowrap max-w-[200px] truncate'
+                        }
+                        title={sortable ? `Click to sort by ${col.label}` : col.label}
+                      >
+                        {sortable ? (
+                          <button
+                            type="button"
+                            onClick={() => handleHeaderSort(col.id)}
+                            className={`inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 transition-colors ${
+                              isActive ? 'text-steps-blue-700 dark:text-steps-blue-400' : ''
+                            }`}
+                          >
+                            <span className="truncate">{col.label}</span>
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                              {isActive
+                                ? (sortDir === 'asc'
+                                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                    : <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />)
+                                : <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />}
+                            </svg>
+                          </button>
+                        ) : (
+                          col.label
+                        )}
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -2596,6 +2727,42 @@ export default function EventDetailPage() {
                                   )}
                                 </span>
                               )}
+                            </td>
+                          )
+                        }
+                        // Standard textarea columns (long free text — truncate + hover popover).
+                        if (col.id === 'std_additional' || col.id === 'std_anything_else') {
+                          const rawText = col.id === 'std_additional' ? app.additionalContext : app.anythingElse
+                          const text = rawText && rawText.trim() ? rawText : null
+                          const flipStd = colIdx >= (hiddenCols.has('name') ? visibleColumns.length : visibleColumns.length - 1) - 2
+                          return (
+                            <td key={col.id} className="p-3 align-top min-w-[260px] max-w-[320px]">
+                              {!text ? (
+                                <span className="text-gray-400">—</span>
+                              ) : (
+                                <div className="group relative">
+                                  <span className="text-gray-700 dark:text-gray-300 cursor-default line-clamp-2 break-words">
+                                    {text}
+                                  </span>
+                                  {text.length > 80 && (
+                                    <div className={`absolute ${flipStd ? 'right-0' : 'left-0'} top-full mt-1 z-30 hidden group-hover:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[280px] max-w-[400px] max-h-[200px] overflow-y-auto`}>
+                                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{col.label}</div>
+                                      <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{text}</div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          )
+                        }
+                        // Standard attribution — single value. Prefer the raw `channel` (the
+                        // human-readable option the student picked) and fall back to the
+                        // normalised `attribution_source` code if the raw value is missing.
+                        if (col.id === 'std_attribution') {
+                          const val = app.attributionChannel || app.attributionSource || null
+                          return (
+                            <td key={col.id} className="p-3 text-gray-700 dark:text-gray-300 text-sm whitespace-nowrap max-w-[200px] truncate" title={val ?? undefined}>
+                              {val ? toTitleCase(val) : <span className="text-gray-400">—</span>}
                             </td>
                           )
                         }
