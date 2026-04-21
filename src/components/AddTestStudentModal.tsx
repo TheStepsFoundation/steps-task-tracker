@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
   EVENTS,
@@ -23,6 +23,40 @@ import SchoolPicker, { type SchoolPickerValue } from '@/components/SchoolPicker'
 // ~15-20% chance of leaving each field blank, so repeated clicks generate
 // a mix of fully-populated and patchy profiles for dashboard testing.
 // ---------------------------------------------------------------------------
+
+// Where to route test-student emails. Defaults to Favour's inbox via Gmail
+// plus-addressing ('tenzinpham+<anything>@gmail.com' all land in the same
+// inbox) so every OTP / invite / confirmation email sent to a dummy student
+// actually arrives somewhere the admin can open. Persisted to localStorage
+// so it only has to be set once; editable inline.
+const EMAIL_BASE_STORAGE_KEY = 'add_test_student_email_base_v1'
+const DEFAULT_EMAIL_BASE = 'tenzinpham@gmail.com'
+
+function loadEmailBase(): string {
+  if (typeof window === 'undefined') return DEFAULT_EMAIL_BASE
+  try {
+    const raw = window.localStorage.getItem(EMAIL_BASE_STORAGE_KEY)
+    if (raw && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw)) return raw.trim()
+  } catch { /* noop */ }
+  return DEFAULT_EMAIL_BASE
+}
+function saveEmailBase(v: string) {
+  if (typeof window === 'undefined') return
+  try { window.localStorage.setItem(EMAIL_BASE_STORAGE_KEY, v) } catch { /* noop */ }
+}
+
+/** Build a plus-addressed derivative: 'foo+<slug>.<rand>@bar.com' */
+function deriveTestEmail(base: string, first: string, last: string): string {
+  const slug = `${first}.${last}`.toLowerCase().replace(/[^a-z.]/g, '')
+  const rand = Math.random().toString(36).slice(2, 7)
+  const at = base.lastIndexOf('@')
+  if (at <= 0) return `test+${slug}.${rand}@stepsfoundation.test` // fallback
+  const local = base.slice(0, at)
+  const domain = base.slice(at + 1)
+  // If the local already contains a '+', respect its prefix (e.g. 'me+dev' stays 'me+dev.slug').
+  const sep = local.includes('+') ? '.' : '+'
+  return `${local}${sep}${slug}.${rand}@${domain}`
+}
 
 const FIRST_NAMES = [
   'Amara', 'Olu', 'Chidi', 'Nia', 'Zayn', 'Priya', 'Kai', 'Mei', 'Jamal', 'Sofia',
@@ -132,6 +166,7 @@ type Props = {
 export default function AddTestStudentModal({ onClose, onCreated }: Props) {
   // --- Auth fields ---
   const [email, setEmail] = useState('')
+  const [emailBase, setEmailBase] = useState<string>(DEFAULT_EMAIL_BASE)
   const [password, setPassword] = useState('')
 
   // --- Basic details ---
@@ -158,6 +193,10 @@ export default function AddTestStudentModal({ onClose, onCreated }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [randomizing, setRandomizing] = useState(false)
+
+  // Rehydrate the persisted email base on mount. Doing this in an effect
+  // instead of the useState initializer keeps SSR safe.
+  useEffect(() => { setEmailBase(loadEmailBase()) }, [])
 
   const pastEvents = useMemo(
     () => EVENTS.filter(e => new Date(e.date).getTime() < Date.now()),
@@ -228,9 +267,10 @@ export default function AddTestStudentModal({ onClose, onCreated }: Props) {
       }
 
       // Email: suggest one if blank so one-click-randomize-then-submit works.
+      // Uses plus-addressing off `emailBase` so the OTP / invite / confirm
+      // emails to this dummy actually land in an inbox the admin can open.
       if (!email) {
-        const slug = `${first}.${last}`.toLowerCase().replace(/[^a-z.]/g, '')
-        setEmail(`test+${slug}.${Date.now().toString(36)}@stepsfoundation.test`)
+        setEmail(deriveTestEmail(emailBase, first, last))
       }
       // Password stays blank on purpose — default behaviour now creates a row
       // with no auth account (which mirrors the migrated-from-Sheets case).
@@ -395,11 +435,24 @@ export default function AddTestStudentModal({ onClose, onCreated }: Props) {
 
         {/* Body */}
         <div className="px-6 py-4 overflow-y-auto flex-1 space-y-5">
+          {/* Email-base setting — persisted to localStorage. */}
+          <div className="rounded-md bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 px-3 py-2 flex items-center gap-3">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Inbox for test emails</label>
+            <input
+              value={emailBase}
+              onChange={e => { setEmailBase(e.target.value); saveEmailBase(e.target.value) }}
+              type="email"
+              placeholder="you@gmail.com"
+              className="flex-1 min-w-0 px-2 py-1 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
+            />
+            <span className="text-[11px] text-gray-500 hidden sm:inline">Randomize generates plus-addressed aliases so all test mail lands here.</span>
+          </div>
+
           {/* Auth fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Email <span className="text-red-500">*</span></label>
-              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="test+amara@stepsfoundation.test" className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900" />
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder={deriveTestEmail(emailBase, 'amara', 'patel')} className="w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900" />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Password <span className="text-gray-400">(optional)</span></label>
