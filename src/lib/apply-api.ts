@@ -193,13 +193,31 @@ export async function signInWithPassword(
 export async function upgradeToPassword(
   password: string,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.auth.updateUser({ password })
+  // Flag user_metadata.password_set = true in the same call so the hub can
+  // stop prompting them. This is advisory only — the real source of truth
+  // for "has a password" is whether signInWithPassword works.
+  const { error } = await supabase.auth.updateUser({
+    password,
+    data: { password_set: true },
+  })
   if (error) return { error: error.message }
   // Force a session refresh so the new JWT (with updated user object) is
   // persisted to localStorage before the UI moves on. Without this, the
   // next page load can find no session and bounce back to sign-in.
   await supabase.auth.refreshSession()
   return { error: null }
+}
+
+/**
+ * Has the signed-in user already set a password? Read from user_metadata
+ * rather than inspecting AMR (AMR is not reliably exposed on the client).
+ * This is only used to decide whether to show the "Set a password" prompt —
+ * it's fine if it's occasionally wrong; the password form will just appear.
+ */
+export async function hasPasswordSet(): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const meta = session?.user?.user_metadata as Record<string, unknown> | undefined
+  return Boolean(meta?.password_set)
 }
 
 export async function signOutStudent(): Promise<void> {

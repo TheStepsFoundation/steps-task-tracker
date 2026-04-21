@@ -12,7 +12,7 @@ import {
   type HubApplication, type HubEvent, type ProfileUpdate,
 } from '@/lib/hub-api'
 import { getDisplayLocation } from '@/lib/event-display'
-import type { StudentSelf } from '@/lib/apply-api'
+import { hasPasswordSet, upgradeToPassword, type StudentSelf } from '@/lib/apply-api'
 import { clearAllDrafts } from '@/lib/apply-draft'
 import { getStatusMeta } from '@/lib/application-status'
 import { supabase } from '@/lib/supabase'
@@ -58,6 +58,39 @@ export default function StudentHub() {
 
   // Edit mode
   const [editing, setEditing] = useState(false)
+
+  // Set-a-password prompt (shown to OTP-only users on first sign-in). Dismissal
+  // is persisted per-email in localStorage so it doesn't nag after "Not now".
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
+  const [pwValue, setPwValue] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState<string | null>(null)
+  const [pwSaved, setPwSaved] = useState(false)
+
+  const PW_DISMISS_KEY = (email: string) => `hub_pw_prompt_dismissed_v1::${email.toLowerCase()}`
+
+  const dismissPasswordPrompt = () => {
+    if (authEmail) {
+      try { localStorage.setItem(PW_DISMISS_KEY(authEmail), '1') } catch {}
+    }
+    setShowPasswordPrompt(false)
+  }
+
+  const handleSetPassword = async () => {
+    setPwError(null)
+    if (pwValue.length < 8) { setPwError('Use at least 8 characters.'); return }
+    if (pwValue !== pwConfirm) { setPwError('Passwords do not match.'); return }
+    setPwSaving(true)
+    const { error } = await upgradeToPassword(pwValue)
+    setPwSaving(false)
+    if (error) { setPwError(error); return }
+    setPwSaved(true)
+    if (authEmail) {
+      try { localStorage.setItem(PW_DISMISS_KEY(authEmail), '1') } catch {}
+    }
+    setTimeout(() => setShowPasswordPrompt(false), 1500)
+  }
 
   // Withdraw flow
   const [withdrawTarget, setWithdrawTarget] = useState<HubApplication | null>(null)
@@ -136,6 +169,15 @@ export default function StudentHub() {
       setApplications(apps)
       const appliedEventIds = new Set(apps.map(a => a.event_id))
       setOpenEvents(events.filter(e => !appliedEventIds.has(e.id)))
+      // Decide whether to show the "set a password" prompt: only if the
+      // user hasn't already set one AND they haven't dismissed the prompt.
+      try {
+        const dismissed = localStorage.getItem(PW_DISMISS_KEY(email)) === '1'
+        if (!dismissed) {
+          const has = await hasPasswordSet()
+          if (!cancelled && !has) setShowPasswordPrompt(true)
+        }
+      } catch { /* ignore */ }
       setLoading(false)
     }
 
@@ -237,6 +279,69 @@ export default function StudentHub() {
       {saveMsg && (
         <div className={`mb-6 p-4 rounded-xl text-sm font-medium ${saveMsg.startsWith('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
           {saveMsg}
+        </div>
+      )}
+
+      {/* Set-a-password prompt — shown to OTP-only users who haven't dismissed it */}
+      {showPasswordPrompt && !pwSaved && (
+        <div className="mb-6 bg-gradient-to-br from-steps-blue-50 to-white rounded-2xl border border-steps-blue-200 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 className="font-display text-lg font-bold text-steps-dark">Set a password</h3>
+              <p className="text-sm text-slate-600 mt-1">
+                So you don&apos;t need a code next time — you can sign in instantly with your email and password.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={dismissPasswordPrompt}
+              className="text-slate-400 hover:text-slate-600 -mr-1"
+              aria-label="Dismiss"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              type="password"
+              value={pwValue}
+              onChange={e => { setPwValue(e.target.value); setPwError(null) }}
+              placeholder="New password (min 8 chars)"
+              autoComplete="new-password"
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
+            />
+            <input
+              type="password"
+              value={pwConfirm}
+              onChange={e => { setPwConfirm(e.target.value); setPwError(null) }}
+              placeholder="Confirm password"
+              autoComplete="new-password"
+              onKeyDown={e => { if (e.key === 'Enter') handleSetPassword() }}
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
+            />
+          </div>
+          {pwError && (
+            <p className="text-sm text-steps-berry bg-steps-berry/10 rounded-lg px-3 py-2 mt-3">{pwError}</p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-4">
+            <PressableButton onClick={handleSetPassword} disabled={pwSaving || !pwValue} size="sm">
+              {pwSaving ? 'Saving…' : 'Set password'}
+            </PressableButton>
+            <button
+              type="button"
+              onClick={dismissPasswordPrompt}
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
+      {showPasswordPrompt && pwSaved && (
+        <div className="mb-6 bg-green-50 text-green-800 border border-green-200 rounded-2xl p-4 text-sm">
+          Password set — you can use it to sign in next time.
         </div>
       )}
 

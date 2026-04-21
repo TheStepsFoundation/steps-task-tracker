@@ -27,7 +27,7 @@ export default function HubSignInPage() {
   const [password, setPassword] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [step, setStep] = useState<Step>('email')
-  const [useOtp, setUseOtp] = useState(false)
+  const [useOtp, setUseOtp] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -48,11 +48,30 @@ export default function HubSignInPage() {
     return () => { cancelled = true; sub.subscription.unsubscribe() }
   }, [router])
 
+  // After a successful OTP/password sign-in, Supabase writes the session to
+  // localStorage asynchronously. If we navigate to /my before that write
+  // lands, /my's own session poll can fail and bounce the user right back
+  // here. Wait (up to ~3s) until the session is visible before navigating.
+  const waitForHydratedSession = async (): Promise<boolean> => {
+    for (let i = 0; i < 30; i++) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.email) return true
+      await new Promise(r => setTimeout(r, 100))
+    }
+    return false
+  }
+
+  const goToHub = async () => {
+    setStep('redirecting')
+    await waitForHydratedSession()
+    router.replace('/my')
+  }
+
   const handlePasswordSignIn = async () => {
     setError(null); setLoading(true)
     const { error: err } = await signInWithPassword(email, password)
-    setLoading(false)
     if (err) {
+      setLoading(false)
       if (err.toLowerCase().includes('invalid')) {
         setError('Incorrect password. Try signing in with a verification code instead.')
       } else {
@@ -60,7 +79,8 @@ export default function HubSignInPage() {
       }
       return
     }
-    setStep('redirecting'); router.replace('/my')
+    await goToHub()
+    setLoading(false)
   }
 
   const handleSendOtp = async () => {
@@ -74,9 +94,13 @@ export default function HubSignInPage() {
   const handleVerifyOtp = async () => {
     setError(null); setLoading(true)
     const { error: err } = await verifyOtp(email, otpCode)
+    if (err) {
+      setLoading(false)
+      setError(err)
+      return
+    }
+    await goToHub()
     setLoading(false)
-    if (err) { setError(err); return }
-    setStep('redirecting'); router.replace('/my')
   }
 
   if (step === 'redirecting') {
