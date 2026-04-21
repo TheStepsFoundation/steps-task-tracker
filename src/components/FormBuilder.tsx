@@ -57,13 +57,14 @@ const NEEDS_PAIRED: FormFieldType[] = ["paired_dropdown"]
 // Standard questions definition
 // ---------------------------------------------------------------------------
 
-type StandardQuestion = {
+export type StandardQuestion = {
   id: string
   label: string
   type: string
   description?: string
-  /** Where this question appears in the apply form flow. Used to group the builder UI. */
-  group: 'start' | 'middle' | 'end'
+  /** Content-based grouping in the builder UI. 'finishing' questions render on
+   *  the applicant form after event-specific questions. */
+  group: 'about' | 'context' | 'finishing'
   /** Reference-only options (for radio/dropdown) so admins can see what students will see. */
   defaultOptions?: { value: string; label: string }[]
   /**
@@ -72,7 +73,7 @@ type StandardQuestion = {
    * Currently: only std_attribution.
    */
   editableOptions?: boolean
-  /** Human-readable grouping of where this sits in the form (e.g. "About you", "Contextual"). */
+  /** Fine-grained sub-section label shown next to the question in the builder. */
   section?: string
 }
 
@@ -118,30 +119,30 @@ export const STD_ATTRIBUTION_OPTIONS: { value: string; label: string }[] = [
   { value: "other",                         label: "Other" },
 ]
 
-const STANDARD_QUESTIONS: StandardQuestion[] = [
-  // Near the start — About you
-  { id: "std_name",          label: "First name / Last name",      type: "text",            group: "start",  section: "About you" },
-  { id: "std_email",         label: "Email address",               type: "email",           group: "start",  section: "About you", description: "Verified via OTP — read-only" },
-  { id: "std_school",        label: "Current school / sixth form", type: "search",          group: "start",  section: "About you" },
-  { id: "std_year_group",    label: "Year group",                  type: "dropdown",        group: "start",  section: "About you", defaultOptions: STD_YEAR_GROUP_OPTIONS },
-  // Middle — Contextual & academic
-  { id: "std_school_type",   label: "School type",                 type: "radio",           group: "middle", section: "Contextual information", defaultOptions: STD_SCHOOL_TYPE_OPTIONS },
-  { id: "std_income",        label: "Household income under £40k?", type: "radio",          group: "middle", section: "Contextual information", defaultOptions: STD_INCOME_OPTIONS },
-  { id: "std_fsm",           label: "Free School Meals eligibility", type: "radio",         group: "middle", section: "Contextual information", defaultOptions: STD_FSM_OPTIONS },
-  { id: "std_additional",    label: "Additional contextual information", type: "textarea",  group: "middle", section: "Contextual information" },
-  { id: "std_gcse",          label: "GCSE results (digits)",        type: "number",         group: "middle", section: "Academic information" },
-  { id: "std_qualifications",label: "Subjects & predicted grades",  type: "paired_dropdown", group: "middle", section: "Academic information" },
-  // Near the end
-  { id: "std_attribution",   label: "How did you hear about this?", type: "radio",          group: "end",    section: "Before you submit", defaultOptions: STD_ATTRIBUTION_OPTIONS, editableOptions: true },
-  { id: "std_anything_else", label: "Anything else you’d like us to know?", type: "textarea", group: "end", section: "Before you submit" },
+export const STANDARD_QUESTIONS: StandardQuestion[] = [
+  // About you
+  { id: "std_name",          label: "First name / Last name",      type: "text",            group: "about",     section: "About you" },
+  { id: "std_email",         label: "Email address",               type: "email",           group: "about",     section: "About you", description: "Verified via OTP — read-only" },
+  { id: "std_school",        label: "Current school / sixth form college", type: "search",   group: "about",     section: "About you" },
+  { id: "std_year_group",    label: "Year group",                  type: "dropdown",        group: "about",     section: "About you", defaultOptions: STD_YEAR_GROUP_OPTIONS },
+  // Contextual and academic information
+  { id: "std_school_type",   label: "What type of school do you currently attend?", type: "radio", group: "context", section: "Contextual", defaultOptions: STD_SCHOOL_TYPE_OPTIONS },
+  { id: "std_income",        label: "Is your average household income less than £40,000?", type: "radio", group: "context", section: "Contextual", defaultOptions: STD_INCOME_OPTIONS },
+  { id: "std_fsm",           label: "Are you eligible for Free School Meals?", type: "radio", group: "context", section: "Contextual", defaultOptions: STD_FSM_OPTIONS },
+  { id: "std_additional",    label: "Any additional contextual information?", type: "textarea", group: "context", section: "Contextual", description: "E.g. young carer, extenuating circumstances, school disruption, etc." },
+  { id: "std_gcse",          label: "Achieved GCSE results",        type: "number",           group: "context", section: "Academic", description: "Enter your grades as numbers only, highest to lowest (e.g. 999887766)." },
+  { id: "std_qualifications",label: "Subjects and predicted/achieved grades", type: "paired_dropdown", group: "context", section: "Academic", description: "Add each subject you study. Select your qualification type, subject, and current predicted (or achieved) grade." },
+  // Finishing questions — shown after event-specific questions on the same page
+  { id: "std_anything_else", label: "Anything else you’d like us to know?", type: "textarea", group: "finishing", section: "Finishing", description: "Optional — share anything else you’d like the team to know about you or your application." },
+  { id: "std_attribution",   label: "How did you hear about this opportunity?", type: "radio", group: "finishing", section: "Finishing", defaultOptions: STD_ATTRIBUTION_OPTIONS, editableOptions: true },
 ]
 
 const LOCKED_STD_IDS = new Set(['std_name', 'std_email', 'std_school'])
 
-const STANDARD_GROUP_LABELS: Record<'start' | 'middle' | 'end', string> = {
-  start: "Near the start — About you",
-  middle: "Middle — Contextual & academic",
-  end: "Near the end — Before you submit",
+const STANDARD_GROUP_LABELS: Record<'about' | 'context' | 'finishing', { title: string; hint?: string }> = {
+  about: { title: "About you" },
+  context: { title: "Contextual and academic information" },
+  finishing: { title: "Finishing questions", hint: "These appear after the event-specific questions on the applicant form." },
 }
 
 // ---------------------------------------------------------------------------
@@ -162,8 +163,8 @@ type Props = {
 export default function FormBuilder({ fields, pages, standardOverrides, onChange }: Props) {
   const [showTypePicker, setShowTypePicker] = useState(false)
   const [activePage, setActivePage] = useState(0)
-  const [openStandardGroups, setOpenStandardGroups] = useState<Record<'start' | 'middle' | 'end', boolean>>({
-    start: true, middle: true, end: true,
+  const [openStandardGroups, setOpenStandardGroups] = useState<Record<'about' | 'context' | 'finishing', boolean>>({
+    about: true, context: true, finishing: true,
   })
   const [editingRouting, setEditingRouting] = useState<number | null>(null)
 
@@ -531,15 +532,19 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
           </p>
         </div>
 
-        {(['start', 'middle', 'end'] as const).map(group => {
+        {(['about', 'context', 'finishing'] as const).map(group => {
           const groupQs = STANDARD_QUESTIONS.filter(q => q.group === group)
           const isOpen = openStandardGroups[group]
+          const groupMeta = STANDARD_GROUP_LABELS[group]
           return (
             <div key={group} className="border-b border-amber-200 dark:border-amber-800 last:border-b-0">
               <button
                 onClick={() => setOpenStandardGroups(s => ({ ...s, [group]: !s[group] }))}
                 className="w-full px-3 py-2 text-left text-xs font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-100/60 dark:hover:bg-amber-900/20 flex items-center justify-between">
-                <span>{STANDARD_GROUP_LABELS[group]}</span>
+                <span className="flex flex-col items-start">
+                  <span>{groupMeta.title}</span>
+                  {groupMeta.hint && <span className="text-[10px] font-normal text-amber-600 dark:text-amber-500">{groupMeta.hint}</span>}
+                </span>
                 <span className="text-[10px] text-amber-600 dark:text-amber-500">{isOpen ? '▲ Hide' : '▼ Show'} ({groupQs.length})</span>
               </button>
               {isOpen && (

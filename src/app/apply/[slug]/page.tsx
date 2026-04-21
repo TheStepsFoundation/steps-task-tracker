@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
 import DynamicFormField, { type FieldValue, evaluateConditions } from '@/components/DynamicFormField'
+import { STANDARD_QUESTIONS } from '@/components/FormBuilder'
 import { sanitizeRichHtml, stripToText } from '@/lib/sanitize-html'
 import type { FormFieldConfig, FormPage, EventRow, StandardOverrides } from '@/lib/events-api'
 import { fetchEventBySlug } from '@/lib/events-api'
@@ -174,7 +175,7 @@ function clearDraft(eventId: string, email: string): void {
 // Steps
 // ---------------------------------------------------------------------------
 
-type Step = 'loading' | 'email' | 'otp' | 'details' | 'application' | 'wrapup' | 'submitting' | 'success' | 'applied'
+type Step = 'loading' | 'email' | 'otp' | 'details' | 'application' | 'submitting' | 'success' | 'applied'
 
 // ---------------------------------------------------------------------------
 // Page Component
@@ -245,8 +246,23 @@ export default function ApplyPage() {
   const [stdOverrides, setStdOverrides] = useState<StandardOverrides>({})
 
   // Effective label / help-text for a standard field (override → default).
-  const stdLabel = (id: string, fallback: string) => stdOverrides[id]?.label ?? fallback
-  const stdDesc  = (id: string, fallback?: string) => stdOverrides[id]?.description ?? fallback ?? ''
+  // Default label + helper text for each standard question, defined once in
+  // FormBuilder's STANDARD_QUESTIONS and shared here so admin-side defaults
+  // stay in lock-step with applicant-side rendering.
+  const stdDefault = (id: string): { label: string; description: string } => {
+    const entry = STANDARD_QUESTIONS.find(q => q.id === id)
+    return { label: entry?.label ?? '', description: entry?.description ?? '' }
+  }
+  const stdLabel = (id: string, fallback?: string) => {
+    const o = stdOverrides[id]?.label
+    if (o !== undefined && o !== '') return o
+    return stdDefault(id).label || fallback || ''
+  }
+  const stdDesc  = (id: string, fallback?: string) => {
+    const o = stdOverrides[id]?.description
+    if (o !== undefined && o !== '') return o
+    return stdDefault(id).description || fallback || ''
+  }
   // Is this standard question hidden for this event? Identity-critical fields are never hidden.
   const LOCKED_STD_IDS = new Set(['std_name', 'std_email', 'std_school'])
   const stdHidden = (id: string): boolean => {
@@ -617,12 +633,15 @@ export default function ApplyPage() {
     return formFields.length > 0
   }
 
-  /** True when the wrap-up step has anything to show (anything-else or attribution).
-   *  When both are hidden we skip this step entirely and submit straight from
-   *  details/application. */
-  const hasWrapupContent = (): boolean => {
+  /** True when there's at least one 'finishing' question (anything-else or
+   *  attribution) to render at the end of the application step. */
+  const hasFinishingContent = (): boolean => {
     return !stdHidden('std_anything_else') || !stdHidden('std_attribution')
   }
+
+  /** True when the 'application' step has anything to show (custom fields
+   *  and/or finishing questions). When false we submit directly from details. */
+  const hasApplicationContent = (): boolean => hasCustomFields() || hasFinishingContent()
 
   const handleDetailsNext = () => {
     const errs: Record<string, string> = {}
@@ -672,12 +691,8 @@ export default function ApplyPage() {
       return
     }
     setError(null)
-    // Skip steps with no content. If there are custom fields, go there.
-    // Else if wrapup has content, go to wrapup. Else submit directly.
-    if (hasCustomFields()) {
+    if (hasApplicationContent()) {
       setStep('application')
-    } else if (hasWrapupContent()) {
-      setStep('wrapup')
     } else {
       void handleSubmit()
     }
@@ -742,11 +757,7 @@ export default function ApplyPage() {
       return
     }
     setError(null)
-    if (hasWrapupContent()) {
-      setStep('wrapup')
-    } else {
-      void handleSubmit()
-    }
+    void handleSubmit()
   }
 
   const handleSubmit = async () => {
@@ -868,7 +879,7 @@ export default function ApplyPage() {
     const result = await submitApplication(event!.id, submission)
     if (result.error) {
       setError(result.error)
-      setStep('wrapup')
+      setStep('application')
       return
     }
     clearDraft(event!.id, email)
@@ -994,8 +1005,7 @@ export default function ApplyPage() {
         // a 4-bubble flow (email -> otp -> details -> wrapup).
         const progressSteps: Step[] = (() => {
           const base: Step[] = ['email', 'otp', 'details']
-          if (hasCustomFields()) base.push('application')
-          if (hasWrapupContent()) base.push('wrapup')
+          if (hasApplicationContent()) base.push('application')
           return base
         })()
         const stepIdx = progressSteps.indexOf(step as Step)
@@ -1031,11 +1041,11 @@ export default function ApplyPage() {
       {/* ================================================================= */}
 
       {/* Back to Student Hub — shown on all form steps */}
-      {(step === 'details' || step === 'application' || step === 'wrapup') && (
+      {(step === 'details' || step === 'application') && (
         <div className="flex justify-end mb-2">
           <button
             onClick={() => {
-              if ((step === 'details' || step === 'application' || step === 'wrapup') && alreadyApplied && hasFormChanges) {
+              if ((step === 'details' || step === 'application') && alreadyApplied && hasFormChanges) {
                 setShowExitPrompt(true)
               } else {
                 window.location.href = '/my'
@@ -1626,7 +1636,7 @@ export default function ApplyPage() {
                       for (const rule of currentPage.routing.rules) {
                         if (evaluateConditions(rule.conditions, customFieldValues)) {
                           if (rule.goToPageId === '__submit') {
-                            handleApplicationNext()
+                            void handleSubmit()
                             return
                           }
                           const targetIdx = formPages.findIndex(p => p.id === rule.goToPageId)
@@ -1661,99 +1671,81 @@ export default function ApplyPage() {
             </div>
           ) : null}
 
-          {/* Step-level footer: Back to details + Continue to wrap-up.
-              Shown on single-page custom forms, and on the LAST page of
-              multi-page custom forms. Intermediate pages render their own
-              Next button above and we hide this one. */}
+          {/* Finishing questions + submit — shown on the last custom page
+              (or when there are no custom fields at all). On intermediate
+              multi-page custom forms we only render the intra-page Next button
+              above. */}
           {(formPages.length === 0 || customPageIdx === formPages.length - 1) && (
-            <div className="flex gap-3">
-              <button onClick={() => { setStep('details'); setError(null) }}
-                className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition">
-                Back
-              </button>
-              <button onClick={handleApplicationNext}
-                className="flex-1 py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150">
-                Continue →
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ================================================================= */}
-      {/* STEP 5: Wrap-up — anything else + attribution + submit */}
-      {/* ================================================================= */}
-      {step === 'wrapup' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Before you submit</h2>
-
-          {/* --- Anything else (std_anything_else) --- */}
-          {!stdHidden('std_anything_else') && (
-            <div className="border-t border-gray-100 pt-6 mb-6" data-error-key="anythingElse">
-              <label htmlFor="anythingElse" className="block text-sm font-medium text-gray-700 mb-1">
-                {stdLabel('std_anything_else', 'Anything else you’d like us to know?')}
-              </label>
-              <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_anything_else', 'Optional — share anything else you’d like the team to know about you or your application.')) }} />
-              <textarea id="anythingElse" value={anythingElse}
-                onChange={e => setAnythingElse(e.target.value)} rows={3}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none" />
-              {(() => {
-                const minW = stdOverrides.std_anything_else?.minWords
-                const maxW = stdOverrides.std_anything_else?.maxWords
-                if (typeof minW !== 'number' && typeof maxW !== 'number') return null
-                const count = wordCount(anythingElse)
-                const over = typeof maxW === 'number' && count > maxW
-                const under = typeof minW === 'number' && count > 0 && count < minW
-                const color = over ? 'text-red-600' : under ? 'text-amber-600' : 'text-gray-400'
-                const bounds = (typeof minW === 'number' && typeof maxW === 'number')
-                  ? `${minW}\u2013${maxW} words`
-                  : typeof minW === 'number' ? `min ${minW} words` : `max ${maxW} words`
-                return (
-                  <div className={`mt-1 flex justify-between text-[11px] ${color}`}>
-                    <span>{bounds}</span>
-                    <span>{count} {count === 1 ? 'word' : 'words'}</span>
-                  </div>
-                )
-              })()}
-              {fieldErrors.anythingElse && <p className="mt-1 text-xs text-red-600">{fieldErrors.anythingElse}</p>}
-            </div>
-          )}
-
-          {/* --- Attribution + consent --- */}
-          {!stdHidden('std_attribution') && (
-          <div className="border-t border-gray-100 pt-6 mb-6">
-            <fieldset className="mb-6" data-error-key="attribution">
-              <legend className="block text-sm font-medium text-gray-700 mb-2">
-                {stdLabel('std_attribution', 'How did you hear about this opportunity?')} <span className="text-red-400">*</span>
-              </legend>
-              {stdDesc('std_attribution') && (
-                <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_attribution')) }} />
+            <>
+              {/* --- Anything else (std_anything_else) --- */}
+              {!stdHidden('std_anything_else') && (
+                <div className="border-t border-gray-100 pt-6 mb-6" data-error-key="anythingElse">
+                  <label htmlFor="anythingElse" className="block text-sm font-medium text-gray-700 mb-1">
+                    {stdLabel('std_anything_else')}
+                  </label>
+                  <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_anything_else')) }} />
+                  <textarea id="anythingElse" value={anythingElse}
+                    onChange={e => setAnythingElse(e.target.value)} rows={3}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none" />
+                  {(() => {
+                    const minW = stdOverrides.std_anything_else?.minWords
+                    const maxW = stdOverrides.std_anything_else?.maxWords
+                    if (typeof minW !== 'number' && typeof maxW !== 'number') return null
+                    const count = wordCount(anythingElse)
+                    const over = typeof maxW === 'number' && count > maxW
+                    const under = typeof minW === 'number' && count > 0 && count < minW
+                    const color = over ? 'text-red-600' : under ? 'text-amber-600' : 'text-gray-400'
+                    const bounds = (typeof minW === 'number' && typeof maxW === 'number')
+                      ? `${minW}\u2013${maxW} words`
+                      : typeof minW === 'number' ? `min ${minW} words` : `max ${maxW} words`
+                    return (
+                      <div className={`mt-1 flex justify-between text-[11px] ${color}`}>
+                        <span>{bounds}</span>
+                        <span>{count} {count === 1 ? 'word' : 'words'}</span>
+                      </div>
+                    )
+                  })()}
+                  {fieldErrors.anythingElse && <p className="mt-1 text-xs text-red-600">{fieldErrors.anythingElse}</p>}
+                </div>
               )}
-              {effectiveAttributionOptions.map(opt => (
-                <label key={opt.value} className="flex items-center gap-3 py-1.5 cursor-pointer">
-                  <input type="radio" name="attribution" value={opt.value}
-                    checked={attribution === opt.value}
-                    onChange={e => { setAttribution(e.target.value); clearFieldError('attribution') }}
-                    className="accent-steps-blue-600" />
-                  <span className="text-sm text-gray-700">{opt.label}</span>
-                </label>
-              ))}
-              {fieldErrors.attribution && <p className="mt-1 text-xs text-red-600">{fieldErrors.attribution}</p>}
-            </fieldset>
-          </div>
-          )}
 
-          <div className="flex gap-3">
-            <button onClick={() => { setStep(hasCustomFields() ? 'application' : 'details'); setError(null) }}
-              className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition">
-              Back
-            </button>
-            <button onClick={handleSubmit}
-              disabled={alreadyApplied && !hasFormChanges}
-              className="flex-1 py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue">
-              {alreadyApplied ? (hasFormChanges ? 'Update application' : 'No changes to update') : 'Submit application'}
-            </button>
-          </div>
+              {/* --- Attribution + consent --- */}
+              {!stdHidden('std_attribution') && (
+                <div className="border-t border-gray-100 pt-6 mb-6">
+                  <fieldset className="mb-6" data-error-key="attribution">
+                    <legend className="block text-sm font-medium text-gray-700 mb-2">
+                      {stdLabel('std_attribution')} <span className="text-red-400">*</span>
+                    </legend>
+                    {stdDesc('std_attribution') && (
+                      <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_attribution')) }} />
+                    )}
+                    {effectiveAttributionOptions.map(opt => (
+                      <label key={opt.value} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                        <input type="radio" name="attribution" value={opt.value}
+                          checked={attribution === opt.value}
+                          onChange={e => { setAttribution(e.target.value); clearFieldError('attribution') }}
+                          className="accent-steps-blue-600" />
+                        <span className="text-sm text-gray-700">{opt.label}</span>
+                      </label>
+                    ))}
+                    {fieldErrors.attribution && <p className="mt-1 text-xs text-red-600">{fieldErrors.attribution}</p>}
+                  </fieldset>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button onClick={() => { setStep('details'); setError(null) }}
+                  className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition">
+                  Back
+                </button>
+                <button onClick={handleSubmit}
+                  disabled={alreadyApplied && !hasFormChanges}
+                  className="flex-1 py-3 bg-steps-blue-600 text-white font-semibold rounded-xl border-t border-white/20 shadow-press-blue hover:-translate-y-0.5 hover:shadow-press-blue-hover active:translate-y-0.5 active:shadow-none active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-press-blue">
+                  {alreadyApplied ? (hasFormChanges ? 'Update application' : 'No changes to update') : 'Submit application'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
