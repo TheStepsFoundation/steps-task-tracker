@@ -169,11 +169,14 @@ export async function verifyOtp(
   email: string,
   token: string,
 ): Promise<{ error: string | null; hasSession: boolean }> {
+  const normalizedEmail = email.toLowerCase().trim()
+  console.log('[verifyOtp] calling with email=', normalizedEmail)
   const { data, error } = await supabase.auth.verifyOtp({
-    email: email.toLowerCase().trim(),
+    email: normalizedEmail,
     token,
     type: 'email',
   })
+  console.log('[verifyOtp] response: error=', error, 'hasSession=', !!data?.session, 'hasUser=', !!data?.user)
   if (error) return { error: error.message, hasSession: false }
   if (!data?.session) {
     return { error: 'Verified, but sign-in did not complete. Please try again.', hasSession: false }
@@ -182,10 +185,19 @@ export async function verifyOtp(
   // are both persisted to storage AND held in memory. Without this, there was
   // a race where verifyOtp's internal persist hadn't flushed before the next
   // page mount tried to read it via getSession.
-  await supabase.auth.setSession({
+  const setRes = await supabase.auth.setSession({
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
   })
+  console.log('[verifyOtp] setSession: error=', setRes.error, 'hasSession=', !!setRes.data?.session)
+  if (typeof window !== 'undefined') {
+    const keys = Object.keys(window.localStorage)
+    const sbKeys = keys.filter(k => k.startsWith('sb-'))
+    console.log('[verifyOtp] localStorage sb-* keys AFTER setSession:', sbKeys)
+  }
+  // Immediately verify the session is readable back from the client.
+  const checkSession = await supabase.auth.getSession()
+  console.log('[verifyOtp] getSession readback: hasSession=', !!checkSession.data?.session, 'error=', checkSession.error)
   return { error: null, hasSession: true }
 }
 

@@ -149,6 +149,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [checkTeamMembership])
 
   useEffect(() => {
+    // AuthProvider is strictly for ADMIN routes. Student-facing routes
+    // (/my, /apply) manage their own Supabase session independently. If we
+    // run the admin auth flow on those routes we can race with or clobber
+    // the student session — confirmed cause of the OTP bounce-back bug where
+    // no sb-* key ever landed in localStorage. Short-circuit on student
+    // routes: no getSession, no listener, no team_members check.
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname
+      if (path.startsWith('/my') || path.startsWith('/apply')) {
+        setLoading(false)
+        return
+      }
+    }
+
     // Get initial session with a 8-second hard timeout.
     // Supabase's GoTrue lock can orphan (especially on fast navigation or
     // React Strict Mode), blocking getSession() forever. The timeout ensures
