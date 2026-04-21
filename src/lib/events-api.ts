@@ -24,6 +24,13 @@ export type StandardOverride = {
   description?: string
   /** Custom options (only applies to fields with editable options, currently std_attribution). */
   options?: { value: string; label: string }[]
+  /**
+   * Options that used to be active but were retired. Not shown to new
+   * applicants, but their `value` is preserved so historical answers retain
+   * their label and a future admin can revive them without creating a new
+   * duplicate value.
+   */
+  retiredOptions?: { value: string; label: string }[]
 }
 
 /** Per-event overrides for standard (auto-included) questions. Keyed by standard-question id (std_*). */

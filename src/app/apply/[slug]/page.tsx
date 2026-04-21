@@ -249,15 +249,17 @@ export default function ApplyPage() {
   const stdDesc  = (id: string, fallback?: string) => stdOverrides[id]?.description ?? fallback ?? ''
 
   // Attribution options: if admin overrode the list, use that; otherwise defaults.
-  // If the student has a saved attribution value that is no longer in the list
-  // (e.g. admin removed the option after they applied), append it as a
-  // "(no longer offered)" entry so it still shows up and can't silently vanish.
+  // If the student has a saved attribution value that is no longer in the active
+  // list (admin retired it), look up the retired pool for a readable label, then
+  // append as "<label> (no longer offered)" so the answer isn't silently dropped.
   const effectiveAttributionOptions = (() => {
     const base = stdOverrides.std_attribution?.options ?? ATTRIBUTION_OPTIONS
-    if (attribution && !base.find(o => o.value === attribution)) {
-      return [...base, { value: attribution, label: `${attribution} (no longer offered)` }]
-    }
-    return base
+    if (!attribution) return base
+    if (base.find(o => o.value === attribution)) return base
+    const retired = stdOverrides.std_attribution?.retiredOptions ?? []
+    const retiredMatch = retired.find(o => o.value === attribution)
+    const displayLabel = retiredMatch?.label ?? attribution
+    return [...base, { value: attribution, label: `${displayLabel} (no longer offered)` }]
   })()
   const [customPageIdx, setCustomPageIdx] = useState(0)
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, FieldValue>>({})

@@ -168,7 +168,12 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
   const stdOverrides: StandardOverrides = standardOverrides ?? {}
   const updateStandardOverride = (stdId: string, next: StandardOverride | undefined) => {
     const copy: StandardOverrides = { ...stdOverrides }
-    if (!next || (next.label === undefined && next.description === undefined && next.options === undefined)) {
+    if (!next || (
+      next.label === undefined &&
+      next.description === undefined &&
+      next.options === undefined &&
+      next.retiredOptions === undefined
+    )) {
       delete copy[stdId]
     } else {
       copy[stdId] = next
@@ -313,6 +318,144 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
   )
 
   // ---------------------------------------------------------------------------
+  // Stable option editor — values are immutable IDs, decoupled from labels.
+  // Used for standard-question options where historical answers reference the
+  // value and must not be silently re-keyed when labels change.
+  //
+  // Deleting an option retires it (not dropped) so past applications keep
+  // their label, and readding a label that collides with a retired value
+  // auto-revives rather than creating a duplicate.
+  // ---------------------------------------------------------------------------
+
+  const StableOptionListEditor = ({ active, retired, onChange }: {
+    active: { value: string; label: string }[]
+    retired: { value: string; label: string }[]
+    onChange: (active: { value: string; label: string }[], retired: { value: string; label: string }[]) => void
+  }) => {
+    const [adding, setAdding] = useState(false)
+    const [newLabel, setNewLabel] = useState("")
+
+    const deriveValue = (label: string) =>
+      label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+
+    const retire = (idx: number) => {
+      const opt = active[idx]
+      if (!opt) return
+      onChange(
+        active.filter((_, i) => i !== idx),
+        [...retired.filter(r => r.value !== opt.value), opt],
+      )
+    }
+
+    const revive = (value: string) => {
+      const opt = retired.find(r => r.value === value)
+      if (!opt) return
+      if (active.find(a => a.value === value)) return
+      onChange([...active, opt], retired.filter(r => r.value !== value))
+    }
+
+    const addNew = () => {
+      const label = newLabel.trim()
+      if (!label) return
+      const value = deriveValue(label)
+      if (!value) return
+      // Collision with an active value — ignore silently; UX hint below.
+      if (active.find(a => a.value === value)) return
+      // Collision with retired → auto-revive (use the admin's new label).
+      const retiredMatch = retired.find(r => r.value === value)
+      if (retiredMatch) {
+        onChange([...active, { value, label }], retired.filter(r => r.value !== value))
+      } else {
+        onChange([...active, { value, label }], retired)
+      }
+      setNewLabel("")
+      setAdding(false)
+    }
+
+    const derivedForNew = deriveValue(newLabel)
+    const collidesActive = !!active.find(a => a.value === derivedForNew)
+    const wouldRevive = !!retired.find(r => r.value === derivedForNew)
+
+    return (
+      <div className="ml-2 space-y-1.5">
+        {active.map((opt, oi) => (
+          <div key={opt.value} className="flex items-center gap-2">
+            <input value={opt.label}
+              onChange={e => {
+                const updated = [...active]
+                updated[oi] = { ...updated[oi], label: e.target.value }
+                onChange(updated, retired)
+              }}
+              placeholder={`Option ${oi + 1}`} className={`flex-1 ${inputClass}`} />
+            <span className="text-[10px] font-mono text-gray-400 shrink-0 px-1" title="Stable ID — never changes, so historical answers stay linked">
+              {opt.value}
+            </span>
+            {active.length > 1 && (
+              <button onClick={() => retire(oi)}
+                className="text-red-400 hover:text-red-600 text-sm font-bold px-1"
+                title="Retire this option (kept in history — past answers keep their label)">×</button>
+            )}
+          </div>
+        ))}
+
+        {adding ? (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <input value={newLabel}
+                onChange={e => setNewLabel(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addNew() } if (e.key === "Escape") { setNewLabel(""); setAdding(false) } }}
+                placeholder="New option label"
+                autoFocus
+                className={`flex-1 ${inputClass}`} />
+              <button onClick={addNew}
+                disabled={!newLabel.trim() || collidesActive}
+                className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline disabled:opacity-40 disabled:cursor-not-allowed">
+                Add
+              </button>
+              <button onClick={() => { setNewLabel(""); setAdding(false) }}
+                className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+            </div>
+            {newLabel.trim() && collidesActive && (
+              <p className="text-[10px] text-red-500">An active option already uses the value <span className="font-mono">{derivedForNew}</span>.</p>
+            )}
+            {newLabel.trim() && !collidesActive && wouldRevive && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-500">This will revive the retired <span className="font-mono">{derivedForNew}</span> (past answers stay linked).</p>
+            )}
+            {newLabel.trim() && !collidesActive && !wouldRevive && (
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">New stable ID: <span className="font-mono">{derivedForNew || "—"}</span></p>
+            )}
+          </div>
+        ) : (
+          <button onClick={() => setAdding(true)}
+            className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">
+            + Add option
+          </button>
+        )}
+
+        {retired.length > 0 && (
+          <div className="mt-3 pt-2 border-t border-amber-200 dark:border-amber-800/60">
+            <p className="text-[10px] text-amber-700 dark:text-amber-500 mb-1 font-medium">
+              Retired options ({retired.length}) — hidden from new applicants, but still link past answers
+            </p>
+            <div className="space-y-1">
+              {retired.map(opt => (
+                <div key={opt.value} className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="flex-1 italic">{opt.label}</span>
+                  <span className="text-[10px] font-mono text-gray-400">{opt.value}</span>
+                  <button onClick={() => revive(opt.value)}
+                    className="text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline text-[11px]">
+                    Revive
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ---------------------------------------------------------------------------
   // Conditional visibility editor
   // ---------------------------------------------------------------------------
 
@@ -455,20 +598,23 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
                           <div>
                             <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-1">
                               Options {sq.editableOptions
-                                ? '(editable — reorder, add, remove)'
+                                ? '(editable — rename labels, add, or retire. IDs stay stable so past answers keep their label)'
                                 : '(locked — wired to eligibility / year-group logic)'}
                             </label>
                             {sq.editableOptions ? (
-                              <OptionListEditor
-                                options={effOptions}
-                                onOptionsChange={(opts) => {
-                                  // If edited options equal defaults (same shape), drop the override to keep config clean.
-                                  const sameAsDefault = sq.defaultOptions
+                              <StableOptionListEditor
+                                active={effOptions}
+                                retired={override.retiredOptions ?? []}
+                                onChange={(opts, retiredOpts) => {
+                                  // Drop the override entirely if nothing differs from defaults AND nothing is retired.
+                                  const activeMatchesDefault = sq.defaultOptions
                                     && opts.length === sq.defaultOptions.length
                                     && opts.every((o, i) => o.value === sq.defaultOptions![i].value && o.label === sq.defaultOptions![i].label)
+                                  const noRetired = retiredOpts.length === 0
                                   updateStandardOverride(sq.id, {
                                     ...override,
-                                    options: sameAsDefault ? undefined : opts,
+                                    options: activeMatchesDefault ? undefined : opts,
+                                    retiredOptions: noRetired ? undefined : retiredOpts,
                                   })
                                 }}
                               />
