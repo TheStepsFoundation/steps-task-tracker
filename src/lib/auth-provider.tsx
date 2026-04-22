@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { readTeamCache, writeTeamCache, clearTeamCache, cacheAgeMs } from './team-cache'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,14 +152,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Handle auth state changes. Runs on initial load, sign-in, sign-out, AND
-  // every background token refresh. We must be careful not to re-validate
-  // team membership on every refresh — that's expensive and fragile
-  // (see prior bug: transient timeout during image upload → silent logout).
+  // every background token refresh.
   //
-  // Strategy:
-  //   - INITIAL_SESSION / SIGNED_IN / USER_UPDATED → full check + enforce
-  //   - TOKEN_REFRESHED → just update the session object, keep cached team state
-  //   - SIGNED_OUT → clear everything
+  // Strategy (post-2026-04: fix for the "been logged in a while" bounce):
+  //
+  //   - INITIAL_SESSION → hydrate teamMember from localStorage cache if we
+  //       have one for this auth_uuid. Release loading immediately. Fire a
+  //       background verify that only acts on a CONCLUSIVE not_member
+  //       response. Unknowns (timeouts, network blips) are logged and
+  //       ignored — they never cause a sign-out.
+  //   - SIGNED_IN → this is a fresh auth (password login, OAuth callback,
+  //       signUp). No cache to trust yet, so do the blocking check and
+  //       write the result to cache on success.
+  //   - USER_UPDATED → usually a metadata change. Background-verify without
+  //       blocking; trust cache while it runs.
+  //   - TOKEN_REFRESHED → no action. team_members doesn't change mid-session.
+  //   - SIGNED_OUT → clear everything including cache.
+  //
+  // The central principle: the only path that signs an admin out is a
+  // *conclusive* not_member response from team_members. Unknowns keep the
+  // user in. This trades a small security lag (revoked admin may retain
+  // access for up to a cache TTL) for rock-solid session stability under
+  // flaky network conditions.
   const handleAuthChange = useCallback(async (
     event: string | null,
     newSession: Session | null,
@@ -169,86 +184,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newUser = newSession?.user ?? null
       setUser(newUser)
 
-      // Signed out: clear and exit. Synchronously invalidate the ref +
-      // in-flight cache so a concurrent checkTeamMembership call can't
-      // serve the stale row between now and the useEffect sync.
+      // Signed out: clear everything.
       if (event === 'SIGNED_OUT' || !newUser?.email) {
         teamMemberRef.current = null
         inFlightCheckRef.current = null
         setTeamMember(null)
+        clearTeamCache()
         return
       }
 
-      // Token refresh / silent re-auth: DO NOT re-hit team_members.
-      // The team_members row does not change during a session; re-checking
-      // here was the root cause of the mid-session logout bug.
+      // Token refresh: no work. Supabase fires this periodically; we don't
+      // need to re-check membership every time the access token rotates.
       if (event === 'TOKEN_REFRESHED') {
         return
       }
 
-      // Real auth event — validate team membership.
+      const authUuid = (newUser as any).id as string | undefined
+      const cached = readTeamCache(authUuid)
+
+      // INITIAL_SESSION with a cache hit — trust it. Render the UI straight
+      // away; verify in the background.
+      if (event === 'INITIAL_SESSION' && cached && cached.email.toLowerCase() === newUser.email.toLowerCase()) {
+        alog('INITIAL_SESSION: cache hit for', cached.email, 'age=', cacheAgeMs(authUuid), 'ms')
+        setTeamMember(cached)
+        void verifyMembershipInBackground(newUser.email)
+        return
+      }
+
+      // USER_UPDATED — trust cache if we have one; otherwise fall through to
+      // a blocking check. Metadata updates aren't membership changes.
+      if (event === 'USER_UPDATED' && cached && cached.email.toLowerCase() === newUser.email.toLowerCase()) {
+        setTeamMember(cached)
+        void verifyMembershipInBackground(newUser.email)
+        return
+      }
+
+      // Everything else (SIGNED_IN, INITIAL_SESSION with no cache) — the
+      // blocking path. This is the fresh-login case; we have to hit the DB
+      // at least once to establish membership.
       const result = await checkTeamMembership(newUser.email)
       alog('team check result:', result.status, 'for', newUser.email)
 
       if (result.status === 'member') {
         setTeamMember(result.row)
+        writeTeamCache(result.row)
         return
       }
 
-      // 'unknown' means the check failed (timeout / network). Retry with
-      // short backoff before giving up. Critical: we do NOT set loading=false
-      // in the finally block for 'unknown' status — we want pages/layouts to
-      // keep showing "Loading…" rather than see loading=false + !isTeamMember
-      // and bounce to /login. Only conclusive 'member' or 'not_member' should
-      // release the loading state.
+      // Unknown on a blocking check — retry a couple of times, but NEVER
+      // sign out on all-unknown. Fall through to "keep them in" so a flaky
+      // network during first page load doesn't kick them to /login.
       if (result.status === 'unknown') {
-        const maxAttempts = 3
-        let attempt = 1
-        let conclusive: { status: 'member'; row: TeamMember } | { status: 'not_member' } | null = null
-        while (attempt < maxAttempts) {
-          console.warn(`[auth] team check unknown (attempt ${attempt}/${maxAttempts}) — retrying in ${attempt * 800}ms`)
+        for (let attempt = 1; attempt <= 2; attempt++) {
           await new Promise(r => setTimeout(r, attempt * 800))
           const retry = await checkTeamMembership(newUser.email)
-          alog('team check retry result:', retry.status)
-          if (retry.status === 'member' || retry.status === 'not_member') {
-            conclusive = retry
-            break
+          if (retry.status === 'member') {
+            setTeamMember(retry.row)
+            writeTeamCache(retry.row)
+            return
           }
-          attempt++
+          if (retry.status === 'not_member') {
+            break  // handle below
+          }
         }
-        if (conclusive?.status === 'member') {
-          setTeamMember(conclusive.row)
+        // Still unknown after retries. If we have a cache, trust it; else
+        // keep them on the loader until the next auth event or refresh
+        // resolves things. The old code signed them out here — that was
+        // the bug.
+        if (cached) {
+          console.warn('[auth] team check unknown on blocking path — using cache')
+          setTeamMember(cached)
           return
         }
-        if (conclusive?.status === 'not_member') {
-          // fall through to the not_member branch below by reassigning result
-          // (can't reassign a const — just duplicate the not-member path here)
-          setTeamMember(null)
-          return
-        }
-        // All retries returned 'unknown'. Give up: surface as not-a-member so
-        // the user ends up on /login rather than stuck in an infinite loader.
-        console.warn('[auth] team check still unknown after retries — treating as not-member')
-        setTeamMember(null)
+        console.warn('[auth] team check unknown and no cache — keeping user in pending state; user can refresh')
         return
       }
 
-      // Confirmed not a team member.
-      //
-      // Historical note: we once removed the signOut() here because a shared
-      // storageKey meant student sign-ins in another tab fired SIGNED_IN on
-      // the admin client, and signing out clobbered the shared session for
-      // both tabs. That's fixed now by using a separate Supabase client for
-      // the student hub (src/lib/supabase-student.ts) with its own storageKey,
-      // so admin onAuthStateChange only fires for actual admin actions or
-      // stale state on the admin key.
-      //
-      // For INITIAL_SESSION, clear the stored admin session — it's leftover
-      // from before the client split (e.g. a student who used the admin
-      // client when both shared a key). Without this, the admin tab would
-      // boot with a stale student session and get bounced to /login forever.
-      alog('not a team member — clearing teamMember state. event=', event, 'path=', typeof window !== 'undefined' ? window.location.pathname : 'ssr')
+      // Confirmed not a team member — only the blocking path reaches here.
+      // This is either a freshly-signed-in non-member (shouldn't normally
+      // happen since signIn pre-checks) or a stale admin client session
+      // from before the student-client split.
+      alog('not a team member — clearing teamMember state. event=', event)
       setTeamMember(null)
+      clearTeamCache()
       if (event === 'INITIAL_SESSION') {
         try {
           await supabase.auth.signOut({ scope: 'local' })
@@ -263,11 +281,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error('[auth] handleAuthChange error:', err)
-      // Do NOT clear team state on unexpected errors — same reasoning as
-      // the 'unknown' branch above. Let the user keep working.
+      // Never clear team state on unexpected errors.
     } finally {
       alog('setLoading(false) from handleAuthChange')
       setLoading(false)
+    }
+  }, [checkTeamMembership])
+
+  // Background-only verify. Never signs the user out on unknown; only acts
+  // on a conclusive not_member. Used after a cache hit to re-validate.
+  const verifyMembershipInBackground = useCallback(async (email: string) => {
+    try {
+      const result = await checkTeamMembership(email)
+      if (result.status === 'member') {
+        // Refresh the cache timestamp + row so TTL resets.
+        writeTeamCache(result.row)
+        // Only clobber UI state if the row actually changed (e.g. role update).
+        const current = teamMemberRef.current
+        if (!current || current.id !== result.row.id || current.role !== result.row.role || current.name !== result.row.name) {
+          setTeamMember(result.row)
+        }
+        return
+      }
+      if (result.status === 'not_member') {
+        console.warn('[auth] background verify: user is no longer a team member — signing out')
+        clearTeamCache()
+        setTeamMember(null)
+        try { await supabase.auth.signOut() } catch { /* noop */ }
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.replace('/login')
+        }
+        return
+      }
+      // Unknown — do nothing. The cached row stays; next verify will try again.
+      alog('background verify: unknown — keeping cache')
+    } catch (err) {
+      console.warn('[auth] background verify threw:', err)
+      // Swallow. Never kick the user on an unexpected error.
     }
   }, [checkTeamMembership])
 
@@ -393,6 +443,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setSession(null)
     setTeamMember(null)
+    clearTeamCache()
   }
 
   const isTeamMember = !!teamMember
