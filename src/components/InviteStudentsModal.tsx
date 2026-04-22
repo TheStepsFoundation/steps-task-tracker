@@ -1338,7 +1338,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
 
       {/* ======= STUDENT PREVIEW SLIDE-OUT ======= */}
       {previewStudent && (
-        <div className="fixed inset-0 z-[60]" onClick={() => setPreviewStudent(null)}>
+        <div className="fixed inset-0 z-[60]" onClick={e => { e.stopPropagation(); setPreviewStudent(null) }}>
           <div className="absolute inset-0 bg-black/20" />
           <div
             className="absolute right-0 top-0 h-full w-full max-w-lg bg-white dark:bg-gray-900 shadow-2xl overflow-y-auto animate-slide-in-right"

@@ -445,7 +445,17 @@ export function TemplateEditDialog(props: TemplateEditDialogProps) {
   const canSave = !!name.trim() && !!subject.trim() && !!bodyHtml.trim() && !saving
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+    // Stop clicks from bubbling to any parent backdrop (e.g. the invite
+    // modal wraps a click-to-close div around our render tree). Without this,
+    // a click on the subject/body/name editor fires onClose on the parent
+    // modal and unmounts everything back to the event edit page.
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+    >
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
           <div>
