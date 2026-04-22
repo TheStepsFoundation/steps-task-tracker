@@ -1295,6 +1295,7 @@ export default function EventDetailPage() {
   }
 
   const fillMergeFields = (text: string, applicant: Applicant) => {
+    const applyLinkUrl = `https://the-steps-foundation-intranet.vercel.app/apply/${event?.slug ?? ''}`
     return text
       .replace(/\{\{first_name\}\}/g, applicant.first_name)
       .replace(/\{\{last_name\}\}/g, applicant.last_name)
@@ -1308,8 +1309,14 @@ export default function EventDetailPage() {
       .replace(/\{\{event_location_full\}\}/g, event?.location_full ?? event?.location ?? 'TBC')
       .replace(/\{\{event_time\}\}/g, [event?.time_start, event?.time_end].filter(Boolean).join(' – ') || 'TBC')
       .replace(/\{\{dress_code\}\}/g, event?.dress_code ?? '')
+      .replace(/\{\{event_dress_code\}\}/g, event?.dress_code ?? '')
+      .replace(/\{\{apply_link\}\}/g, applyLinkUrl)
       .replace(/\{\{portal_link\}\}/g, 'https://the-steps-foundation-intranet.vercel.app/my')
       .replace(/\{\{rsvp_link\}\}/g, 'https://the-steps-foundation-intranet.vercel.app/my')
+      // last_attended_event isn't meaningful in the decision flow (we're
+      // emailing about THE event, not a past one). Clear it rather than
+      // leaking the raw token.
+      .replace(/\{\{last_attended_event\}\}/g, event?.name ?? '')
   }
 
   const getRecipients = () => {

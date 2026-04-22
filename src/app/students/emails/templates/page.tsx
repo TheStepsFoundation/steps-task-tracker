@@ -197,23 +197,11 @@ export default function EmailTemplatesPage() {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Subject line</label>
-              <div className="flex flex-wrap gap-1 justify-end">
-                <span className="text-[10px] text-gray-400 self-center mr-1">Insert:</span>
-                {DEFAULT_MERGE_TAGS.slice(0, 4).map(({ tag, label }) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => subjectEditorRef.current?.insertMergeTag(tag, label)}
-                    className="px-2 py-0.5 text-[11px] rounded-full border border-steps-blue-200 dark:border-steps-blue-800 bg-steps-blue-50 dark:bg-steps-blue-900/20 text-steps-blue-700 dark:text-steps-blue-300 hover:bg-steps-blue-100 dark:hover:bg-steps-blue-900/40 transition-colors"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Subject line</label>
+            <MergeTagInsertBar
+              tags={DEFAULT_MERGE_TAGS}
+              onInsert={(tag, label) => subjectEditorRef.current?.insertMergeTag(tag, label)}
+            />
             <SingleLineMergeEditor
               key={`subj-${bodySeedCounter}`}
               ref={subjectEditorRef}

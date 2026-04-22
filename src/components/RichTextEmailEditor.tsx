@@ -35,9 +35,12 @@ export const MERGE_TAG_LABELS: Record<string, string> = {
   event_date: 'Event Date',
   event_time: 'Event Time',
   event_location: 'Location',
+  event_dress_code: 'Dress Code',
   dress_code: 'Dress Code',
+  apply_link: 'Apply Link',
   rsvp_link: 'RSVP Link',
   portal_link: 'Portal Link',
+  last_attended_event: 'Last Event',
 }
 
 export type MergeTag = { tag: string; label: string }
@@ -46,10 +49,14 @@ export const DEFAULT_MERGE_TAGS: MergeTag[] = [
   { tag: 'first_name', label: 'First Name' },
   { tag: 'last_name', label: 'Last Name' },
   { tag: 'full_name', label: 'Full Name' },
+  { tag: 'email', label: 'Email' },
   { tag: 'event_name', label: 'Event Name' },
   { tag: 'event_date', label: 'Event Date' },
   { tag: 'event_time', label: 'Event Time' },
   { tag: 'event_location', label: 'Location' },
+  { tag: 'dress_code', label: 'Dress Code' },
+  { tag: 'last_attended_event', label: 'Last Event' },
+  { tag: 'apply_link', label: 'Apply Link' },
   { tag: 'rsvp_link', label: 'RSVP Link' },
   { tag: 'portal_link', label: 'Portal Link' },
 ]
