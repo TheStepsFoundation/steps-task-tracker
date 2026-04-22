@@ -29,18 +29,34 @@ function getServiceClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
-async function applyUnsubscribe(studentId: string): Promise<{ ok: boolean; email: string | null; error?: string }> {
+type UnsubSource = 'footer_link' | 'one_click'
+
+async function applyUnsubscribe(studentId: string, source: UnsubSource): Promise<{ ok: boolean; email: string | null; error?: string }> {
   const sb = getServiceClient()
-  // Idempotent: if already unsubscribed, the second call is a no-op at DB
-  // level (update is a no-op when values match) but still 200 to the caller.
-  const { data, error } = await sb
+  // Read current state first — we only stamp audit fields on the FIRST
+  // unsubscribe, so repeat clicks don't keep overwriting the timestamp.
+  const { data: current, error: readErr } = await sb
     .from('students')
-    .update({ subscribed_to_mailing: false })
+    .select('personal_email, subscribed_to_mailing, unsubscribed_at')
     .eq('id', studentId)
-    .select('personal_email')
     .maybeSingle()
+  if (readErr) return { ok: false, email: null, error: readErr.message }
+  if (!current) return { ok: false, email: null, error: 'Student not found' }
+
+  // Already unsubscribed — idempotent no-op, still 200 to the caller.
+  if (current.subscribed_to_mailing === false && current.unsubscribed_at) {
+    return { ok: true, email: current.personal_email ?? null }
+  }
+
+  const patch: Record<string, unknown> = { subscribed_to_mailing: false }
+  if (!current.unsubscribed_at) {
+    patch.unsubscribed_at = new Date().toISOString()
+    patch.unsubscribe_source = source
+  }
+
+  const { error } = await sb.from('students').update(patch).eq('id', studentId)
   if (error) return { ok: false, email: null, error: error.message }
-  return { ok: true, email: data?.personal_email ?? null }
+  return { ok: true, email: current.personal_email ?? null }
 }
 
 function renderConfirmationHtml(email: string | null, error: string | null): string {
@@ -78,7 +94,7 @@ export async function GET(req: NextRequest) {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   }
-  const result = await applyUnsubscribe(verified.studentId)
+  const result = await applyUnsubscribe(verified.studentId, 'footer_link')
   return new NextResponse(renderConfirmationHtml(result.email, result.ok ? null : (result.error ?? 'Could not update your preferences')), {
     status: result.ok ? 200 : 500,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -92,7 +108,7 @@ export async function POST(req: NextRequest) {
   if (!verified.ok) {
     return NextResponse.json({ error: `invalid token: ${verified.reason}` }, { status: 400 })
   }
-  const result = await applyUnsubscribe(verified.studentId)
+  const result = await applyUnsubscribe(verified.studentId, 'one_click')
   if (!result.ok) return NextResponse.json({ error: result.error ?? 'failed' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

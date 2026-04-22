@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { buildRawEmail, sanitiseAttachments } from '@/lib/email-mime'
 import { buildUnsubscribeUrl } from '@/lib/unsubscribe-token'
+import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,12 +36,13 @@ function getOAuth2Client() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { to, subject, html, attachments, studentId } = body as {
+    const { to, subject, html, attachments, studentId, kind } = body as {
       to?: string
       subject?: string
       html?: string
       attachments?: unknown
       studentId?: string
+      kind?: 'marketing' | 'transactional'
     }
 
     if (!to || !subject || !html) {
@@ -49,6 +51,38 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    // ---------------------------------------------------------------------
+    // Safety net: if this is a marketing send and we have a studentId,
+    // refuse to send to someone who has unsubscribed. The invite modal
+    // already filters at recipient selection, but we guard server-side too
+    // so a stale client-side list (or direct API misuse) can't leak.
+    //
+    // Transactional sends (kind === 'transactional') bypass the check —
+    // e.g. event decision emails where the recipient deserves the reply
+    // regardless of their newsletter preference.
+    // ---------------------------------------------------------------------
+    if (studentId && kind !== 'transactional') {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && serviceKey) {
+        const sb = createClient(supabaseUrl, serviceKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        })
+        const { data: s } = await sb
+          .from('students')
+          .select('subscribed_to_mailing')
+          .eq('id', studentId)
+          .maybeSingle()
+        if (s && s.subscribed_to_mailing === false) {
+          return NextResponse.json(
+            { error: 'Recipient has unsubscribed from the mailing list.', skipped: true },
+            { status: 409 }
+          )
+        }
+      }
+    }
+
 
     const auth = getOAuth2Client()
     const gmail = google.gmail({ version: 'v1', auth })
