@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
+import { buildRawEmail, sanitiseAttachments } from '@/lib/email-mime'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,6 @@ export const maxDuration = 60  // seconds — enough to send a full batch of 50
 
 const BATCH_SIZE = 50
 const FROM_EMAIL = 'events@thestepsfoundation.com'
-const FROM_NAME = 'Events - The Steps Foundation'
 
 type OutboxRow = {
   id: string
@@ -40,6 +40,7 @@ type OutboxRow = {
   attempts: number
   max_attempts: number
   queued_by: string | null
+  attachments: unknown
 }
 
 function getServiceClient() {
@@ -67,38 +68,6 @@ function getOAuth2Client() {
   )
   oauth2Client.setCredentials({ refresh_token: refreshToken })
   return oauth2Client
-}
-
-function buildRawEmail(to: string, subject: string, htmlBody: string): string {
-  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`
-  const fromHeader = `${FROM_NAME} <${FROM_EMAIL}>`
-  const lines = [
-    `From: ${fromHeader}`,
-    `To: ${to}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    Buffer.from(htmlBody.replace(/<[^>]+>/g, '')).toString('base64'),
-    '',
-    `--${boundary}`,
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    Buffer.from(htmlBody).toString('base64'),
-    '',
-    `--${boundary}--`,
-  ]
-  const raw = lines.join('\r\n')
-  return Buffer.from(raw)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '')
 }
 
 /**
@@ -169,7 +138,12 @@ export async function POST(req: NextRequest) {
   // Serial within a batch + BATCH_SIZE=50 per minute = 50/min cruise.
   for (const row of rows) {
     try {
-      const raw = buildRawEmail(row.to_email, row.subject, row.body_html)
+      const raw = await buildRawEmail({
+        to: row.to_email,
+        subject: row.subject,
+        htmlBody: row.body_html,
+        attachments: sanitiseAttachments(row.attachments),
+      })
       const result = await gmail.users.messages.send({
         userId: 'me',
         requestBody: { raw },

@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
+import { buildRawEmail, sanitiseAttachments } from '@/lib/email-mime'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // ---------------------------------------------------------------------------
 // Gmail API route — sends individual emails via the hello@ Workspace account
-// using the events@ alias as the From address.
+// using the events@ alias as the From address. Attachments (if any) travel
+// as multipart/mixed parts; the MIME builder lives in @/lib/email-mime so
+// both this route and the queue worker stay byte-compatible.
 //
 // Environment variables required (set in Vercel):
-//   GMAIL_CLIENT_ID      — Google Cloud OAuth2 client ID
+//   GMAIL_CLIENT_ID       — Google Cloud OAuth2 client ID
 //   GMAIL_CLIENT_SECRET   — Google Cloud OAuth2 client secret
 //   GMAIL_REFRESH_TOKEN   — Offline refresh token for hello@thestepsfoundation.com
 // ---------------------------------------------------------------------------
-
-const FROM_EMAIL = 'events@thestepsfoundation.com'
-const FROM_NAME = 'Events - The Steps Foundation'
 
 function getOAuth2Client() {
   const clientId = process.env.GMAIL_CLIENT_ID
@@ -31,48 +31,14 @@ function getOAuth2Client() {
   return oauth2Client
 }
 
-function buildRawEmail(to: string, subject: string, htmlBody: string): string {
-  const boundary = `boundary_${Date.now()}`
-  const fromHeader = `${FROM_NAME} <${FROM_EMAIL}>`
-
-  const lines = [
-    `From: ${fromHeader}`,
-    `To: ${to}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    Buffer.from(htmlBody.replace(/<[^>]+>/g, '')).toString('base64'),
-    '',
-    `--${boundary}`,
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    Buffer.from(htmlBody).toString('base64'),
-    '',
-    `--${boundary}--`,
-  ]
-
-  const raw = lines.join('\r\n')
-  // Gmail API expects URL-safe base64
-  return Buffer.from(raw)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '')
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { to, subject, html } = body as {
+    const { to, subject, html, attachments } = body as {
       to?: string
       subject?: string
       html?: string
+      attachments?: unknown
     }
 
     if (!to || !subject || !html) {
@@ -85,7 +51,12 @@ export async function POST(req: NextRequest) {
     const auth = getOAuth2Client()
     const gmail = google.gmail({ version: 'v1', auth })
 
-    const raw = buildRawEmail(to, subject, html)
+    const raw = await buildRawEmail({
+      to,
+      subject,
+      htmlBody: html,
+      attachments: sanitiseAttachments(attachments),
+    })
 
     const result = await gmail.users.messages.send({
       userId: 'me',

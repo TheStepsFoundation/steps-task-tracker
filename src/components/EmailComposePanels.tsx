@@ -19,6 +19,7 @@ import {
   MergeTagInsertBar,
   DEFAULT_MERGE_TAGS,
   type MergeTag,
+  type EmailAttachmentInfo,
 } from './RichTextEmailEditor'
 
 // ---------------------------------------------------------------------------
@@ -121,6 +122,13 @@ export type EmailComposePanelProps = {
   // Placeholders
   subjectPlaceholder?: string
   bodyPlaceholder?: string
+
+  // Per-send attachments. Owned by the parent — when these are omitted the
+  // editor hides the attach button (e.g. the template editor, where
+  // attachments don't persist onto the template row).
+  attachments?: EmailAttachmentInfo[]
+  onAttach?: (att: EmailAttachmentInfo) => void
+  onRemoveAttachment?: (url: string) => void
 }
 
 export function EmailComposePanel(props: EmailComposePanelProps) {
@@ -133,6 +141,7 @@ export function EmailComposePanel(props: EmailComposePanelProps) {
     subjectEditorKey, bodyEditorKey, bodyInitialHtml,
     subjectMergeTags, bodyMergeTags,
     subjectPlaceholder, bodyPlaceholder,
+    attachments, onAttach, onRemoveAttachment,
   } = props
 
   const visibleTemplates = templateFilter ? templates.filter(templateFilter) : templates
@@ -249,6 +258,9 @@ export function EmailComposePanel(props: EmailComposePanelProps) {
           initialHtml={bodyInitialHtml}
           onChange={html => { onBodyChange(html); onDirty() }}
           placeholder={bodyPlaceholder ?? `Hey {{first_name}},\n\nWe'd love for you to apply to {{event_name}}!\n\nApply here: {{apply_link}}\n\nBest wishes,\nThe Steps Foundation Team`}
+          attachments={attachments}
+          onAttach={onAttach}
+          onRemoveAttachment={onRemoveAttachment}
         />
 
         {/* Save-back-to-template CTA */}

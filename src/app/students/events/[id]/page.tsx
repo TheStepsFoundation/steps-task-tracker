@@ -21,6 +21,7 @@ import {
   SingleLineMergeEditor,
   type SingleLineMergeEditorHandle,
   type MergeTag,
+  type EmailAttachmentInfo,
   plainTextToHtml as sharedPlainTextToHtml,
   looksLikeHtml as sharedLooksLikeHtml,
 } from '@/components/RichTextEmailEditor'
@@ -645,6 +646,10 @@ export default function EventDetailPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  // Per-send attachments. Decision-send enqueues onto email_outbox, so
+  // we persist the list alongside each row via the `attachments` JSONB
+  // column. Cleared after enqueue.
+  const [emailAttachments, setEmailAttachments] = useState<EmailAttachmentInfo[]>([])
   const [emailStep, setEmailStep] = useState<'pick' | 'preview' | 'sending' | 'done'>('pick')
   const [templateDirty, setTemplateDirty] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
@@ -1426,6 +1431,7 @@ export default function EventDetailPage() {
         from_email: 'events@thestepsfoundation.com',
         subject: renderedSubject,
         body_html: fullBody,
+        attachments: emailAttachments,
       }
     })
 
@@ -2828,6 +2834,9 @@ export default function EventDetailPage() {
                     bodyMergeTags={bodyMergeTags}
                     subjectPlaceholder="e.g. An update on your {{event_name}} application"
                     bodyPlaceholder={`Hi {{first_name}},\n\n...\n\nVirtus non origo,\nThe Steps Foundation Team`}
+                    attachments={emailAttachments}
+                    onAttach={att => setEmailAttachments(prev => prev.some(p => p.url === att.url) ? prev : [...prev, att])}
+                    onRemoveAttachment={url => setEmailAttachments(prev => prev.filter(p => p.url !== url))}
                   />
                 )
               })()}

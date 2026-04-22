@@ -8,9 +8,10 @@
 //   body / sent email stays a plain {{tag}}-style template.
 // - Provides a formatting toolbar (bold/italic/underline/strike, text colour,
 //   highlight, lists, link, image, clear).
-// - Supports inline image uploads via the existing `event-banners` Supabase
-//   storage bucket; uploaded images are inserted as <img> tags referencing the
-//   public URL.
+// - Supports file attachments (images + PDFs) via the existing `event-banners`
+//   Supabase storage bucket. Attachments are NOT inserted inline; the editor
+//   uploads the file and fires `onAttach` so the parent compose panel can
+//   track them in per-send state and include them in the MIME envelope.
 //
 // Used from:
 //   - src/app/students/events/[id]/page.tsx (Accept/Waitlist/Reject notify flow)
@@ -44,6 +45,17 @@ export const MERGE_TAG_LABELS: Record<string, string> = {
 }
 
 export type MergeTag = { tag: string; label: string }
+
+// Shape of an email attachment chip — a reference to a file already
+// uploaded to Supabase storage. The editor doesn't own this state; the
+// parent compose panel does, and passes the list in via `attachments`
+// plus a `onAttach` / `onRemoveAttachment` pair for mutation.
+export type EmailAttachmentInfo = {
+  url: string
+  filename: string
+  mime_type: string
+  size_bytes: number
+}
 
 export const DEFAULT_MERGE_TAGS: MergeTag[] = [
   { tag: 'first_name', label: 'First Name' },
@@ -130,8 +142,17 @@ export type RichTextEmailEditorProps = {
   onChange: (html: string) => void
   /** Placeholder shown when the editor is empty. */
   placeholder?: string
-  /** Optional: disable inline image upload (e.g. if no storage is wired). */
+  /** Optional: disable file upload entirely (e.g. template editor, where
+   *  attachments don't persist onto templates). */
   disableImages?: boolean
+  /** Current attachment list rendered as chips above the editor. If omitted
+   *  AND onAttach is omitted, the attach button is hidden entirely. */
+  attachments?: EmailAttachmentInfo[]
+  /** Called after a successful upload — parent should push onto its
+   *  per-send attachment state. If omitted the attach button is hidden. */
+  onAttach?: (att: EmailAttachmentInfo) => void
+  /** Called when the user clicks the × on an attachment chip. */
+  onRemoveAttachment?: (url: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +160,7 @@ export type RichTextEmailEditorProps = {
 // ---------------------------------------------------------------------------
 
 export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, RichTextEmailEditorProps>(function RichTextEmailEditor(
-  { initialHtml, onChange, placeholder, disableImages },
+  { initialHtml, onChange, placeholder, disableImages, attachments, onAttach, onRemoveAttachment },
   forwardedRef,
 ) {
   const divRef = useRef<HTMLDivElement | null>(null)
@@ -432,20 +453,28 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [onChange])
 
-  // Upload a selected image to Supabase storage and insert it inline.
+  // Upload a selected file (image or PDF) to Supabase storage and hand the
+  // public URL off to the parent via onAttach. We do NOT insert anything into
+  // the body — attachments travel in the MIME envelope instead of inline.
   const handleImageFile = async (file: File) => {
-    if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
-      alert('Use JPG, PNG, WebP or GIF.')
+    const isImage = /^image\/(jpeg|png|webp|gif)$/.test(file.type)
+    const isPdf = file.type === 'application/pdf'
+    if (!isImage && !isPdf) {
+      alert('Attach a JPG, PNG, WebP, GIF or PDF.')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Max file size is 5 MB.')
+    // Keep client cap below the server cap in email-mime.ts (20MB) so size
+    // failures surface before the upload round trip.
+    if (file.size > 20 * 1024 * 1024) {
+      alert('Max attachment size is 20 MB.')
       return
     }
+    if (!onAttach) return  // shouldn't be reachable — button is hidden
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const objectKey = `email-inline/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+      const extFromName = file.name.split('.').pop()?.toLowerCase()
+      const ext = extFromName || (isPdf ? 'pdf' : 'bin')
+      const objectKey = `email-attachments/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
       const { error: upErr } = await supabase
         .storage
         .from('event-banners')
@@ -453,11 +482,14 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
       if (upErr) throw upErr
       const { data: pub } = supabase.storage.from('event-banners').getPublicUrl(objectKey)
       if (!pub?.publicUrl) throw new Error('Could not resolve public URL')
-      insertHtmlAtCaret(
-        `<img src="${pub.publicUrl}" alt="" style="max-width:100%;height:auto;display:block;margin:8px 0;" />`
-      )
+      onAttach({
+        url: pub.publicUrl,
+        filename: file.name,
+        mime_type: file.type,
+        size_bytes: file.size,
+      })
     } catch (err: any) {
-      console.error('image upload failed', err)
+      console.error('attachment upload failed', err)
       alert(err?.message || 'Upload failed')
     } finally {
       setUploading(false)
@@ -542,23 +574,23 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
         <ToolbarBtn title="Remove link" onClick={() => exec('unlink')}>
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656m-1.002-6.997a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656M3 3l18 18" /></svg>
         </ToolbarBtn>
-        {!disableImages && (
+        {!disableImages && onAttach && (
           <>
             <div className="w-px h-4 mx-1 bg-gray-300 dark:bg-gray-600" />
             <ToolbarBtn
-              title={uploading ? 'Uploading…' : 'Insert image'}
+              title={uploading ? 'Uploading…' : 'Attach file (image or PDF)'}
               onClick={() => fileInputRef.current?.click()}
             >
               {uploading ? (
                 <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16" /></svg>
               ) : (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.415a4 4 0 10-5.656-5.656L5.172 11.343a6 6 0 008.486 8.486L18 15.485" /></svg>
               )}
             </ToolbarBtn>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.pdf"
               className="hidden"
               onChange={e => {
                 const f = e.target.files?.[0]
@@ -573,6 +605,40 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </ToolbarBtn>
       </div>
+
+      {/* Attachment chips — rendered between toolbar and editor surface so
+          users see what's about to travel with the email. Gated on the list
+          being non-empty so the strip only appears when there's something
+          to show. */}
+      {attachments && attachments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40">
+          {attachments.map(att => (
+            <span
+              key={att.url}
+              className="inline-flex items-center gap-1.5 max-w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 py-1 text-xs text-gray-700 dark:text-gray-200"
+              title={`${att.filename} — ${formatBytes(att.size_bytes)}`}
+            >
+              <svg className="w-3 h-3 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.415a4 4 0 10-5.656-5.656L5.172 11.343a6 6 0 008.486 8.486L18 15.485" />
+              </svg>
+              <span className="truncate max-w-[180px]">{att.filename}</span>
+              <span className="text-[10px] text-gray-400 flex-shrink-0">{formatBytes(att.size_bytes)}</span>
+              {onRemoveAttachment && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveAttachment(att.url)}
+                  className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  aria-label={`Remove ${att.filename}`}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Editor surface */}
       <div className="relative">
@@ -639,6 +705,14 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
     </div>
   )
 })
+
+// Human-readable byte size for attachment chip labels.
+function formatBytes(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return ''
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
+}
 
 function ToolbarBtn(
   { title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }

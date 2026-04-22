@@ -9,6 +9,7 @@ import {
   type RichTextEmailEditorHandle,
   type SingleLineMergeEditorHandle,
   type MergeTag,
+  type EmailAttachmentInfo,
 } from './RichTextEmailEditor'
 import {
   EmailComposePanel,
@@ -293,6 +294,10 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  // Per-send attachments — cleared whenever the modal reopens. Not
+  // persisted to localStorage because uploaded storage keys aren't
+  // guaranteed to still exist after a long-lived draft sits around.
+  const [emailAttachments, setEmailAttachments] = useState<EmailAttachmentInfo[]>([])
   // Rich-editor refs — used to inject merge-tag pills at the caret.
   const bodyEditorRef = useRef<RichTextEmailEditorHandle | null>(null)
   const subjectEditorRef = useRef<SingleLineMergeEditorHandle | null>(null)
@@ -756,7 +761,12 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
         const res = await fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: student.personal_email!, subject: renderedSubject, html: fullBody }),
+          body: JSON.stringify({
+            to: student.personal_email!,
+            subject: renderedSubject,
+            html: fullBody,
+            attachments: emailAttachments,
+          }),
         })
 
         if (res.ok) {
@@ -1231,6 +1241,9 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                 bodyMergeTags={mergeTags}
                 subjectPlaceholder="e.g. You're Invited to {{event_name}}!"
                 bodyPlaceholder={`Hey {{first_name}},\n\nWe'd love for you to apply to {{event_name}}!\n\nApply here: {{apply_link}}\n\nBest wishes,\nThe Steps Foundation Team`}
+                attachments={emailAttachments}
+                onAttach={att => setEmailAttachments(prev => prev.some(p => p.url === att.url) ? prev : [...prev, att])}
+                onRemoveAttachment={url => setEmailAttachments(prev => prev.filter(p => p.url !== url))}
               />
             )
           })()}
