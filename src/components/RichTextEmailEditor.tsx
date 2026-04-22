@@ -138,6 +138,13 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isEmpty, setIsEmpty] = useState(!initialHtml || initialHtml === '<br>' || initialHtml === '<p><br></p>')
   const [uploading, setUploading] = useState(false)
+  // Link-prompt state — mirrors LinkableInput's Ctrl+K dialog so the email
+  // editor gets the same "select text → Ctrl+K → Text/URL fields → Add" flow
+  // as the application form editor.
+  const [linkPromptOpen, setLinkPromptOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkText, setLinkText] = useState('')
+  const [linkIsEditingExisting, setLinkIsEditingExisting] = useState(false)
 
   // Seed the div on mount / when initialHtml identity changes (new template).
   useEffect(() => {
@@ -163,6 +170,139 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
     if (!sel) return
     sel.removeAllRanges()
     sel.addRange(savedRange.current)
+  }
+
+  // Walk up from a node to find an ancestor <a> inside the editor surface.
+  const findAncestorAnchor = (node: Node | null): HTMLAnchorElement | null => {
+    let cur: Node | null = node
+    while (cur && cur !== divRef.current) {
+      if ((cur as HTMLElement).tagName === 'A') return cur as HTMLAnchorElement
+      cur = cur.parentNode
+    }
+    return null
+  }
+
+  // Normalise a user-typed URL — prepend https:// when they leave off the scheme.
+  const normaliseUrl = (raw: string): string => {
+    const url = raw.trim()
+    if (!url) return ''
+    if (/^(https?:|mailto:)/i.test(url)) return url
+    if (/^www\./i.test(url)) return 'https://' + url
+    // Bare domain heuristic: contains a dot, no whitespace, no @ before the first slash.
+    if (/^[^\s@]+\.[^\s]+$/i.test(url)) return 'https://' + url
+    return url
+  }
+
+  // Detect whether a pasted string is a lone URL that we should auto-hyperlink.
+  const looksLikeBareUrl = (s: string): boolean => {
+    const t = s.trim()
+    if (!t || /\s/.test(t)) return false
+    return /^(https?:\/\/|mailto:)[^\s]+$/i.test(t) || /^www\.[^\s]+\.[^\s]+$/i.test(t)
+  }
+
+  const openLinkPrompt = () => {
+    saveSelection()
+    const range = savedRange.current
+    const selectedText = range ? range.toString() : ''
+    const anchor = range ? findAncestorAnchor(range.startContainer) : null
+    if (anchor) {
+      setLinkIsEditingExisting(true)
+      setLinkUrl(anchor.getAttribute('href') ?? '')
+      setLinkText(anchor.textContent ?? '')
+    } else {
+      setLinkIsEditingExisting(false)
+      setLinkUrl('')
+      setLinkText(selectedText)
+    }
+    setLinkPromptOpen(true)
+    // Focus the URL input after it mounts.
+    setTimeout(() => {
+      const el = document.getElementById('rte-link-url') as HTMLInputElement | null
+      el?.focus()
+      el?.select()
+    }, 10)
+  }
+
+  const confirmLinkPrompt = () => {
+    const url = normaliseUrl(linkUrl)
+    if (!url) { setLinkPromptOpen(false); return }
+    const text = linkText.trim() || url
+
+    divRef.current?.focus()
+    restoreSelection()
+
+    if (linkIsEditingExisting && savedRange.current) {
+      const anchor = findAncestorAnchor(savedRange.current.startContainer)
+      if (anchor) {
+        anchor.setAttribute('href', url)
+        anchor.setAttribute('target', '_blank')
+        anchor.setAttribute('rel', 'noopener noreferrer')
+        anchor.textContent = text
+      }
+    } else {
+      const range = savedRange.current
+      if (range) {
+        range.deleteContents()
+        const a = document.createElement('a')
+        a.setAttribute('href', url)
+        a.setAttribute('target', '_blank')
+        a.setAttribute('rel', 'noopener noreferrer')
+        a.textContent = text
+        range.insertNode(a)
+        // Place caret after the new anchor.
+        const after = document.createRange()
+        after.setStartAfter(a)
+        after.collapse(true)
+        const sel = window.getSelection()
+        sel?.removeAllRanges()
+        sel?.addRange(after)
+      }
+    }
+
+    setLinkPromptOpen(false)
+    emitChange()
+  }
+
+  const removeLinkAtSelection = () => {
+    const range = savedRange.current
+    const anchor = range ? findAncestorAnchor(range.startContainer) : null
+    if (anchor) {
+      const text = document.createTextNode(anchor.textContent ?? '')
+      anchor.replaceWith(text)
+      emitChange()
+    }
+    setLinkPromptOpen(false)
+  }
+
+  const cancelLinkPrompt = () => {
+    setLinkPromptOpen(false)
+    divRef.current?.focus()
+    restoreSelection()
+  }
+
+  // Keydown — open link prompt on Ctrl+K / Cmd+K.
+  const onEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault()
+      openLinkPrompt()
+    }
+  }
+
+  // Paste — if the clipboard holds a bare URL, auto-hyperlink it (wrap the
+  // current selection if any, otherwise insert as a clickable link).
+  // Anything else is passed through to the browser's default contenteditable
+  // paste so we keep formatting / images / etc.
+  const onEditorPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const plain = e.clipboardData.getData('text/plain')
+    if (!looksLikeBareUrl(plain)) return
+    e.preventDefault()
+    const sel = window.getSelection()
+    const hasSelection = !!(sel && sel.rangeCount > 0 && !sel.isCollapsed && divRef.current?.contains(sel.anchorNode))
+    const url = normaliseUrl(plain)
+    const text = hasSelection ? (sel?.toString() ?? plain) : plain
+    const safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const html = `<a href="${url}" target="_blank" rel="noopener noreferrer">${safeText}</a>&nbsp;`
+    insertHtmlAtCaret(html)
   }
 
   const emitChange = () => {
@@ -318,11 +458,8 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
         </ToolbarBtn>
         <div className="w-px h-4 mx-1 bg-gray-300 dark:bg-gray-600" />
         <ToolbarBtn
-          title="Insert link"
-          onClick={() => {
-            const url = window.prompt('Link URL (include https://)')
-            if (url) exec('createLink', url)
-          }}
+          title="Insert link (Ctrl+K)"
+          onClick={openLinkPrompt}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
         </ToolbarBtn>
@@ -374,11 +511,54 @@ export const RichTextEmailEditor = React.forwardRef<RichTextEmailEditorHandle, R
           suppressContentEditableWarning
           onInput={emitChange}
           onBlur={saveSelection}
+          onKeyDown={onEditorKeyDown}
           onKeyUp={saveSelection}
           onMouseUp={saveSelection}
+          onPaste={onEditorPaste}
           className="min-h-[180px] max-h-[420px] overflow-y-auto px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none"
           style={{ lineHeight: 1.5 }}
         />
+
+        {/* Inline link prompt — Ctrl+K or toolbar link button */}
+        {linkPromptOpen && (
+          <div
+            className="absolute z-20 left-2 right-2 bottom-2 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg space-y-1"
+            onMouseDown={e => e.preventDefault()}
+          >
+            <div className="flex items-center gap-1">
+              <label className="text-[10px] text-gray-500 w-12">Text</label>
+              <input
+                value={linkText}
+                onChange={e => setLinkText(e.target.value)}
+                placeholder="Link text"
+                className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-900"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <label className="text-[10px] text-gray-500 w-12">URL</label>
+              <input
+                id="rte-link-url"
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); confirmLinkPrompt() }
+                  else if (e.key === 'Escape') { e.preventDefault(); cancelLinkPrompt() }
+                }}
+                className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-900"
+              />
+            </div>
+            <div className="flex items-center gap-1 justify-end pt-1">
+              {linkIsEditingExisting && (
+                <button type="button" onClick={removeLinkAtSelection} className="px-2 py-0.5 text-[11px] text-red-600 hover:underline">Remove link</button>
+              )}
+              <button type="button" onClick={cancelLinkPrompt} className="px-2 py-0.5 text-[11px] text-gray-500 hover:underline">Cancel</button>
+              <button type="button" onClick={confirmLinkPrompt} className="px-2 py-0.5 text-[11px] bg-steps-blue-600 text-white rounded hover:bg-steps-blue-700">
+                {linkIsEditingExisting ? 'Update' : 'Add link'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
