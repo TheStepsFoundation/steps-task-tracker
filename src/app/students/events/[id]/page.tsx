@@ -28,6 +28,7 @@ import {
   EmailPreviewPanel,
   EmailSendingPanel,
   EmailDonePanel,
+  TemplateEditDialog,
   EMAIL_SIGNATURE_HTML as SHARED_EMAIL_SIGNATURE_HTML,
 } from '@/components/EmailComposePanels'
 
@@ -635,6 +636,8 @@ export default function EventDetailPage() {
   const [emailStep, setEmailStep] = useState<'pick' | 'preview' | 'sending' | 'done'>('pick')
   const [templateDirty, setTemplateDirty] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<{ id: string; name: string; type: string; subject: string; body_html: string; event_id: string | null } | null>(null)
+  const [editTemplateError, setEditTemplateError] = useState<string | null>(null)
 
   // Rich-text editor ref — used to inject merge tags at the caret.
   const bodyEditorRef = useRef<RichTextEditorHandle | null>(null)
@@ -1248,6 +1251,42 @@ export default function EventDetailPage() {
   // Save current subject+body as a brand-new template. Typed by the
   // current notifyAction (acceptance / rejection / waitlist) or 'custom',
   // scoped to this event.
+  const openTemplateEditor = () => {
+    if (!selectedTemplate) return
+    const current = templates.find(t => t.id === selectedTemplate)
+    if (!current) return
+    setEditTemplateError(null)
+    setEditingTemplate(current)
+  }
+
+  const saveEditedTemplate = async (draft: { name: string; type: string; subject: string; body_html: string }) => {
+    if (!editingTemplate) return
+    setSavingTemplate(true)
+    setEditTemplateError(null)
+    try {
+      const { error } = await supabase.from('email_templates')
+        .update({
+          name: draft.name,
+          type: draft.type,
+          subject: draft.subject,
+          body_html: draft.body_html,
+          updated_by: (teamMember as any)?.auth_uuid ?? null,
+        })
+        .eq('id', editingTemplate.id)
+      if (error) { setEditTemplateError(error.message); return }
+      await loadTemplates()
+      if (selectedTemplate === editingTemplate.id) {
+        setEmailSubject(draft.subject)
+        setEmailBody(draft.body_html)
+        setBodySeedCounter(c => c + 1)
+        setTemplateDirty(false)
+      }
+      setEditingTemplate(null)
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
   const saveCurrentAsNewTemplate = async () => {
     const name = window.prompt('Name for the new template?')?.trim()
     if (!name) return
@@ -2743,6 +2782,7 @@ export default function EventDetailPage() {
                     templateDirty={templateDirty}
                     savingTemplate={savingTemplate}
                     onApplyTemplate={applyTemplate}
+                    onEditTemplate={openTemplateEditor}
                     onRenameTemplate={renameSelectedTemplate}
                     onDeleteTemplate={deleteSelectedTemplate}
                     onSaveTemplateChanges={saveTemplateChanges}
@@ -2851,6 +2891,15 @@ export default function EventDetailPage() {
             </div>
           </div>
         </div>
+      )}
+      {editingTemplate && (
+        <TemplateEditDialog
+          initial={editingTemplate}
+          saving={savingTemplate}
+          error={editTemplateError}
+          onCancel={() => { setEditingTemplate(null); setEditTemplateError(null) }}
+          onSave={saveEditedTemplate}
+        />
       )}
       {/* Delete Applications Modal */}
       {deleteModal.open && (

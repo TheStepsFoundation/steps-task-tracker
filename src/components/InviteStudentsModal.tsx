@@ -15,6 +15,7 @@ import {
   EmailPreviewPanel,
   EmailSendingPanel,
   EmailDonePanel,
+  TemplateEditDialog,
   EMAIL_SIGNATURE_HTML,
 } from './EmailComposePanels'
 
@@ -342,6 +343,9 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
   // content diverges from the loaded template.
   const [templateDirty, setTemplateDirty] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
+  // Full template editor (opened by the pencil icon in the compose header).
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [editTemplateError, setEditTemplateError] = useState<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Load data
@@ -630,6 +634,44 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
 
   /** Save current subject+body as a brand-new template of type 'invite',
    *  scoped to this event. Used by the '+ New template…' dropdown option. */
+  const openTemplateEditor = () => {
+    if (!selectedTemplate) return
+    const current = templates.find(t => t.id === selectedTemplate)
+    if (!current) return
+    setEditTemplateError(null)
+    setEditingTemplate(current)
+  }
+
+  const saveEditedTemplate = async (draft: { name: string; type: string; subject: string; body_html: string }) => {
+    if (!editingTemplate) return
+    setSavingTemplate(true)
+    setEditTemplateError(null)
+    try {
+      const { error } = await supabase.from('email_templates')
+        .update({
+          name: draft.name,
+          type: draft.type,
+          subject: draft.subject,
+          body_html: draft.body_html,
+          updated_by: teamMemberUuid ?? null,
+        })
+        .eq('id', editingTemplate.id)
+      if (error) { setEditTemplateError(error.message); return }
+      await reloadTemplates()
+      // If the just-edited template is the one currently loaded in the
+      // compose editor, re-seed the live editor with the fresh content.
+      if (selectedTemplate === editingTemplate.id) {
+        setEmailSubject(draft.subject)
+        setEmailBody(draft.body_html)
+        setEditorSeedCounter(c => c + 1)
+        setTemplateDirty(false)
+      }
+      setEditingTemplate(null)
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
   const saveCurrentAsNewTemplate = async () => {
     const name = window.prompt('Name for the new template?')?.trim()
     if (!name) return
@@ -1153,7 +1195,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
               ...getAvailableDynamicTags(recipients),
             ]
             const subjectTags = mergeTags.filter(t =>
-              ['first_name', 'event_name', 'event_date', 'event_time', 'event_location'].includes(t.tag),
+              ['first_name', 'event_name'].includes(t.tag),
             )
             return (
               <EmailComposePanel
@@ -1162,6 +1204,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                 templateDirty={templateDirty}
                 savingTemplate={savingTemplate}
                 onApplyTemplate={applyTemplate}
+                onEditTemplate={openTemplateEditor}
                 onRenameTemplate={renameSelectedTemplate}
                 onDeleteTemplate={deleteSelectedTemplate}
                 onSaveTemplateChanges={saveTemplateChanges}
@@ -1410,6 +1453,16 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
             )}
           </div>
         </div>
+      )}
+
+      {editingTemplate && (
+        <TemplateEditDialog
+          initial={editingTemplate}
+          saving={savingTemplate}
+          error={editTemplateError}
+          onCancel={() => { setEditingTemplate(null); setEditTemplateError(null) }}
+          onSave={saveEditedTemplate}
+        />
       )}
     </div>
   )

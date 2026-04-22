@@ -10,12 +10,14 @@
  * updates, abort semantics) lives in the parent and is wired in via props.
  */
 import { type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   RichTextEmailEditor,
   type RichTextEmailEditorHandle,
   SingleLineMergeEditor,
   type SingleLineMergeEditorHandle,
   MergeTagInsertBar,
+  DEFAULT_MERGE_TAGS,
   type MergeTag,
 } from './RichTextEmailEditor'
 
@@ -84,7 +86,8 @@ export type EmailComposePanelProps = {
   savingTemplate: boolean
   // Template handlers
   onApplyTemplate: (templateId: string) => void
-  onRenameTemplate: () => void
+  onEditTemplate: () => void               // opens the TemplateEditDialog (full edit)
+  onRenameTemplate?: () => void            // optional quick-rename (if omitted, edit handles naming)
   onDeleteTemplate: () => void
   onSaveTemplateChanges: () => void
   onSaveAsNewTemplate: () => void
@@ -123,7 +126,7 @@ export type EmailComposePanelProps = {
 export function EmailComposePanel(props: EmailComposePanelProps) {
   const {
     templates, selectedTemplate, templateDirty, savingTemplate,
-    onApplyTemplate, onRenameTemplate, onDeleteTemplate, onSaveTemplateChanges, onSaveAsNewTemplate, onClearTemplate,
+    onApplyTemplate, onEditTemplate, onRenameTemplate, onDeleteTemplate, onSaveTemplateChanges, onSaveAsNewTemplate, onClearTemplate,
     templateFilter,
     subjectEditorRef, bodyEditorRef,
     emailSubject, emailBody, onSubjectChange, onBodyChange, onDirty,
@@ -148,9 +151,9 @@ export function EmailComposePanel(props: EmailComposePanelProps) {
               </span>
               <button
                 type="button"
-                onClick={onRenameTemplate}
+                onClick={onEditTemplate}
                 disabled={savingTemplate}
-                title="Rename template"
+                title="Edit template (name, subject, body)"
                 className="inline-flex items-center justify-center w-6 h-6 rounded text-gray-500 hover:text-steps-blue-600 hover:bg-steps-blue-50 dark:hover:bg-steps-blue-900/20 disabled:opacity-40"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -375,6 +378,169 @@ export function EmailDonePanel(props: EmailDonePanelProps) {
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
         {footerNote}
       </p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// TemplateEditDialog — full in-place template editor shown above the compose
+// modal. Lets users edit name, type, subject (with pills) and body (rich
+// editor with formatting, hyperlinks, pills) then save back to the DB.
+//
+// This replaces the rename-only affordance that was previously wired to the
+// pencil icon in the compose header strip.
+// ---------------------------------------------------------------------------
+export type TemplateDraft = {
+  name: string
+  type: string
+  subject: string
+  body_html: string
+}
+
+export type TemplateEditDialogProps = {
+  initial: TemplateRow
+  saving: boolean
+  error?: string | null
+  onSave: (draft: TemplateDraft) => void | Promise<void>
+  onCancel: () => void
+  // Allow parents to constrain which types are available; defaults cover the
+  // current set used across the compose flows.
+  templateTypes?: { code: string; label: string }[]
+  // Merge-tag palette — defaults to DEFAULT_MERGE_TAGS so every tag the system
+  // supports is insertable.
+  mergeTags?: MergeTag[]
+}
+
+const DEFAULT_TEMPLATE_TYPES: { code: string; label: string }[] = [
+  { code: 'acceptance', label: 'Acceptance' },
+  { code: 'rejection', label: 'Rejection' },
+  { code: 'waitlist', label: 'Waitlist' },
+  { code: 'invite', label: 'Invite' },
+  { code: 'reminder', label: 'Reminder' },
+  { code: 'follow_up', label: 'Follow-up' },
+  { code: 'custom', label: 'Custom' },
+]
+
+export function TemplateEditDialog(props: TemplateEditDialogProps) {
+  const { initial, saving, error, onSave, onCancel } = props
+  const templateTypes = props.templateTypes ?? DEFAULT_TEMPLATE_TYPES
+  const mergeTags = props.mergeTags ?? DEFAULT_MERGE_TAGS
+
+  const [name, setName] = useState(initial.name)
+  const [type, setType] = useState(initial.type)
+  const [subject, setSubject] = useState(initial.subject)
+  const [bodyHtml, setBodyHtml] = useState(initial.body_html)
+
+  const subjectRef = useRef<SingleLineMergeEditorHandle | null>(null)
+  const bodyRef = useRef<RichTextEmailEditorHandle | null>(null)
+
+  // Re-seed editors if the caller swaps the template under us.
+  useEffect(() => {
+    setName(initial.name)
+    setType(initial.type)
+    setSubject(initial.subject)
+    setBodyHtml(initial.body_html)
+  }, [initial.id])
+
+  const canSave = !!name.trim() && !!subject.trim() && !!bodyHtml.trim() && !saving
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit template</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Updating this template will change what future sends start from.</p>
+          </div>
+          {!saving && (
+            <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" aria-label="Close">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Name</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Starting Point Acceptance"
+                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Type</label>
+              <select
+                value={type}
+                onChange={e => setType(e.target.value)}
+                className="w-full px-2 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                {templateTypes.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Subject line</label>
+            <MergeTagInsertBar
+              tags={mergeTags}
+              onInsert={(tag, label) => subjectRef.current?.insertMergeTag(tag, label)}
+            />
+            <SingleLineMergeEditor
+              key={`tpl-subj-${initial.id}`}
+              ref={subjectRef}
+              value={subject}
+              onChange={setSubject}
+              placeholder="e.g. Your application to {{event_name}} has been accepted!"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Body</label>
+              <span className="text-[10px] text-gray-400">Merge tags render as pills; they&rsquo;re replaced with real values on send.</span>
+            </div>
+            <MergeTagInsertBar
+              tags={mergeTags}
+              onInsert={(tag, label) => bodyRef.current?.insertMergeTag(tag, label)}
+            />
+            <RichTextEmailEditor
+              key={`tpl-body-${initial.id}`}
+              ref={bodyRef}
+              initialHtml={bodyHtml}
+              onChange={setBodyHtml}
+              placeholder={'Hi {{first_name}},\n\n...\n\nVirtus non origo,\nThe Steps Foundation Team'}
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave({ name: name.trim(), type, subject, body_html: bodyHtml })}
+            disabled={!canSave}
+            className="px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save template'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
