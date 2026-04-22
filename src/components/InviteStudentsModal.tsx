@@ -530,7 +530,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
 
   const fillMerge = (text: string, s: EnrichedStudent): string => {
     let result = text
-      .replace(/\{\{first_name\}\}/g, s.first_name ?? '')
+      .replace(/\{\{first_name\}\}/g, (s.preferred_name && s.preferred_name.trim()) ? s.preferred_name : (s.first_name ?? ''))
       .replace(/\{\{last_name\}\}/g, s.last_name ?? '')
       .replace(/\{\{full_name\}\}/g, `${s.first_name ?? ''} ${s.last_name ?? ''}`)
       .replace(/\{\{email\}\}/g, String(s.personal_email ?? ''))

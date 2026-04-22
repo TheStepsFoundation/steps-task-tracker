@@ -25,6 +25,7 @@ export type StudentRow = {
   id: string
   first_name: string | null
   last_name: string | null
+  preferred_name: string | null
   personal_email: string | null
   school_name_raw: string | null
   school_id: string | null
@@ -147,7 +148,7 @@ export function invalidateStudentsCache() {
 }
 
 const STUDENT_COLUMNS =
-  'id,first_name,last_name,personal_email,school_name_raw,school_id,year_group,free_school_meals,parental_income_band,subscribed_to_mailing,school_type,bursary_90plus,notes,created_at'
+  'id,first_name,last_name,preferred_name,personal_email,school_name_raw,school_id,year_group,free_school_meals,parental_income_band,subscribed_to_mailing,school_type,bursary_90plus,notes,created_at'
 
 export async function fetchAllStudentsEnriched(opts?: { forceRefresh?: boolean }): Promise<EnrichedStudent[]> {
   // Kick off event-name cache priming in parallel with the student fetch so

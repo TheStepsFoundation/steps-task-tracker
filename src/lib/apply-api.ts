@@ -146,6 +146,25 @@ export type ApplicationSubmission = {
   freeSchoolMealsRaw: string  // 'yes' | 'previously' | 'no'
 }
 
+
+// ---------------------------------------------------------------------------
+// Name normalisation — strips invisible marks (LTR/RTL, zero-width), replaces
+// curly apostrophes with straight, collapses whitespace. Applied on submit so
+// the student DB stays clean regardless of what keyboard the student used.
+// ---------------------------------------------------------------------------
+export function normalizeName(raw: string): string {
+  return (raw ?? '')
+    // Strip LTR/RTL/embedding marks + zero-width chars that sneak in from phone keyboards
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    // Curly single quotes -> straight
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    // Curly double quotes -> straight (rare in names but normalise anyway)
+    .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+    // Collapse internal whitespace runs to a single space
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // Non-sensitive columns we fetch for the pre-fill
 const STUDENT_SELF_COLUMNS =
   'id,first_name,last_name,personal_email,school_id,school_name_raw,year_group,school_type,free_school_meals,parental_income_band'
@@ -459,8 +478,8 @@ export async function submitApplication(
   // no more collapsing it into 'independent' + bursary_90plus=true.
   // -------------------------------------------------------------------------
   const studentPayload = {
-    first_name: submission.firstName.trim(),
-    last_name: submission.lastName.trim(),
+    first_name: normalizeName(submission.firstName),
+    last_name: normalizeName(submission.lastName),
     personal_email: email,
     school_id: submission.schoolId,
     school_name_raw: submission.schoolNameRaw,

@@ -45,6 +45,7 @@ type Applicant = {
   student_id: string
   first_name: string
   last_name: string
+  preferred_name: string | null
   personal_email: string | null
   school_name: string | null
   school_type: string | null
@@ -741,7 +742,7 @@ export default function EventDetailPage() {
         .select(`
           id, student_id, status, submitted_at, attended, reviewed_by, reviewed_at, raw_response,
           attribution_source, channel,
-          students!inner(first_name, last_name, personal_email, year_group, school_id,
+          students!inner(first_name, last_name, preferred_name, personal_email, year_group, school_id,
             school_type, bursary_90plus, free_school_meals, parental_income_band,
             schools(name)
           ),
@@ -828,6 +829,7 @@ export default function EventDetailPage() {
         student_id: row.student_id,
         first_name: s.first_name,
         last_name: s.last_name,
+        preferred_name: s.preferred_name ?? null,
         personal_email: s.personal_email,
         school_name: s.schools?.name ?? null,
         school_type: s.school_type ?? null,
@@ -1371,7 +1373,7 @@ export default function EventDetailPage() {
   const fillMergeFields = (text: string, applicant: Applicant) => {
     const applyLinkUrl = `https://the-steps-foundation-intranet.vercel.app/apply/${event?.slug ?? ''}`
     return text
-      .replace(/\{\{first_name\}\}/g, applicant.first_name)
+      .replace(/\{\{first_name\}\}/g, (applicant.preferred_name && applicant.preferred_name.trim()) ? applicant.preferred_name : applicant.first_name)
       .replace(/\{\{last_name\}\}/g, applicant.last_name)
       .replace(/\{\{full_name\}\}/g, `${applicant.first_name} ${applicant.last_name}`)
       .replace(/\{\{email\}\}/g, applicant.personal_email ?? '')
