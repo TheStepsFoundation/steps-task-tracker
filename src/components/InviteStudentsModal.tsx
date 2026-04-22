@@ -305,6 +305,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
   // Filters
   const [yearFilter, setYearFilter] = useState<string[]>([])
   const [minScore, setMinScore] = useState(0)
+  const [minAttended, setMinAttended] = useState(0)
   const [eventFilter, setEventFilter] = useState<string[]>([])
   const [eventDropdownOpen, setEventDropdownOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -454,6 +455,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
         if (!yearFilter.includes(yr)) return false
       }
       if (minScore > 0 && s.engagement_score < minScore) return false
+      if (minAttended > 0 && (s.attended_count ?? 0) < minAttended) return false
       if (eventFilter.length > 0) {
         const attendedEventIds = new Set(s.applications.filter(a => a.attended).map(a => a.event_id))
         if (!eventFilter.some(eid => attendedEventIds.has(eid))) return false
@@ -470,7 +472,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
       }
       return true
     })
-  }, [students, yearFilter, minScore, eventFilter, search, hideContactedDays, hideContactedScope, lastContactedForEvent, lastContactedAny])
+  }, [students, yearFilter, minScore, minAttended, eventFilter, search, hideContactedDays, hideContactedScope, lastContactedForEvent, lastContactedAny])
 
   // Pagination
   const PAGE_SIZE = 50
@@ -492,7 +494,7 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
   }, [eventDropdownOpen])
 
   // Reset page when filters change
-  useEffect(() => { setPage(0) }, [yearFilter, minScore, eventFilter, search, hideContactedDays, hideContactedScope])
+  useEffect(() => { setPage(0) }, [yearFilter, minScore, minAttended, eventFilter, search, hideContactedDays, hideContactedScope])
 
   // ---------------------------------------------------------------------------
   // Selection helpers
@@ -819,6 +821,31 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
                     className="w-14 px-2 py-1 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
                     min={0}
                   />
+                </div>
+
+                {/* Min attended events — useful for templates targeting
+                     returning attendees (e.g. "enjoyed seeing you at {{last_event}}"). */}
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-500 mr-1">Attended:</span>
+                  {[
+                    { v: 0, label: 'Any' },
+                    { v: 1, label: '≥1' },
+                    { v: 2, label: '≥2' },
+                    { v: 3, label: '≥3' },
+                  ].map(opt => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setMinAttended(opt.v)}
+                      className={`px-2 py-1 text-xs rounded-md border ${
+                        minAttended === opt.v
+                          ? 'bg-steps-blue-600 text-white border-steps-blue-600'
+                          : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}
+                      title={opt.v === 0 ? 'No attendance filter' : `Students who attended at least ${opt.v} event${opt.v > 1 ? 's' : ''}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Recent-contact filter — anti-spam guard. Scope follows the
