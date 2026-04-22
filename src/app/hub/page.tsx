@@ -35,16 +35,21 @@ export default function HubPage() {
   const { user, loading, signOut, isTeamMember, teamMember } = useAuth()
   const router = useRouter()
 
+  // Session-only guard. AuthProvider sign-in flow already rejects non-team-
+  // members before they reach this point — see students/layout.tsx for the
+  // full rationale. Checking isTeamMember here caused the bounce-back bug
+  // under transient race conditions. Revocation is handled by the background
+  // verify in AuthProvider.
   useEffect(() => {
     if (loading) return
     console.log('[hub] mounted: user=', !!user, 'isTeamMember=', isTeamMember, 'path=', typeof window!=='undefined'?window.location.pathname:'ssr')
-    if (!user || !isTeamMember) {
-      console.log('[hub] redirecting to /login')
+    if (!user) {
+      console.log('[hub] redirecting to /login — no user')
       router.push('/login')
     }
   }, [user, loading, isTeamMember, router])
 
-  if (loading || !user || !isTeamMember) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-slate-500">Loading…</div>

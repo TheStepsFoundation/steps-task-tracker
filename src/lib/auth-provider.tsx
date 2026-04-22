@@ -184,12 +184,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newUser = newSession?.user ?? null
       setUser(newUser)
 
-      // Signed out: clear everything.
-      if (event === 'SIGNED_OUT' || !newUser?.email) {
+      // Explicit sign-out is the ONLY event that wipes the cache. This is
+      // user-initiated (they clicked the sign-out button). Transient events
+      // with no session (listener firing before session decode completes,
+      // token refresh edge cases, etc.) do NOT clear the cache — doing so
+      // was the root cause of the "been logged in a while" bounce, because
+      // the cache would be wiped between competing INITIAL_SESSION callbacks
+      // and the next one would hit a cold blocking check while the layout
+      // guard raced ahead with loading=false + isTeamMember=false.
+      if (event === 'SIGNED_OUT') {
         teamMemberRef.current = null
         inFlightCheckRef.current = null
         setTeamMember(null)
         clearTeamCache()
+        return
+      }
+
+      // No user (transient null-session callback) — release loading but do
+      // NOT touch cache or teamMember state. A later event with a real
+      // session will resolve things.
+      if (!newUser?.email) {
         return
       }
 
@@ -202,26 +216,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authUuid = (newUser as any).id as string | undefined
       const cached = readTeamCache(authUuid)
 
-      // INITIAL_SESSION with a cache hit — trust it. Render the UI straight
-      // away; verify in the background.
-      if (event === 'INITIAL_SESSION' && cached && cached.email.toLowerCase() === newUser.email.toLowerCase()) {
-        alog('INITIAL_SESSION: cache hit for', cached.email, 'age=', cacheAgeMs(authUuid), 'ms')
+      // Cache-first for EVERY event with a user (INITIAL_SESSION, SIGNED_IN,
+      // USER_UPDATED). Supabase can fire SIGNED_IN spuriously after a token
+      // refresh even though the user was already signed in — gating the cache
+      // hit only on INITIAL_SESSION meant those spurious events forced a
+      // blocking DB check and could race the layout guard. Cache-hit for all
+      // events means the user stays seated regardless of which event fires.
+      if (cached && cached.email.toLowerCase() === newUser.email.toLowerCase()) {
+        alog('cache hit for', cached.email, 'age=', cacheAgeMs(authUuid), 'ms, event=', event)
         setTeamMember(cached)
         void verifyMembershipInBackground(newUser.email)
         return
       }
 
-      // USER_UPDATED — trust cache if we have one; otherwise fall through to
-      // a blocking check. Metadata updates aren't membership changes.
-      if (event === 'USER_UPDATED' && cached && cached.email.toLowerCase() === newUser.email.toLowerCase()) {
-        setTeamMember(cached)
-        void verifyMembershipInBackground(newUser.email)
-        return
-      }
-
-      // Everything else (SIGNED_IN, INITIAL_SESSION with no cache) — the
-      // blocking path. This is the fresh-login case; we have to hit the DB
-      // at least once to establish membership.
+      // No cache — this is genuinely the first time we've seen this user in
+      // this browser, so we have to hit the DB. This is the fresh-login path.
       const result = await checkTeamMembership(newUser.email)
       alog('team check result:', result.status, 'for', newUser.email)
 
@@ -232,8 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Unknown on a blocking check — retry a couple of times, but NEVER
-      // sign out on all-unknown. Fall through to "keep them in" so a flaky
-      // network during first page load doesn't kick them to /login.
+      // sign out on all-unknown. Keep the user in the pending state rather
+      // than kicking them; they can refresh if nothing resolves.
       if (result.status === 'unknown') {
         for (let attempt = 1; attempt <= 2; attempt++) {
           await new Promise(r => setTimeout(r, attempt * 800))
@@ -247,37 +256,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             break  // handle below
           }
         }
-        // Still unknown after retries. If we have a cache, trust it; else
-        // keep them on the loader until the next auth event or refresh
-        // resolves things. The old code signed them out here — that was
-        // the bug.
-        if (cached) {
-          console.warn('[auth] team check unknown on blocking path — using cache')
-          setTeamMember(cached)
-          return
-        }
         console.warn('[auth] team check unknown and no cache — keeping user in pending state; user can refresh')
         return
       }
 
-      // Confirmed not a team member — only the blocking path reaches here.
-      // This is either a freshly-signed-in non-member (shouldn't normally
-      // happen since signIn pre-checks) or a stale admin client session
-      // from before the student-client split.
-      alog('not a team member — clearing teamMember state. event=', event)
+      // Confirmed not a team member with no cache — this is either a freshly-
+      // signed-in non-member (shouldn't happen since signIn pre-checks) or a
+      // stale admin-client session from before the student-client split. Sign
+      // them out of the admin client only (scope: 'local' preserves Google).
+      alog('not a team member — signing out. event=', event)
       setTeamMember(null)
       clearTeamCache()
-      if (event === 'INITIAL_SESSION') {
-        try {
-          await supabase.auth.signOut({ scope: 'local' })
-          setSession(null)
-          setUser(null)
-          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-            window.location.replace('/login')
-          }
-        } catch (err) {
-          console.warn('[auth] failed to clear stale admin session:', err)
+      try {
+        await supabase.auth.signOut({ scope: 'local' })
+        setSession(null)
+        setUser(null)
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.replace('/login')
         }
+      } catch (err) {
+        console.warn('[auth] failed to clear stale admin session:', err)
       }
     } catch (err) {
       console.error('[auth] handleAuthChange error:', err)
@@ -337,28 +335,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Get initial session with a 8-second hard timeout.
-    // Supabase's GoTrue lock can orphan (especially on fast navigation or
-    // React Strict Mode), blocking getSession() forever. The timeout ensures
-    // we always fall through to the login page.
-    Promise.race([
-      supabase.auth.getSession(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('getSession timed out')), 8000)
-      ),
-    ])
-      .then(({ data: { session } }) => handleAuthChange('INITIAL_SESSION', session))
-      .catch((err) => {
-        console.warn('[auth] getSession failed:', err?.message)
-        setLoading(false)
-      })
+    // Listener-only model. Supabase's onAuthStateChange fires INITIAL_SESSION
+    // automatically on subscribe with the currently-stored session (or null),
+    // so we don't need a separate getSession() call — which was racing with
+    // the listener and wiping cache on the loser.
+    //
+    // Safety timeout: if the listener never fires INITIAL_SESSION within 10s
+    // (Supabase storage lock wedge, extreme cold-start), release loading so
+    // guards can at least evaluate and redirect to /login if appropriate.
+    const safetyTimer = setTimeout(() => {
+      alog('safety timeout — listener never fired INITIAL_SESSION; releasing loading')
+      setLoading(false)
+    }, 10000)
 
-    // Listen for auth changes (sign-in, sign-out, token refresh, user updated).
-    // We forward the event type so handleAuthChange can skip the team_members
-    // re-check on TOKEN_REFRESHED — crucial for avoiding mid-session logouts.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         alog('onAuthStateChange listener fired event=', event, 'hasSession=', !!session)
+        // First event fires within ms of subscribe — cancel the safety timer.
+        clearTimeout(safetyTimer)
         try {
           await handleAuthChange(event, session)
         } catch (err) {
@@ -368,7 +362,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(safetyTimer)
+      subscription.unsubscribe()
+    }
   }, [handleAuthChange])
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
