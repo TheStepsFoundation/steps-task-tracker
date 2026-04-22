@@ -9,6 +9,7 @@
  * flows without a cross-file diff. Flow-specific logic (send model, status
  * updates, abort semantics) lives in the parent and is wired in via props.
  */
+import { wrapHtmlForEmail } from '@/lib/email-mime'
 import { type ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -308,6 +309,7 @@ export type EmailPreviewPanelProps = {
 export function EmailPreviewPanel(props: EmailPreviewPanelProps) {
   const { recipientName, recipientEmail, filledSubject, filledBodyHtml, appendSignature = true, footerBanner } = props
   const body = appendSignature ? filledBodyHtml + EMAIL_SIGNATURE_HTML : filledBodyHtml
+  const wrappedBody = wrapHtmlForEmail(body)
   return (
     <div className="space-y-4">
       <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -319,10 +321,7 @@ export function EmailPreviewPanel(props: EmailPreviewPanelProps) {
         <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
           {filledSubject}
         </div>
-        <div
-          className="prose dark:prose-invert prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: body }}
-        />
+        <div dangerouslySetInnerHTML={{ __html: wrappedBody }} />
       </div>
       {footerBanner}
     </div>

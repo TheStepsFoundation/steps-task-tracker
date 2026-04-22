@@ -49,6 +49,32 @@ async function fetchAttachmentBytes(att: EmailAttachment): Promise<Buffer> {
   return buf
 }
 
+
+/**
+ * Wrap the composed HTML body in a fixed-width container so the sent email
+ * renders at the same line-length as the in-app preview. Email clients do
+ * not apply any default max-width, so without this the text stretches edge-
+ * to-edge and becomes hard to read.
+ *
+ * 600px is the industry-standard email width — matches Mailchimp, Gmail's
+ * own newsletter width, and is a comfortable ~75ch at 14px. Wider than the
+ * 508px signature table, so the signature still sits inside comfortably.
+ *
+ * The outer table (with role="presentation") is the Outlook-safe way of
+ * centring content; many Outlook versions ignore margin:auto on divs.
+ */
+export function wrapHtmlForEmail(innerHtml: string): string {
+  return [
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:transparent">',
+    '<tr><td align="left" style="padding:0">',
+    '<div style="max-width:600px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222">',
+    innerHtml,
+    '</div>',
+    '</td></tr>',
+    '</table>',
+  ].join('')
+}
+
 export type BuildRawEmailOpts = {
   to: string
   subject: string
@@ -62,7 +88,8 @@ export type BuildRawEmailOpts = {
  * wraps everything in the appropriate MIME structure.
  */
 export async function buildRawEmail(opts: BuildRawEmailOpts): Promise<string> {
-  const { to, subject, htmlBody } = opts
+  const { to, subject } = opts
+  const htmlBody = wrapHtmlForEmail(opts.htmlBody)
   const attachments = (opts.attachments ?? []).filter(Boolean)
 
   const fromHeader = `${FROM_NAME} <${FROM_EMAIL}>`
