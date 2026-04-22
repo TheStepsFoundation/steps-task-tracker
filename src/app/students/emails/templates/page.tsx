@@ -1,9 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-provider'
+import {
+  RichTextEmailEditor,
+  type RichTextEmailEditorHandle,
+  MergeTagInsertBar,
+  DEFAULT_MERGE_TAGS,
+} from '@/components/RichTextEmailEditor'
 
 type Template = {
   id: string
@@ -26,15 +32,6 @@ const TEMPLATE_TYPES = [
   { code: 'custom', label: 'Custom' },
 ]
 
-const MERGE_FIELDS = [
-  { token: '{{first_name}}', desc: "Student's first name" },
-  { token: '{{last_name}}', desc: "Student's last name" },
-  { token: '{{event_name}}', desc: 'Event name' },
-  { token: '{{event_date}}', desc: 'Event date' },
-  { token: '{{event_location}}', desc: 'Event location' },
-  { token: '{{event_time}}', desc: 'Event time' },
-]
-
 export default function EmailTemplatesPage() {
   const { teamMember } = useAuth()
   const [templates, setTemplates] = useState<Template[]>([])
@@ -43,6 +40,9 @@ export default function EmailTemplatesPage() {
   const [editing, setEditing] = useState<Template | null>(null)
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [bodySeedCounter, setBodySeedCounter] = useState(0)
+
+  const bodyEditorRef = useRef<RichTextEmailEditorHandle | null>(null)
 
   const emptyDraft = {
     name: '',
@@ -82,6 +82,7 @@ export default function EmailTemplatesPage() {
     setDraft(emptyDraft)
     setAdding(true)
     setEditing(null)
+    setBodySeedCounter(c => c + 1)
   }
 
   function startEdit(t: Template) {
@@ -95,6 +96,7 @@ export default function EmailTemplatesPage() {
     })
     setEditing(t)
     setAdding(false)
+    setBodySeedCounter(c => c + 1)
   }
 
   function cancel() {
@@ -199,28 +201,27 @@ export default function EmailTemplatesPage() {
               placeholder="e.g. Your application to {{event_name}} has been accepted!"
               className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
             />
+            <p className="mt-1 text-[11px] text-gray-400">Merge tags like <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{'{{event_name}}'}</code> work in the subject too.</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Body (HTML)</label>
-            <textarea
-              value={draft.body_html}
-              onChange={e => setDraft(d => ({ ...d, body_html: e.target.value }))}
-              rows={10}
-              placeholder="<p>Dear {{first_name}},</p><p>We're delighted to let you know...</p>"
-              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-mono"
-            />
-          </div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Body</label>
+              <span className="text-[10px] text-gray-400">Merge tags render as pills; they&rsquo;re replaced with real values on send.</span>
+            </div>
 
-          {/* Merge field reference */}
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            <span className="font-medium">Merge fields:</span>{' '}
-            {MERGE_FIELDS.map((f, i) => (
-              <span key={f.token}>
-                <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{f.token}</code>
-                {i < MERGE_FIELDS.length - 1 ? ', ' : ''}
-              </span>
-            ))}
+            <MergeTagInsertBar
+              tags={DEFAULT_MERGE_TAGS}
+              onInsert={(tag, label) => bodyEditorRef.current?.insertMergeTag(tag, label)}
+            />
+
+            <RichTextEmailEditor
+              key={bodySeedCounter}
+              ref={bodyEditorRef}
+              initialHtml={draft.body_html}
+              onChange={html => setDraft(d => ({ ...d, body_html: html }))}
+              placeholder={'Hi {{first_name}},\n\n...\n\nVirtus non origo,\nThe Steps Foundation Team'}
+            />
           </div>
 
           <div className="flex gap-2 pt-2">

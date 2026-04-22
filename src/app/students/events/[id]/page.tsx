@@ -14,6 +14,12 @@ import { sanitizeRichHtml, stripToText } from '@/lib/sanitize-html'
 import LinkableInput from '@/components/LinkableInput'
 import ColumnPicker, { ColumnPickerItem } from '@/components/ColumnPicker'
 import SelectAllBanner from '@/components/SelectAllBanner'
+import {
+  RichTextEmailEditor,
+  type RichTextEmailEditorHandle,
+  plainTextToHtml as sharedPlainTextToHtml,
+  looksLikeHtml as sharedLooksLikeHtml,
+} from '@/components/RichTextEmailEditor'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -157,77 +163,6 @@ const ORDINAL: Record<string, string> = {
   sixth: '6th', seventh: '7th', eighth: '8th', ninth: '9th', tenth: '10th',
 }
 
-// Convert plain-text email body into Gmail-friendly HTML.
-// Each non-empty line becomes a <p>; consecutive blank lines collapse to one
-// paragraph break. Mirrors the InviteStudentsModal sender so notify emails
-// look identical in the recipient's inbox.
-function plainTextToHtml(text: string): string {
-  if (!text) return ''
-  const escape = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  return text
-    .split(/\n{2,}/)
-    .map(block =>
-      `<p style="margin:0 0 12px;font-family:arial,sans-serif;font-size:14px;line-height:1.5;color:#222">` +
-      escape(block).replace(/\n/g, '<br>') +
-      `</p>`
-    )
-    .join('')
-}
-
-// Detect if a stored template body is HTML (legacy) or plain text (new style).
-// Plain-text bodies have no angle brackets at all, so a single < anywhere is
-// our cue to keep treating it as raw HTML on send.
-function looksLikeHtml(s: string): boolean {
-  return /<[a-z!\/]/i.test(s)
-}
-
-// ---------------------------------------------------------------------------
-// Merge-tag chip rendering — while editing we display {{first_name}} as a
-// pretty blue pill via a contenteditable=false span. On serialise we collapse
-// the span back to its {{tag}} token so saved templates / sent emails stay
-// the same plain-text format. Keep this list in sync with the chip palette
-// rendered above the editor.
-// ---------------------------------------------------------------------------
-const MERGE_TAG_LABELS: Record<string, string> = {
-  first_name: 'First Name',
-  last_name: 'Last Name',
-  full_name: 'Full Name',
-  email: 'Email',
-  event_name: 'Event Name',
-  event_date: 'Event Date',
-  event_time: 'Event Time',
-  event_location: 'Location',
-  dress_code: 'Dress Code',
-  rsvp_link: 'RSVP Link',
-  portal_link: 'Portal Link',
-}
-
-function makeChipHtml(tag: string, label?: string): string {
-  const safeTag = tag.replace(/[^a-zA-Z0-9_]/g, '')
-  const text = (label ?? MERGE_TAG_LABELS[safeTag] ?? safeTag).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  // inline styles so the chip renders correctly inside the contenteditable
-  // surface regardless of whether tailwind classes hydrate; user-select:all
-  // keeps chips atomic when the user drags or backspaces.
-  return `<span class="merge-tag-chip" contenteditable="false" data-tag="${safeTag}" style="display:inline-block;padding:1px 8px;margin:0 2px;border-radius:9999px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:500;line-height:18px;vertical-align:baseline;user-select:all;white-space:nowrap;">${text}</span>`
-}
-
-function tokensToChips(html: string): string {
-  return html.replace(/\{\{(\w+)\}\}/g, (_m, tag) => makeChipHtml(tag))
-}
-
-function chipsToTokens(html: string): string {
-  if (typeof document === 'undefined') return html
-  const tpl = document.createElement('template')
-  tpl.innerHTML = html
-  tpl.content.querySelectorAll('span.merge-tag-chip').forEach(span => {
-    const tag = span.getAttribute('data-tag') || ''
-    span.replaceWith(document.createTextNode(`{{${tag}}}`))
-  })
-  return tpl.innerHTML
-}
-
-
 // Available sortable columns
 type SortKey = 'name' | 'school_type' | 'year_group' | 'status' | 'gradeScore' | 'submitted_at' | 'engagement' | 'past_events' | 'rsvp' | 'attended'
 type SortDir = 'asc' | 'desc'
@@ -251,203 +186,14 @@ const BUILTIN_COL_LABELS: Record<BuiltInColId, string> = {
 
 type StatusFilter = 'all' | string
 
-// ---------------------------------------------------------------------------
-// Rich-text editor — contenteditable with a small formatting toolbar.
-// Uses document.execCommand; deprecated but still the most reliable
-// cross-browser way to get Gmail-style inline formatting without pulling
-// in a full editor dep. Emits HTML via onChange; accepts any merge-tag
-// inserts via the insertText imperative handle exposed on the ref.
-// ---------------------------------------------------------------------------
+// Rich-text editor, chip serialisation, and text-conversion helpers now live
+// in src/components/RichTextEmailEditor.tsx so both the templates page and
+// this compose flow share one implementation.
+const RichTextEditor = RichTextEmailEditor
+type RichTextEditorHandle = RichTextEmailEditorHandle
+const plainTextToHtml = sharedPlainTextToHtml
+const looksLikeHtml = sharedLooksLikeHtml
 
-type RichTextEditorHandle = {
-  insertText: (text: string) => void
-  insertMergeTag: (tag: string, label?: string) => void
-  focus: () => void
-}
-
-type RichTextEditorProps = {
-  /** HTML to seed the editor with. Re-keyed when template changes so the
-   *  contenteditable isn't overwritten on every keystroke. */
-  initialHtml: string
-  /** Called whenever the user edits — receives current innerHTML. */
-  onChange: (html: string) => void
-  /** Placeholder shown when the editor is empty. */
-  placeholder?: string
-}
-
-const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { initialHtml, onChange, placeholder },
-  forwardedRef,
-) {
-  const divRef = useRef<HTMLDivElement | null>(null)
-  const savedRange = useRef<Range | null>(null)
-  const [isEmpty, setIsEmpty] = useState(!initialHtml || initialHtml === '<br>' || initialHtml === '<p><br></p>')
-
-  // Seed the div on mount / when initialHtml identity changes (new template).
-  // initialHtml is in token form ({{first_name}}); we hydrate to chip spans
-  // for display, then collapse back to tokens on every change.
-  useEffect(() => {
-    if (!divRef.current) return
-    const seeded = tokensToChips(initialHtml || '')
-    if (divRef.current.innerHTML !== seeded) {
-      divRef.current.innerHTML = seeded
-      setIsEmpty(!divRef.current.textContent)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialHtml])
-
-  const saveSelection = () => {
-    const sel = typeof window !== 'undefined' ? window.getSelection() : null
-    if (sel && sel.rangeCount > 0 && divRef.current?.contains(sel.anchorNode)) {
-      savedRange.current = sel.getRangeAt(0).cloneRange()
-    }
-  }
-
-  const restoreSelection = () => {
-    if (!savedRange.current || !divRef.current) return
-    const sel = window.getSelection()
-    if (!sel) return
-    sel.removeAllRanges()
-    sel.addRange(savedRange.current)
-  }
-
-  const emitChange = () => {
-    if (!divRef.current) return
-    onChange(chipsToTokens(divRef.current.innerHTML))
-    setIsEmpty(!divRef.current.textContent)
-  }
-
-  const exec = (cmd: string, value?: string) => {
-    restoreSelection()
-    divRef.current?.focus()
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      document.execCommand(cmd, false, value)
-    } catch {
-      // Old browsers / disabled execCommand — silently no-op.
-    }
-    saveSelection()
-    emitChange()
-  }
-
-  // Insert a chip + trailing space at the caret. Uses execCommand insertHTML
-  // so the contenteditable=false span is treated as a single atomic node.
-  const insertChipAtCaret = (tag: string, label?: string) => {
-    restoreSelection()
-    divRef.current?.focus()
-    const html = makeChipHtml(tag, label) + '&nbsp;'
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      document.execCommand('insertHTML', false, html)
-    } catch {
-      // Fallback for any browser that's stripped insertHTML.
-      const sel = window.getSelection()
-      if (sel && sel.rangeCount > 0 && divRef.current) {
-        const range = sel.getRangeAt(0)
-        const tplEl = document.createElement('template')
-        tplEl.innerHTML = html
-        range.deleteContents()
-        range.insertNode(tplEl.content)
-      }
-    }
-    saveSelection()
-    emitChange()
-  }
-
-  React.useImperativeHandle(forwardedRef, () => ({
-    insertText: (text: string) => exec('insertText', text),
-    insertMergeTag: (tag: string, label?: string) => insertChipAtCaret(tag, label),
-    focus: () => divRef.current?.focus(),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [onChange])
-
-  return (
-    <div className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
-        <ToolbarBtn title="Bold (Ctrl+B)" onClick={() => exec('bold')}>
-          <span className="font-bold">B</span>
-        </ToolbarBtn>
-        <ToolbarBtn title="Italic (Ctrl+I)" onClick={() => exec('italic')}>
-          <span className="italic">I</span>
-        </ToolbarBtn>
-        <ToolbarBtn title="Underline (Ctrl+U)" onClick={() => exec('underline')}>
-          <span className="underline">U</span>
-        </ToolbarBtn>
-        <ToolbarBtn title="Strikethrough" onClick={() => exec('strikeThrough')}>
-          <span className="line-through">S</span>
-        </ToolbarBtn>
-        <div className="w-px h-4 mx-1 bg-gray-300 dark:bg-gray-600" />
-        <label className="relative inline-flex items-center justify-center w-7 h-7 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer" title="Text colour">
-          <span className="text-xs font-bold" style={{ color: 'currentColor' }}>A</span>
-          <span className="absolute bottom-0.5 left-1 right-1 h-0.5 bg-gradient-to-r from-red-500 via-amber-500 to-steps-blue-500 rounded" />
-          <input
-            type="color"
-            onMouseDown={saveSelection}
-            onChange={e => exec('foreColor', e.target.value)}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-          />
-        </label>
-        <ToolbarBtn title="Numbered list" onClick={() => exec('insertOrderedList')}>
-          <span className="text-xs">1.</span>
-        </ToolbarBtn>
-        <ToolbarBtn title="Bulleted list" onClick={() => exec('insertUnorderedList')}>
-          <span className="text-xs">•</span>
-        </ToolbarBtn>
-        <div className="w-px h-4 mx-1 bg-gray-300 dark:bg-gray-600" />
-        <ToolbarBtn
-          title="Insert link"
-          onClick={() => {
-            const url = window.prompt('Link URL')
-            if (url) exec('createLink', url)
-          }}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-        </ToolbarBtn>
-        <ToolbarBtn title="Clear formatting" onClick={() => exec('removeFormat')}>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-        </ToolbarBtn>
-      </div>
-
-      {/* Editor surface */}
-      <div className="relative">
-        {isEmpty && placeholder && (
-          <div className="absolute top-2.5 left-3 text-sm text-gray-400 pointer-events-none whitespace-pre-line">
-            {placeholder}
-          </div>
-        )}
-        <div
-          ref={divRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={emitChange}
-          onBlur={saveSelection}
-          onKeyUp={saveSelection}
-          onMouseUp={saveSelection}
-          className="min-h-[180px] max-h-[420px] overflow-y-auto px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none"
-          style={{ lineHeight: 1.5 }}
-        />
-      </div>
-    </div>
-  )
-})
-
-function ToolbarBtn(
-  { title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }
-) {
-  return (
-    <button
-      type="button"
-      title={title}
-      // preventDefault on mousedown stops the contenteditable from losing focus
-      onMouseDown={e => e.preventDefault()}
-      onClick={onClick}
-      className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-    >
-      {children}
-    </button>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // EventImageUploader — small reusable upload slot for banner/hub-image
