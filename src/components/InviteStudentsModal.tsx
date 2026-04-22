@@ -6,13 +6,17 @@ import { type EventRow, fetchEvent } from '@/lib/events-api'
 import SelectAllBanner from './SelectAllBanner'
 import ColumnPicker, { type ColumnPickerItem } from './ColumnPicker'
 import {
-  RichTextEmailEditor,
   type RichTextEmailEditorHandle,
-  SingleLineMergeEditor,
   type SingleLineMergeEditorHandle,
-  MergeTagInsertBar,
   type MergeTag,
 } from './RichTextEmailEditor'
+import {
+  EmailComposePanel,
+  EmailPreviewPanel,
+  EmailSendingPanel,
+  EmailDonePanel,
+  EMAIL_SIGNATURE_HTML,
+} from './EmailComposePanels'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,42 +41,6 @@ type Template = {
   body_html: string
   event_id: string | null
 }
-
-// Email signature — matches the real events@ Gmail signature
-const EMAIL_SIGNATURE_HTML = `
-<br>
-<table style="color:rgb(34,34,34);direction:ltr;border-collapse:collapse">
-<tbody><tr><td>
-<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:508px">
-<tbody><tr><td>
-<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;line-height:1.15;color:rgb(0,0,0)">
-<tbody><tr>
-<td style="vertical-align:top;padding:0.01px 14px 0.01px 1px;width:65px;text-align:center">
-<img width="96" height="96" src="https://the-steps-foundation-intranet.vercel.app/tsf-logo.png" alt="The Steps Foundation">
-</td>
-<td valign="top" style="padding:0.01px 0.01px 0.01px 14px;vertical-align:top;border-left:1px solid rgb(189,189,189)">
-<table cellpadding="0" cellspacing="0" style="border-collapse:collapse">
-<tbody>
-<tr><td style="padding:0.01px">
-<p style="margin:0.1px;line-height:19.2px;font-size:16px"><font style="color:rgb(100,100,100)" face="arial, sans-serif"><b>The Steps Foundation</b></font></p>
-<p style="margin:0.1px;line-height:19.2px"><font face="arial, sans-serif"><i style="font-size:11px;text-align:center">Virtus, non Origo. \u2013 Character, not Origin.</i></font></p>
-</td></tr>
-<tr><td>
-<table cellpadding="0" cellspacing="0" style="border-collapse:collapse">
-<tbody><tr><td nowrap style="padding-top:14px">
-<p style="margin:1px;line-height:10.89px;font-size:11px;color:rgb(33,33,33)"><a href="mailto:events@thestepsfoundation.com" style="color:rgb(17,85,204)">events@thestepsfoundation.com</a></p>
-</td></tr></tbody>
-</table>
-</td></tr>
-</tbody></table>
-</td>
-</tr></tbody></table>
-</td></tr></tbody></table>
-</td></tr></tbody></table>
-<p style="margin:0cm;font-size:9pt;color:red;font-family:arial,sans-serif;font-style:italic;margin-top:12px">
-This message is intended only for the addressee and may contain information that is confidential or privileged. Unauthorised use is strictly prohibited and may be unlawful. If you are not the addressee, you should not read, copy, disclose or otherwise use this message, except for the purpose of delivery to the addressee. If you have received this in error, please delete it and advise The Steps Foundation.
-</p>
-`
 
 // ---------------------------------------------------------------------------
 // Curated merge-tag fields from application raw_response
@@ -1171,240 +1139,89 @@ export default function InviteStudentsModal({ eventId, eventName, eventSlug, tea
           )}
 
           {/* ======= STEP: COMPOSE ======= */}
-          {step === 'compose' && (
-            <div className="space-y-4">
-              {/* Template controls header strip — mirrors decision notify UI */}
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-3 py-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] uppercase tracking-wide text-gray-400">Template</span>
-                  {selectedTemplate ? (
-                    <>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-[220px]" title={templates.find(t => t.id === selectedTemplate)?.name}>
-                        {templates.find(t => t.id === selectedTemplate)?.name ?? 'Untitled'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={renameSelectedTemplate}
-                        disabled={savingTemplate}
-                        title="Rename template"
-                        className="inline-flex items-center justify-center w-6 h-6 rounded text-gray-500 hover:text-steps-blue-600 hover:bg-steps-blue-50 dark:hover:bg-steps-blue-900/20 disabled:opacity-40"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={deleteSelectedTemplate}
-                        disabled={savingTemplate}
-                        title="Delete template"
-                        className="inline-flex items-center justify-center w-6 h-6 rounded text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3" />
-                        </svg>
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-sm text-gray-500 italic">No template &mdash; writing from scratch</span>
-                  )}
-                  <div className="flex-1" />
-                  <select
-                    value={selectedTemplate}
-                    onChange={e => {
-                      const id = e.target.value
-                      if (id === '__new__') { saveCurrentAsNewTemplate(); return }
-                      if (id) applyTemplate(id)
-                      else { setSelectedTemplate(''); setTemplateDirty(false) }
-                    }}
-                    className="text-xs px-2 py-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 max-w-[220px]"
-                  >
-                    <option value="">Change template…</option>
-                    {templates
-                      .filter(t => !t.event_id || t.event_id === eventId)
-                      .map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} ({t.type}){!t.event_id ? ' — Global' : ''}
-                        </option>
-                      ))}
-                    <option value="__new__">+ Save current as new template…</option>
-                  </select>
-                </div>
-              </div>
-
-              {(() => {
-                const mergeTags: MergeTag[] = [
-                  { tag: 'first_name', label: 'First Name' },
-                  { tag: 'event_name', label: 'Event Name' },
-                  { tag: 'apply_link', label: 'Apply Link' },
-                  { tag: 'last_attended_event', label: 'Last Event' },
-                  ...(eventData?.event_date ? [{ tag: 'event_date', label: 'Event Date' }] : []),
-                  ...(eventData?.time_start ? [{ tag: 'event_time', label: 'Event Time' }] : []),
-                  ...(eventData?.location ? [{ tag: 'event_location', label: 'Location' }] : []),
-                  ...(eventData?.format ? [{ tag: 'event_format', label: 'Format' }] : []),
-                  ...(eventData?.dress_code ? [{ tag: 'event_dress_code', label: 'Dress Code' }] : []),
-                  ...getAvailableDynamicTags(recipients),
-                ]
-                const subjectTags = mergeTags.filter(t =>
-                  ['first_name', 'event_name', 'event_date', 'event_time', 'event_location'].includes(t.tag),
-                )
-                return (
-                  <>
-                    {/* Subject — pill-rendered single-line editor */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1 gap-2">
-                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Subject</label>
-                        <div className="flex flex-wrap gap-1 justify-end max-w-[65%]">
-                          <span className="text-[10px] text-gray-400 self-center mr-1">Insert:</span>
-                          {subjectTags.map(({ tag, label }) => (
-                            <button
-                              key={tag}
-                              type="button"
-                              onMouseDown={e => e.preventDefault()}
-                              onClick={() => {
-                                subjectEditorRef.current?.insertMergeTag(tag, label)
-                                if (selectedTemplate) setTemplateDirty(true)
-                              }}
-                              className="px-2 py-0.5 text-[11px] rounded-full border border-steps-blue-200 dark:border-steps-blue-800 bg-steps-blue-50 dark:bg-steps-blue-900/20 text-steps-blue-700 dark:text-steps-blue-300 hover:bg-steps-blue-100 dark:hover:bg-steps-blue-900/40 transition-colors"
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <SingleLineMergeEditor
-                        key={`subj-${editorSeedCounter}`}
-                        ref={subjectEditorRef}
-                        value={emailSubject}
-                        onChange={v => { setEmailSubject(v); if (selectedTemplate) setTemplateDirty(true) }}
-                        placeholder="e.g. You're Invited to {{event_name}}!"
-                      />
-                    </div>
-
-                    {/* Body */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Body</label>
-                        <span className="text-[10px] text-gray-400">Tags render as pills; replaced with real values on send.</span>
-                      </div>
-
-                      <MergeTagInsertBar
-                        tags={mergeTags}
-                        onInsert={(tag, label) => {
-                          bodyEditorRef.current?.insertMergeTag(tag, label)
-                          if (selectedTemplate) setTemplateDirty(true)
-                        }}
-                      />
-
-                      <RichTextEmailEditor
-                        key={`body-${editorSeedCounter}`}
-                        ref={bodyEditorRef}
-                        initialHtml={emailBody}
-                        onChange={html => { setEmailBody(html); if (selectedTemplate) setTemplateDirty(true) }}
-                        placeholder={`Hey {{first_name}},\n\nWe'd love for you to apply to {{event_name}}!\n\nApply here: {{apply_link}}\n\nBest wishes,\nThe Steps Foundation Team`}
-                      />
-
-                      {/* Save-back-to-template CTA — mirrors decision flow */}
-                      {selectedTemplate && templateDirty && (
-                        <div className="mt-2 flex items-center justify-between rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
-                          <span className="text-xs text-amber-700 dark:text-amber-300">
-                            You&rsquo;ve edited this template. Save changes so future sends start from this version?
-                          </span>
-                          <button
-                            type="button"
-                            disabled={savingTemplate}
-                            onClick={saveTemplateChanges}
-                            className="text-xs font-medium px-3 py-1 rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-                          >
-                            {savingTemplate ? 'Saving...' : 'Save to template'}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Signature preview */}
-                      <div className="mt-2 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-3">
-                        <div className="text-[10px] text-gray-400 mb-1.5 uppercase tracking-wide">Email signature (auto-appended)</div>
-                        <div
-                          className="text-xs opacity-60 pointer-events-none"
-                          dangerouslySetInnerHTML={{ __html: EMAIL_SIGNATURE_HTML }}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-          )}
+          {step === 'compose' && (() => {
+            const mergeTags: MergeTag[] = [
+              { tag: 'first_name', label: 'First Name' },
+              { tag: 'event_name', label: 'Event Name' },
+              { tag: 'apply_link', label: 'Apply Link' },
+              { tag: 'last_attended_event', label: 'Last Event' },
+              ...(eventData?.event_date ? [{ tag: 'event_date', label: 'Event Date' }] : []),
+              ...(eventData?.time_start ? [{ tag: 'event_time', label: 'Event Time' }] : []),
+              ...(eventData?.location ? [{ tag: 'event_location', label: 'Location' }] : []),
+              ...(eventData?.format ? [{ tag: 'event_format', label: 'Format' }] : []),
+              ...(eventData?.dress_code ? [{ tag: 'event_dress_code', label: 'Dress Code' }] : []),
+              ...getAvailableDynamicTags(recipients),
+            ]
+            const subjectTags = mergeTags.filter(t =>
+              ['first_name', 'event_name', 'event_date', 'event_time', 'event_location'].includes(t.tag),
+            )
+            return (
+              <EmailComposePanel
+                templates={templates}
+                selectedTemplate={selectedTemplate}
+                templateDirty={templateDirty}
+                savingTemplate={savingTemplate}
+                onApplyTemplate={applyTemplate}
+                onRenameTemplate={renameSelectedTemplate}
+                onDeleteTemplate={deleteSelectedTemplate}
+                onSaveTemplateChanges={saveTemplateChanges}
+                onSaveAsNewTemplate={saveCurrentAsNewTemplate}
+                onClearTemplate={() => { setSelectedTemplate(''); setTemplateDirty(false) }}
+                templateFilter={t => !t.event_id || t.event_id === eventId}
+                subjectEditorRef={subjectEditorRef}
+                bodyEditorRef={bodyEditorRef}
+                emailSubject={emailSubject}
+                emailBody={emailBody}
+                onSubjectChange={setEmailSubject}
+                onBodyChange={setEmailBody}
+                onDirty={() => { if (selectedTemplate) setTemplateDirty(true) }}
+                subjectEditorKey={editorSeedCounter}
+                bodyEditorKey={editorSeedCounter}
+                bodyInitialHtml={emailBody}
+                subjectMergeTags={subjectTags}
+                bodyMergeTags={mergeTags}
+                subjectPlaceholder="e.g. You're Invited to {{event_name}}!"
+                bodyPlaceholder={`Hey {{first_name}},\n\nWe'd love for you to apply to {{event_name}}!\n\nApply here: {{apply_link}}\n\nBest wishes,\nThe Steps Foundation Team`}
+              />
+            )
+          })()}
 
           {/* ======= STEP: PREVIEW ======= */}
           {step === 'preview' && firstRecipient && (
-            <div className="space-y-4">
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                Preview with first recipient: <strong>{firstRecipient.first_name} {firstRecipient.last_name}</strong>
-              </div>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">From: Events - The Steps Foundation &lt;events@thestepsfoundation.com&gt;</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">To: {firstRecipient.personal_email}</div>
-                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
-                  {fillMerge(emailSubject, firstRecipient)}
+            <EmailPreviewPanel
+              recipientName={`${firstRecipient.first_name} ${firstRecipient.last_name}`}
+              recipientEmail={firstRecipient.personal_email}
+              filledSubject={fillMerge(emailSubject, firstRecipient)}
+              filledBodyHtml={(() => {
+                const filled = fillMerge(emailBody, firstRecipient)
+                return filled
+                  .split('\n\n')
+                  .map(p => `<p style="margin:0 0 12px 0;font-family:arial,sans-serif;font-size:14px;color:#222">${p.replace(/\n/g, '<br>')}</p>`)
+                  .join('')
+              })()}
+              footerBanner={
+                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-800 dark:text-amber-300">
+                  This will send <strong>{recipients.length}</strong> individual email{recipients.length !== 1 ? 's' : ''} to <strong>{recipients.length}</strong> student{recipients.length !== 1 ? 's' : ''}.
                 </div>
-                <div
-                  className="prose dark:prose-invert prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: (() => {
-                    const filled = fillMerge(emailBody, firstRecipient)
-                    const html = filled
-                      .split('\n\n')
-                      .map(p => `<p style="margin:0 0 12px 0;font-family:arial,sans-serif;font-size:14px;color:#222">${p.replace(/\n/g, '<br>')}</p>`)
-                      .join('')
-                    return html + EMAIL_SIGNATURE_HTML
-                  })() }}
-                />
-              </div>
-              <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-800 dark:text-amber-300">
-                This will send <strong>{recipients.length}</strong> individual email{recipients.length !== 1 ? 's' : ''} to <strong>{recipients.length}</strong> student{recipients.length !== 1 ? 's' : ''}.
-              </div>
-            </div>
+              }
+            />
           )}
 
           {/* ======= STEP: SENDING ======= */}
           {step === 'sending' && (
-            <div className="text-center py-10">
-              <div className="text-4xl mb-3">&#9993;</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {sendAborted ? 'Stopping after in-flight send…' : `Sending ${sendProgress.sent + sendProgress.failed} / ${sendProgress.total}…`}
-              </div>
-              <div className="w-48 mx-auto mt-3 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                <div className="h-full rounded-full bg-steps-blue-500 transition-all" style={{ width: `${sendProgress.total > 0 ? ((sendProgress.sent + sendProgress.failed) / sendProgress.total) * 100 : 0}%` }} />
-              </div>
-              {!sendAborted && (
-                <button
-                  onClick={() => { sendAbortRef.current = true; setSendAborted(true) }}
-                  className="mt-4 px-3 py-1.5 text-xs rounded-md border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                  title="Halt the batch after the in-flight send finishes. Sent emails can't be recalled."
-                >
-                  Stop sending
-                </button>
-              )}
-            </div>
+            <EmailSendingPanel
+              progress={sendProgress}
+              aborted={sendAborted}
+              onAbort={() => { sendAbortRef.current = true; setSendAborted(true) }}
+            />
           )}
 
           {/* ======= STEP: DONE ======= */}
           {step === 'done' && (
-            <div className="text-center py-10">
-              <div className="text-4xl mb-3">{sendAborted ? '⚠️' : '✓'}</div>
-              <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-                {sendAborted ? 'Send stopped' : 'Emails sent!'}
-              </div>
-              <div className="text-sm text-gray-500">
-                {sendProgress.sent} sent{sendProgress.failed > 0 ? `, ${sendProgress.failed} failed` : ''}
-                {sendAborted && sendProgress.total - sendProgress.sent - sendProgress.failed > 0
-                  ? `, ${sendProgress.total - sendProgress.sent - sendProgress.failed} skipped`
-                  : ''}
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                Sent from events@thestepsfoundation.com
-              </p>
-            </div>
+            <EmailDonePanel
+              progress={sendProgress}
+              aborted={sendAborted}
+            />
           )}
         </div>
 
