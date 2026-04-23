@@ -61,9 +61,9 @@ export type ProfileUpdate = {
   school_id: string | null
   school_name_raw: string | null
   year_group: number | null
-  school_type: string
+  school_type: string | null
   free_school_meals: boolean | null
-  parental_income_band: string
+  parental_income_band: string | null
   // Stage-1 profile fields (migration 0024/0025). Editable from the hub so
   // students can keep their answers current across applications.
   first_generation_uni: boolean | null
@@ -96,13 +96,30 @@ export async function fetchProfile(): Promise<StudentSelf | null> {
 // Update student profile
 // ---------------------------------------------------------------------------
 
+// Enum columns with CHECK constraints or implicit enum semantics — empty
+// strings from form state MUST become NULL before hitting Postgres.
+// Adding a new enum-ish field? List it here so the hub save path can't
+// regress on constraint violations from '' defaults.
+const NULLABLE_ENUM_FIELDS: ReadonlyArray<keyof ProfileUpdate> = [
+  'school_type',
+  'parental_income_band',
+] as const
+
+function normalizeProfileUpdate(updates: ProfileUpdate): ProfileUpdate {
+  const out: ProfileUpdate = { ...updates }
+  for (const field of NULLABLE_ENUM_FIELDS) {
+    if (out[field] === '') (out as Record<string, unknown>)[field] = null
+  }
+  return out
+}
+
 export async function updateProfile(
   studentId: string,
   updates: ProfileUpdate,
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('students')
-    .update(updates)
+    .update(normalizeProfileUpdate(updates))
     .eq('id', studentId)
 
   if (error) return { error: error.message }

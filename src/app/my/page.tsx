@@ -300,9 +300,11 @@ export default function StudentHub() {
       school_id: school.schoolId,
       school_name_raw: school.schoolNameRaw,
       year_group: yearGroupLocked ? profile.year_group : (yearGroup ? Number(yearGroup) : null),
-      school_type: schoolType,
+      // Enum fields: form state uses '' for "unset", but the DB needs NULL
+      // (school_type has a CHECK constraint rejecting ''). Convert here.
+      school_type: schoolType || null,
       free_school_meals: freeSchoolMeals,
-      parental_income_band: incomeBand,
+      parental_income_band: incomeBand || null,
       // Stage-1 profile fields. first_generation_uni: DB flag is TRUE when
       // the student IS first-gen, which corresponds to answering "no" to
       // "did a parent go to uni".
