@@ -4,7 +4,7 @@
  */
 
 import { supabase } from './supabase-student'
-import type { StudentSelf } from './apply-api'
+import type { StudentSelf, QualificationEntry } from './apply-api'
 
 // ---------------------------------------------------------------------------
 // Auth helper (same as apply-api)
@@ -64,6 +64,12 @@ export type ProfileUpdate = {
   school_type: string
   free_school_meals: boolean | null
   parental_income_band: string
+  // Stage-1 profile fields (migration 0024/0025). Editable from the hub so
+  // students can keep their answers current across applications.
+  first_generation_uni: boolean | null
+  gcse_results: string | null
+  qualifications: QualificationEntry[] | null
+  additional_context: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +77,7 @@ export type ProfileUpdate = {
 // ---------------------------------------------------------------------------
 
 const PROFILE_COLS =
-  'id,first_name,last_name,personal_email,school_id,school_name_raw,year_group,school_type,free_school_meals,parental_income_band'
+  'id,first_name,last_name,personal_email,school_id,school_name_raw,year_group,school_type,free_school_meals,parental_income_band,first_generation_uni,gcse_results,qualifications,additional_context'
 
 export async function fetchProfile(): Promise<StudentSelf | null> {
   const email = await currentUserEmail()

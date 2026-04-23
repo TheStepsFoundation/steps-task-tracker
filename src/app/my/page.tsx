@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
+import QualificationsEditor, { emptyQualification } from '@/components/QualificationsEditor'
 import { TopNav } from '@/components/TopNav'
 import { PressableButton } from '@/components/PressableButton'
 import Link from 'next/link'
@@ -147,6 +148,14 @@ export default function StudentHub() {
   const [schoolType, setSchoolType] = useState('')
   const [freeSchoolMeals, setFreeSchoolMeals] = useState<boolean | null>(null)
   const [incomeBand, setIncomeBand] = useState('')
+  // Stage-1 profile fields — editable from the hub (added after Apr 2026).
+  // firstGenerationUni stores 'yes'/'no' in the form and converts to the
+  // DB boolean on save (DB stores TRUE when the student IS first-gen).
+  const [firstGenerationUni, setFirstGenerationUni] = useState<'yes' | 'no' | ''>('')
+  const [gcseResults, setGcseResults] = useState('')
+  const [qualifications, setQualifications] = useState<import('@/lib/apply-api').QualificationEntry[]>([emptyQualification()])
+  const [additionalContext, setAdditionalContext] = useState('')
+  const [qualificationsError, setQualificationsError] = useState<string | null>(null)
 
   const populateForm = useCallback((p: StudentSelf) => {
     setFirstName(p.first_name ?? '')
@@ -156,6 +165,18 @@ export default function StudentHub() {
     setSchoolType(p.school_type ?? '')
     setFreeSchoolMeals(p.free_school_meals)
     setIncomeBand(p.parental_income_band ?? '')
+    // Stage-1 profile fields
+    if (p.first_generation_uni === true) setFirstGenerationUni('no')        // is first-gen → answered "no parent went to uni"
+    else if (p.first_generation_uni === false) setFirstGenerationUni('yes') // parent did go to uni
+    else setFirstGenerationUni('')
+    setGcseResults(p.gcse_results ?? '')
+    setQualifications(
+      Array.isArray(p.qualifications) && p.qualifications.length > 0
+        ? p.qualifications.map(q => ({ ...q }))
+        : [emptyQualification()]
+    )
+    setAdditionalContext(p.additional_context ?? '')
+    setQualificationsError(null)
   }, [])
 
   // Load everything on mount. We're deliberately patient about session
@@ -254,6 +275,25 @@ export default function StudentHub() {
     // when non-null. If the admin needs to correct it, they do it from
     // /students. (See "Wrong year?" link in edit form.)
     const yearGroupLocked = profile.year_group != null
+    // Validate qualifications — same rules as the apply form: each row must
+    // have both a subject and a grade, and IB rows also need a level. Skip
+    // the validation if the whole list is empty (student left everything
+    // blank — we'll store null and let the next apply-form prompt fill it).
+    const filledQuals = qualifications.filter(q => q.subject && q.grade)
+    const incompleteQuals = qualifications.filter(q => (q.subject && !q.grade) || (!q.subject && q.grade))
+    const ibMissingLevel = qualifications.filter(q => q.qualType === 'ib' && q.subject && !q.level)
+    if (incompleteQuals.length > 0) {
+      setQualificationsError('Each subject row needs both a subject and a grade — or remove it.')
+      setSaving(false)
+      return
+    }
+    if (ibMissingLevel.length > 0) {
+      setQualificationsError('Please select HL or SL for each IB subject.')
+      setSaving(false)
+      return
+    }
+    setQualificationsError(null)
+
     const updates: ProfileUpdate = {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
@@ -263,6 +303,13 @@ export default function StudentHub() {
       school_type: schoolType,
       free_school_meals: freeSchoolMeals,
       parental_income_band: incomeBand,
+      // Stage-1 profile fields. first_generation_uni: DB flag is TRUE when
+      // the student IS first-gen, which corresponds to answering "no" to
+      // "did a parent go to uni".
+      first_generation_uni: firstGenerationUni === 'no' ? true : firstGenerationUni === 'yes' ? false : null,
+      gcse_results: gcseResults.trim() ? gcseResults.trim() : null,
+      qualifications: filledQuals.length > 0 ? filledQuals : null,
+      additional_context: additionalContext.trim() ? additionalContext.trim() : null,
     }
 
     const { error } = await updateProfile(profile.id, updates)
@@ -736,6 +783,69 @@ export default function StudentHub() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Did you grow up in a household where at least one parent went to university?
+                </label>
+                <div className="flex gap-4">
+                  {[{ v: 'yes' as const, l: 'Yes' }, { v: 'no' as const, l: 'No' }].map(opt => (
+                    <label key={opt.v} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio" name="firstGenUni"
+                        checked={firstGenerationUni === opt.v}
+                        onChange={() => setFirstGenerationUni(opt.v)}
+                        className="accent-steps-blue-600"
+                      />
+                      <span className="text-sm text-gray-700">{opt.l}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="gcse-hub" className="block text-sm font-medium text-gray-700 mb-1">
+                  Achieved GCSE results
+                </label>
+                <p className="text-xs text-gray-400 mb-2">Enter your grades as numbers only, highest to lowest (e.g. 999887766).</p>
+                <input
+                  id="gcse-hub"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={gcseResults}
+                  onChange={e => setGcseResults(e.target.value.replace(/\D/g, ''))}
+                  placeholder="e.g. 999887766"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition font-mono tracking-wider"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subjects and predicted/achieved grades
+                </label>
+                <p className="text-xs text-gray-400 mb-3">Add each subject you study. Select your qualification type, subject, and current predicted (or achieved) grade.</p>
+                <QualificationsEditor
+                  value={qualifications}
+                  onChange={setQualifications}
+                  error={qualificationsError}
+                  onInteract={() => setQualificationsError(null)}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="addcontext-hub" className="block text-sm font-medium text-gray-700 mb-1">
+                  Any additional contextual information you&rsquo;d like us to know
+                </label>
+                <p className="text-xs text-gray-400 mb-2">E.g. young carer, care experience, extenuating circumstances, school disruption — anything you think we should know.</p>
+                <textarea
+                  id="addcontext-hub"
+                  value={additionalContext}
+                  onChange={e => setAdditionalContext(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition resize-none"
+                />
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => { setEditing(false); if (profile) populateForm(profile) }}
@@ -772,6 +882,32 @@ export default function StudentHub() {
               <Detail
                 label="Household income"
                 value={INCOME_OPTIONS.find(o => o.value === profile.parental_income_band)?.label ?? profile.parental_income_band}
+              />
+              <Detail
+                label="Parent went to university"
+                value={profile.first_generation_uni === true ? 'No' : profile.first_generation_uni === false ? 'Yes' : null}
+              />
+              <Detail
+                label="GCSE results"
+                value={profile.gcse_results}
+              />
+              <Detail
+                label="Subjects and grades"
+                className="col-span-2"
+                value={(() => {
+                  const qs = Array.isArray(profile.qualifications) ? profile.qualifications : []
+                  if (qs.length === 0) return null
+                  return qs.map((q, i) => {
+                    const subj = q.subject === '__other' ? 'Other' : q.subject
+                    const lvl = q.qualType === 'ib' && q.level ? ` (${q.level.split(' ')[0]})` : ''
+                    return `${subj}${lvl} — ${q.grade}`
+                  }).join(', ')
+                })()}
+              />
+              <Detail
+                label="Additional context"
+                className="col-span-2"
+                value={profile.additional_context}
               />
             </div>
           )}
