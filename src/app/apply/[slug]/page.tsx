@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import SchoolPicker, { SchoolPickerValue } from '@/components/SchoolPicker'
+import QualificationsEditor from '@/components/QualificationsEditor'
 import DynamicFormField, { type FieldValue, evaluateConditions } from '@/components/DynamicFormField'
 import { STANDARD_QUESTIONS } from '@/components/FormBuilder'
 import { sanitizeRichHtml, stripToText } from '@/lib/sanitize-html'
@@ -27,71 +28,6 @@ import { OtpResendLink } from '@/components/OtpResendLink'
 // ---------------------------------------------------------------------------
 // Qualification constants
 // ---------------------------------------------------------------------------
-
-const QUAL_TYPES = [
-  { value: 'a_level', label: 'A-Level' },
-  { value: 'ib', label: 'IB (International Baccalaureate)' },
-  { value: 'btec', label: 'BTEC' },
-  { value: 't_level', label: 'T-Level' },
-  { value: 'pre_u', label: 'Cambridge Pre-U' },
-]
-
-const SUBJECTS: Record<string, string[]> = {
-  a_level: [
-    'Mathematics', 'Further Mathematics', 'Biology', 'Chemistry', 'Physics',
-    'Computer Science', 'Economics', 'Business Studies', 'Politics', 'History',
-    'Geography', 'Psychology', 'Sociology', 'Religious Studies',
-    'English Literature', 'English Language', 'Spanish', 'French', 'German',
-    'Art/Design', 'Drama', 'Physical Education', 'Media/Film Studies',
-    'Music', 'Philosophy', 'Law', 'Accounting',
-  ],
-  ib: [
-    'Mathematics: Analysis and Approaches', 'Mathematics: Applications and Interpretation',
-    'Biology', 'Chemistry', 'Physics', 'Computer Science',
-    'Economics', 'Business Management', 'History', 'Geography',
-    'Psychology', 'Philosophy', 'Global Politics',
-    'English A: Language and Literature', 'English A: Literature',
-    'Spanish B', 'French B', 'German B', 'Mandarin B',
-    'Visual Arts', 'Music', 'Theatre',
-    'Environmental Systems and Societies',
-    'Theory of Knowledge',
-  ],
-  btec: [
-    'Applied Science', 'Business', 'Health and Social Care', 'IT',
-    'Engineering', 'Sport', 'Art and Design', 'Media',
-    'Performing Arts', 'Travel and Tourism', 'Construction',
-    'Computing', 'Hospitality', 'Music',
-  ],
-  t_level: [
-    'Accounting', 'Agriculture, Land Management and Production',
-    'Building Services Engineering', 'Business and Administration',
-    'Catering', 'Craft and Design', 'Design and Development for Engineering',
-    'Design, Surveying and Planning for Construction',
-    'Digital Business Services', 'Digital Production, Design and Development',
-    'Digital Support Services', 'Education and Early Years',
-    'Engineering, Manufacturing, Processing and Control',
-    'Finance', 'Health', 'Healthcare Science', 'Legal Services',
-    'Maintenance, Installation and Repair for Engineering',
-    'Management and Administration', 'Media, Broadcast and Production',
-    'Onsite Construction', 'Science',
-  ],
-  pre_u: [
-    'Mathematics', 'Further Mathematics', 'Biology', 'Chemistry', 'Physics',
-    'Economics', 'History', 'Geography', 'Philosophy and Theology',
-    'English Literature', 'French', 'Spanish', 'German', 'Mandarin Chinese',
-    'Art and Design', 'Music', 'Global Perspectives',
-  ],
-}
-
-const GRADES: Record<string, string[]> = {
-  a_level: ['A*', 'A', 'B', 'C', 'D', 'E'],
-  ib: ['7', '6', '5', '4', '3', '2', '1'],
-  btec: ['D* (Distinction*)', 'D (Distinction)', 'M (Merit)', 'P (Pass)'],
-  t_level: ['A*', 'A', 'B', 'C', 'D', 'E'],
-  pre_u: ['D1', 'D2', 'D3', 'M1', 'M2', 'M3', 'P1', 'P2', 'P3'],
-}
-
-const IB_LEVELS = ['HL (Higher Level)', 'SL (Standard Level)']
 
 const ATTRIBUTION_OPTIONS = [
   { value: 'email_invite', label: 'Email invite' },
@@ -462,23 +398,6 @@ export default function ApplyPage() {
     if (typeof window === 'undefined') return
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }, [step, customPageIdx])
-
-  // --- Qualification row helpers ---
-  const addQualification = () => {
-    setQualifications(prev => [...prev, { qualType: 'a_level', subject: '', grade: '' }])
-  }
-  const removeQualification = (index: number) => {
-    setQualifications(prev => prev.filter((_, i) => i !== index))
-  }
-  const updateQualification = (index: number, field: keyof QualificationEntry, value: string) => {
-    setQualifications(prev => prev.map((q, i) => {
-      if (i !== index) return q
-      const updated = { ...q, [field]: value }
-      if (field === 'qualType') { updated.subject = ''; updated.grade = ''; updated.level = undefined }
-      if (field === 'subject') { updated.grade = '' }
-      return updated
-    }))
-  }
 
   // --- Custom field handler ---
   // Per-field error helpers: inline messages + scroll to the first one.
@@ -1595,77 +1514,12 @@ export default function ApplyPage() {
             </label>
             <p className="text-xs text-gray-400 mb-3" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_qualifications', 'Add each subject you study. Select your qualification type, subject, and current predicted (or achieved) grade.')) }} />
 
-            <div className="space-y-3">
-              {qualifications.map((q, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-gray-500">Subject {idx + 1}</span>
-                    {qualifications.length > 1 && (
-                      <button type="button" onClick={() => removeQualification(idx)}
-                        className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
-                    )}
-                  </div>
-
-                  <select value={q.qualType}
-                    onChange={e => { updateQualification(idx, 'qualType', e.target.value); clearFieldError('qualifications') }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-2">
-                    {QUAL_TYPES.map(qt => (
-                      <option key={qt.value} value={qt.value}>{qt.label}</option>
-                    ))}
-                  </select>
-
-                  <div className={`grid gap-2 ${q.qualType === 'ib' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                    <select value={q.subject}
-                      onChange={e => { updateQualification(idx, 'subject', e.target.value); clearFieldError('qualifications') }}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition">
-                      <option value="">Select subject…</option>
-                      {(SUBJECTS[q.qualType] ?? []).map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                      <option value="__other">Other (not listed)</option>
-                    </select>
-
-                    {q.qualType === 'ib' && (
-                      <select value={q.level ?? ''}
-                        onChange={e => { updateQualification(idx, 'level', e.target.value); clearFieldError('qualifications') }}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition">
-                        <option value="">Level…</option>
-                        {IB_LEVELS.map(l => (
-                          <option key={l} value={l}>{l}</option>
-                        ))}
-                      </select>
-                    )}
-
-                    <select value={q.grade}
-                      onChange={e => { updateQualification(idx, 'grade', e.target.value); clearFieldError('qualifications') }}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition">
-                      <option value="">Grade…</option>
-                      {(GRADES[q.qualType] ?? []).map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {q.subject === '__other' && (
-                    <input type="text" placeholder="Type your subject name…"
-                      className="w-full mt-2 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition"
-                      onChange={e => {
-                        const val = e.target.value
-                        setQualifications(prev => prev.map((qq, i) =>
-                          i === idx ? { ...qq, subject: val || '__other' } : qq
-                        ))
-                      }}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <button type="button" onClick={addQualification}
-              className="mt-3 w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-steps-blue-600 font-medium hover:border-steps-blue-300 hover:bg-steps-blue-50 transition">
-              + Add another subject
-            </button>
-            {fieldErrors.qualifications && <p className="mt-2 text-xs text-red-600">{fieldErrors.qualifications}</p>}
+            <QualificationsEditor
+              value={qualifications}
+              onChange={setQualifications}
+              error={fieldErrors.qualifications}
+              onInteract={() => clearFieldError('qualifications')}
+            />
           </div>
           )}
 
