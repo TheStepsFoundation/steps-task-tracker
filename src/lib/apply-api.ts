@@ -7,6 +7,7 @@
  */
 
 import { supabase } from './supabase-student'
+import { formatOpenTo } from './events-api'
 // ---------------------------------------------------------------------------
 // Auth helper — prefer getSession() (local, instant) over getUser() (network).
 // getUser() can fail if the JWT hasn't refreshed yet or the network hiccups.
@@ -448,20 +449,28 @@ export async function submitApplication(
   // -------------------------------------------------------------------------
   // Pre-flight: year-group eligibility.
   // Prevents students navigating to an ineligible event by slug and submitting
-  // anyway. Skipped when the event has no eligible_year_groups (open to all).
+  // anyway. Source of truth: the event row's eligible_year_groups (int[]) and
+  // open_to_gap_year (bool). Gap-year students are year_group=14 in the
+  // students table and are eligible iff open_to_gap_year=true, independent of
+  // what's in eligible_year_groups.
   // -------------------------------------------------------------------------
   const eligibilityCheck = await runWithRetry(
-    () => supabase.from('events').select('eligible_year_groups').eq('id', eventId).maybeSingle(),
+    () => supabase.from('events').select('eligible_year_groups, open_to_gap_year').eq('id', eventId).maybeSingle(),
     'events.eligibility',
   )
   if (eligibilityCheck.error) {
     return { error: `Could not verify event eligibility: ${eligibilityCheck.error.message}` }
   }
   const allowedYears = (eligibilityCheck.data?.eligible_year_groups ?? null) as number[] | null
-  if (allowedYears && allowedYears.length > 0) {
-    if (submission.yearGroup == null || !allowedYears.includes(submission.yearGroup)) {
-      const label = allowedYears.length === 1 ? `Year ${allowedYears[0]}` : `Years ${allowedYears.join(', ')}`
-      return { error: `This event is for ${label} only. If this looks wrong, contact hello@thestepsfoundation.com.` }
+  const openToGapYear = !!eligibilityCheck.data?.open_to_gap_year
+  const hasFilter = (allowedYears && allowedYears.length > 0) || openToGapYear
+  if (hasFilter) {
+    const yg = submission.yearGroup
+    const inYears = yg != null && !!allowedYears && allowedYears.includes(yg)
+    const isEligibleGap = yg === 14 && openToGapYear
+    if (yg == null || (!inYears && !isEligibleGap)) {
+      const label = formatOpenTo(allowedYears, openToGapYear)
+      return { error: `This event is open to ${label.toLowerCase()} only. If this looks wrong, contact hello@thestepsfoundation.com.` }
     }
   }
 

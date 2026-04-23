@@ -12,6 +12,7 @@ import {
   type HubApplication, type HubEvent, type ProfileUpdate,
 } from '@/lib/hub-api'
 import { getDisplayLocation } from '@/lib/event-display'
+import { formatOpenTo } from '@/lib/events-api'
 import { hasPasswordSet, upgradeToPassword, type StudentSelf } from '@/lib/apply-api'
 import { clearAllDrafts } from '@/lib/apply-draft'
 import { getStatusMeta } from '@/lib/application-status'
@@ -61,9 +62,16 @@ export default function StudentHub() {
   // If student has no year_group set, show everything as eligible (they'll be asked to set it).
   const yg = profile?.year_group ?? null
   const isEligibleForYearGroup = (event: HubEvent): boolean => {
-    if (!event.eligible_year_groups || event.eligible_year_groups.length === 0) return true
+    const allowed = event.eligible_year_groups ?? []
+    const openToGap = !!event.open_to_gap_year
+    // No filter at all = open to everyone
+    if (allowed.length === 0 && !openToGap) return true
+    // Student hasn't set a year_group yet; show everything and let them pick
     if (yg == null) return true
-    return event.eligible_year_groups.includes(yg)
+    // Gap year students (year_group=14) are eligible if the event opts in,
+    // regardless of what's in eligible_year_groups
+    if (yg === 14 && openToGap) return true
+    return allowed.includes(yg)
   }
   const eligibleOpenEvents = openEvents.filter(isEligibleForYearGroup)
   const ineligibleOpenEvents = openEvents.filter(e => !isEligibleForYearGroup(e))
@@ -460,18 +468,15 @@ export default function StudentHub() {
           <div className="space-y-4">
             {ineligibleOpenEvents.map(event => {
               const publicLocation = getDisplayLocation(event, false)
-              const yearList = (event.eligible_year_groups ?? []).sort((a, b) => a - b)
-              const yearLabel = yearList.length === 1
-                ? `Year ${yearList[0]} only`
-                : yearList.length > 1
-                  ? `Years ${yearList.join(', ')} only`
-                  : 'Not open to your year'
+              // Source of truth: eligible_year_groups + open_to_gap_year from the event row.
+              // formatOpenTo renders e.g. "Year 13 and gap year students" or "all students".
+              const yearLabel = `Open to ${formatOpenTo(event.eligible_year_groups, !!event.open_to_gap_year).toLowerCase()}`
               return (
                 <div
                   key={event.id}
                   className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden opacity-60 cursor-not-allowed"
                   aria-disabled="true"
-                  title={`This event is for ${yearLabel.toLowerCase()}.`}
+                  title={yearLabel}
                 >
                   <div className="flex items-stretch min-h-[160px] sm:min-h-[200px]">
                     <div className="flex-1 min-w-0 p-5 sm:p-6 flex flex-col">
