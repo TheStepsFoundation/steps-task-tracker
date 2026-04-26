@@ -184,23 +184,25 @@ function Stat({ label, value, color }: { label: string; value: number; color?: s
 
 function FillBar({ attended, applicants, capacity }: { attended: number; applicants: number; capacity: number }) {
   const pct = Math.min(100, Math.round((attended / capacity) * 100))
+  // Normalise the apps:places ratio to y:1 — e.g. 175 apps / 100 places → "1.8:1".
+  const ratio = (applicants / capacity).toFixed(1)
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-24 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${
-            pct >= 90 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <div className="flex flex-col items-end leading-tight">
-        <span
-          className="text-xs text-gray-500 dark:text-gray-400"
-          title="Applicants to places"
-        >
-          {applicants}:{capacity}
-        </span>
+    <div className="flex flex-col items-end gap-0.5 leading-tight">
+      <span
+        className="text-xs text-gray-500 dark:text-gray-400"
+        title={`${applicants} applicants for ${capacity} places`}
+      >
+        {ratio}:1
+      </span>
+      <div className="flex items-center gap-2">
+        <div className="w-24 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${
+              pct >= 90 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
+            }`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
         <span
           className="text-xs text-gray-500 dark:text-gray-400"
           title={`${attended} attended / ${capacity} places available`}

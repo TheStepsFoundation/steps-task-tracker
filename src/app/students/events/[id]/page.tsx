@@ -2119,23 +2119,6 @@ export default function EventDetailPage() {
                   <div className="text-2xl font-semibold text-steps-blue-600 dark:text-steps-blue-400">{attendedCount}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">Attended</div>
                 </div>
-                {event.capacity != null && event.capacity > 0 && (
-                  <div className="text-center">
-                    <div
-                      className="text-xs text-gray-500 dark:text-gray-400"
-                      title="Applicants to places"
-                    >
-                      {applicants.length}:{event.capacity}
-                    </div>
-                    <div
-                      className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                      title={`${attendedCount} attended / ${event.capacity} places available`}
-                    >
-                      {Math.min(100, Math.round((attendedCount / event.capacity) * 100))}%
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Filled</div>
-                  </div>
-                )}
               </div>
             </div>
             {event.description && (
