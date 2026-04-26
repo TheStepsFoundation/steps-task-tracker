@@ -24,6 +24,8 @@ export type CuratedQuote = {
   author: string
   /** Internal-only full name — always populated for staff visibility. */
   fullName: string
+  /** Optional contact email — internal only, used for joining to student records. */
+  email?: string
   /** Optional context badge: "Y12", "Gap year", "First-gen", etc. */
   context?: string
   consent: Consent
@@ -44,6 +46,8 @@ export type PostableQuote = {
   author: string
   /** Internal full name — always populated. */
   fullName: string
+  /** Optional contact email — internal only. */
+  email?: string
   /** Optional pasteable context tag: "Year 12", "Lock-In attendee", etc. */
   audienceTag?: string
   consent: Consent
