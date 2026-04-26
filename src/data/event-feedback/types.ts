@@ -20,13 +20,37 @@ export type Consent =
 export type CuratedQuote = {
   /** The quote text — lightly typo-cleaned only. */
   text: string
-  /** Display author given the consent flag. e.g. "Aiya O." or "Anonymous". */
+  /** External display author given the consent flag. e.g. "Aiya" or "Anonymous". */
   author: string
+  /** Internal-only full name — always populated for staff visibility. */
+  fullName: string
   /** Optional context badge: "Y12", "Gap year", "First-gen", etc. */
   context?: string
   consent: Consent
   /** Verbatim source response timestamp (links back to appendix row). */
   sourceTimestamp?: string
+}
+
+/**
+ * Postable quote — a tightly-cropped, share-ready 1-2 sentence pull from a
+ * larger response, with [bracketed] clarifications where context is missing.
+ * Designed for pitch decks, social posts, and one-pagers. Punctuation /
+ * capitalisation may be tidied; word choice is preserved verbatim.
+ */
+export type PostableQuote = {
+  /** The cropped, share-ready quote (~1-2 sentences). */
+  text: string
+  /** External display author. e.g. "Aiya" or "Anonymous". */
+  author: string
+  /** Internal full name — always populated. */
+  fullName: string
+  /** Optional pasteable context tag: "Year 12", "Lock-In attendee", etc. */
+  audienceTag?: string
+  consent: Consent
+  /** Verbatim source response timestamp (links back to appendix row). */
+  sourceTimestamp?: string
+  /** The original full response, for "see source" UX. */
+  originalText: string
 }
 
 export type RatingBreakdown = {
@@ -44,10 +68,14 @@ export type RatingBreakdown = {
 
 export type FreeTextResponse = {
   timestamp: string
-  /** First name + initial preferred for hub readability. May be "Anonymous". */
+  /** External display: first name only or "Anonymous" given consent. */
   name: string
-  /** Authors's listed consent for testimonial sharing. */
+  /** Internal full name — always populated for staff visibility. */
+  fullName: string
+  /** Author's listed consent for testimonial sharing. */
   consent: Consent
+  /** Optional contact email — internal only, used for joining to student records. */
+  email?: string
   /** Map of column label → response text (skipped if blank). */
   fields: Record<string, string>
   /** Optional flag: this row was used as a curated quote somewhere. */
@@ -85,6 +113,8 @@ export type EventFeedbackDataset = {
   constructive: CuratedQuote[]
   /** "Came in expecting X, left thinking Y" — transformation stories. */
   growth: CuratedQuote[]
+  /** Bite-sized, deck-ready quotes pulled from longer responses. */
+  postableQuotes: PostableQuote[]
 
   /** Full appendix of raw free-text responses, in submission order. */
   appendix: FreeTextResponse[]

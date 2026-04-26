@@ -162,49 +162,65 @@ export const dataset: EventFeedbackDataset = {
   testimonials: [
     {
       text: 'It was brilliant, I really enjoyed the initial broad advice regarding what we could do to improve our revision; really useful to hear from people who were in similar circumstances, and who were clearly successful in their endeavours.\n\nSam’s advice for chemistry was really enlightening- he went in to deeply explaining concepts behind how we can understand a topic worth ~30/300 marks on our exam - I now feel much more comfortable about it.',
-      author: 'Anirai B.',
+      author: 'Anirai',
+      fullName: 'Anirai Bindra',
+      email: 'binda020.312@haydonschool.com',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:29:41',
     },
     {
       text: 'I wasn’t really sure what to expect coming to this event…But I did really take away lot! Particularly in terms of how to apply the so called ‘effective’ revision techniques to my own revision. The relatable stories of how this was applied to the founders own lives made this particularly memorable. Really appreciative of all the work put in to make this happen',
-      author: 'Ayva B.',
+      author: 'Ayva',
+      fullName: 'Ayva Balagtey',
+      email: 'ayvabalagtey@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:27:40',
     },
     {
       text: 'Loved meeting such inspiring, grounded and passionate individuals. Being around people so established and knowing that being in their position is very achievable with the right steps, and not based on unrealistic privilege, was very comforting. Thank you for being so approachable, supportive and down to earth - and making effective support so accessible.',
-      author: 'Samira S.',
+      author: 'Samira',
+      fullName: 'Samira Sharif',
+      email: 'samirasharif1127@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:30:11',
     },
     {
       text: 'This event has given me lots of confidence in my revision methods and has given me a deep insight into what is effective with my time. Thank you for this opportunity. I would recommend anyone that is considering it to show up.',
-      author: 'Reuben G.',
+      author: 'Reuben',
+      fullName: 'Reuben Graham',
+      email: 'reubengschool@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:30:07',
     },
     {
       text: 'The Panel Speakers were all exceptional and gave encouragement and advice to personal struggles in revision that I face currently. All the talks were inspirational and gave direct support.',
-      author: 'Joseph S.',
+      author: 'Joseph',
+      fullName: 'Joseph Samson',
+      email: 'josephbsamson1@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:29:07',
     },
     {
       text: 'It was a fun event where I learned so much led by very down to earth and kind people. They were accommodating and made the effort to talk to me on multiple occasions. How kind!!!!',
-      author: 'Rohan S.',
+      author: 'Rohan',
+      fullName: 'Rohan Sidhu',
+      email: 'rohansidhu88@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:32:39',
     },
     {
       text: 'It was amazing. A real eye opener for students to become motivated and driven through new revision methods, interactive QnAs and interaction with top students at top universities',
-      author: 'George D.',
+      author: 'George',
+      fullName: 'George Denishev',
+      email: 'george@denishev.co.uk',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:27:15',
     },
     {
       text: 'Really valuable advice given to lock in before A Levels and have a positive upturn in revision until then. Was good to engage with some of the speakers in personal discussions.',
-      author: 'Benjy A.',
+      author: 'Benjy',
+      fullName: 'Benjy Alexander',
+      email: 'mrbenjylewis@icloud.com',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:28:11',
     },
@@ -212,7 +228,9 @@ export const dataset: EventFeedbackDataset = {
   constructive: [
     {
       text: 'Daniyaal was superb, he truly is the goat. His aura was immense, his confidence insane, and his looks - astonishing. He was very engaging and had actually very very good advice. The creator panel was alright and the FM deep dive was kind of mid. Overall, the event was worth coming to (especially from Wolverhampton).',
-      author: 'Rohan S.',
+      author: 'Rohan',
+      fullName: 'Rohan Sidhu',
+      email: 'rohansidhu88@gmail.com',
       context: 'Presentation feedback',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:32:39',
@@ -220,6 +238,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'I would greatly appreciate if next time you could mention where prayer facilities will be located next time too - my friend missed their prayer because they weren’t aware that you guys had a prayer space available. Other than that, thank you! You guys did an amazing job 👏👏',
       author: 'Anonymous',
+      fullName: 'Ayesha Osmani',
+      email: 'ayeshaosmani27@gmail.com',
       context: 'Final comments',
       consent: 'anon',
       sourceTimestamp: '22/03/2026 19:23:06',
@@ -227,6 +247,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'I would really appreciate if next time you could mention at the beginning whether or not slides will be shared because I found out halfway through the presentations it would be shared whilst I was scrambling to write everything down in my notebook lol',
       author: 'Anonymous',
+      fullName: 'Ayesha Osmani',
+      email: 'ayeshaosmani27@gmail.com',
       context: 'Presentation feedback',
       consent: 'anon',
       sourceTimestamp: '22/03/2026 19:23:06',
@@ -234,6 +256,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'A great thank you to all the people who hosted this event, it was really informative and helpful. Couldn\'t be more grateful.',
       author: 'Anonymous',
+      fullName: 'Ebenezer Zelalem',
+      email: 'ebenezerze2@gmail.com',
       context: 'Final comments',
       consent: 'anon',
       sourceTimestamp: '21/03/2026 17:29:04',
@@ -241,6 +265,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'Please talk and provide a little more help about exam stress and blanking on in exams.',
       author: 'Anonymous',
+      fullName: 'Madalena Stefanova',
+      email: 'madalenastefanova@gmail.com',
       context: 'Final comments',
       consent: 'anon',
       sourceTimestamp: '21/03/2026 17:27:39',
@@ -248,6 +274,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'More variety in courses of uni students/degree apprentices like a biology student etc',
       author: 'Anonymous',
+      fullName: 'Lorena Da Silva Ie',
+      email: 'l6renapersonal@gmail.com',
       context: 'Presentation feedback',
       consent: 'no',
       sourceTimestamp: '21/03/2026 17:31:39',
@@ -255,13 +283,17 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'They were really informative and have changed my perspective on A Level exams.',
       author: 'Anonymous',
+      fullName: 'Ebenezer Zelalem',
+      email: 'ebenezerze2@gmail.com',
       context: 'Presentation feedback',
       consent: 'anon',
       sourceTimestamp: '21/03/2026 17:29:04',
     },
     {
       text: 'Really enjoyed and will be sure to attend the next steps event, thankyou!!',
-      author: 'Oliver P.',
+      author: 'Oliver',
+      fullName: 'Oliver Pyne',
+      email: 'opyne08@gmail.com',
       context: 'Final comments',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:27:16',
@@ -270,21 +302,27 @@ export const dataset: EventFeedbackDataset = {
   growth: [
     {
       text: 'This event has given me lots of confidence in my revision methods and has given me a deep insight into what is effective with my time. Thank you for this opportunity. I would recommend anyone that is considering it to show up.',
-      author: 'Reuben G.',
+      author: 'Reuben',
+      fullName: 'Reuben Graham',
+      email: 'reubengschool@gmail.com',
       context: 'Testimonial',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:30:07',
     },
     {
       text: 'It was amazing. A real eye opener for students to become motivated and driven through new revision methods, interactive QnAs and interaction with top students at top universities',
-      author: 'George D.',
+      author: 'George',
+      fullName: 'George Denishev',
+      email: 'george@denishev.co.uk',
       context: 'Testimonial',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:27:15',
     },
     {
       text: 'It was an amazing eye opening experience and I will make changes into my study routines to ensure I achieve good grades',
-      author: 'Irfan S.',
+      author: 'Irfan',
+      fullName: 'Irfan Sediqi',
+      email: 'irfansediqi2008@gmail.com',
       context: 'Testimonial',
       consent: 'first_name',
       sourceTimestamp: '21/03/2026 17:29:02',
@@ -292,6 +330,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'Every single hour I spent at this event was 100% the best investment of my time. Whether it was understanding the science of learning, hearing Daniyaal and other presenters rave about using Anki, or having genuine conversations with high-achieving students who have been in my position, I would definitely recommend that anyone in Year 12 (or even at GCSE level) attend these events.\n\nIt was amazing to see that the quality of content provided, all at no cost, was exceptional - probably even better than the advice my own teachers give me. The Steps Foundation has changed my life - I don’t feel lost anymore and have much more clarity about my future.\n\nAttend the next sessions and let them change yours too.',
       author: 'Anonymous',
+      fullName: 'Ayesha Osmani',
+      email: 'ayeshaosmani27@gmail.com',
       context: 'Testimonial',
       consent: 'anon',
       sourceTimestamp: '22/03/2026 19:23:06',
@@ -299,6 +339,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'The revision methods and advice given at the great lock in were hugely helpful and all the speakers made me feel reassured and less stressed out for a levels.',
       author: 'Anonymous',
+      fullName: 'Bemi Amoniyan',
+      email: 'bemiamoniyan@gmail.com',
       context: 'Testimonial',
       consent: 'anon',
       sourceTimestamp: '21/03/2026 17:28:05',
@@ -306,15 +348,138 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'Really valuable it changed my way of revision and how to do it effectively',
       author: 'Anonymous',
+      fullName: 'Amaan Kaleeah',
+      email: 'hjhukory@gmail.com',
       context: 'Testimonial',
       consent: 'anon',
       sourceTimestamp: '21/03/2026 17:27:07',
     },
   ],
+  postableQuotes: [
+    {
+      text: 'Really useful to hear from people who were in similar circumstances, and who were clearly successful in their endeavours.',
+      author: 'Anirai',
+      fullName: 'Anirai Bindra',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:29:41',
+      originalText: 'It was brilliant, I really enjoyed the initial broad advice regarding what we could do to improve our revision; really useful to hear from people who were in similar circumstances, and who were clearly successful in their endeavours.\n\nSamâs advice for chemistry was really enlightening- he went in to deeply explaining concepts behind how we can understand a topic worth ~30/300 marks on our exam - I now feel much more comfortable about it.',
+    },
+    {
+      text: 'I wasn\'t really sure what to expect coming to this event — but I did really take away [a] lot! Particularly in terms of how to apply the so called \'effective\' revision techniques to my own revision.',
+      author: 'Ayva',
+      fullName: 'Ayva Balagtey',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:27:40',
+      originalText: 'I wasnât really sure what to expect coming to this eventâ¦But I did really take away lot! Particularly in terms of how to apply the so called âeffectiveâ revision techniques to my own revision. The relatable stories of how this was applied to the founders own lives made this particularly memorable. Really appreciative of all the work put in to make this happen',
+    },
+    {
+      text: 'Loved meeting such inspiring, grounded and passionate individuals. Being around people so established — and knowing that being in their position is very achievable with the right steps, and not based on unrealistic privilege — was very comforting.',
+      author: 'Samira',
+      fullName: 'Samira Sharif',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:30:11',
+      originalText: 'Loved meeting such inspiring, grounded and passionate individuals. Being around people so established and knowing that being in their position is very achievable with the right steps, and not based on unrealistic privilege, was very comforting. Thank you for being so approachable, supportive and down to earth - and making effective support so accessible.',
+    },
+    {
+      text: 'This event has given me lots of confidence in my revision methods and has given me a deep insight into what is effective with my time.',
+      author: 'Reuben',
+      fullName: 'Reuben Graham',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:30:07',
+      originalText: 'This event has given me lots of confidence in my revision methods and has given me a deep insight into what is effective with my time. Thank you for this opportunity. I would recommend anyone that is considering it to show up.',
+    },
+    {
+      text: 'The Panel Speakers were all exceptional and gave encouragement and advice to personal struggles in revision that I face currently. All the talks were inspirational and gave direct support.',
+      author: 'Joseph',
+      fullName: 'Joseph Samson',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:29:07',
+      originalText: 'The Panel Speakers were all exceptional and gave encouragement and advice to personal struggles in revision that I face currently. All the talks were inspirational and gave direct support.',
+    },
+    {
+      text: 'It was a fun event where I learned so much, led by very down to earth and kind people.',
+      author: 'Rohan',
+      fullName: 'Rohan Sidhu',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:32:39',
+      originalText: 'It was a fun event where I learned so much led by very down to earth and kind people. They were accommodating and made the effort to talk to me on multiple occasions. How kind!!!!',
+    },
+    {
+      text: 'A real eye opener for students to become motivated and driven through new revision methods, interactive QnAs and interaction with top students at top universities.',
+      author: 'George',
+      fullName: 'George Denishev',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:27:15',
+      originalText: 'It was amazing. A real eye opener for students to become motivated and driven through new revision methods, interactive QnAs and interaction with top students at top universities',
+    },
+    {
+      text: 'Really valuable advice given to lock in before A Levels and have a positive upturn in revision until then.',
+      author: 'Benjy',
+      fullName: 'Benjy Alexander',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:28:11',
+      originalText: 'Really valuable advice given to lock in before A Levels and have a positive upturn in revision until then. Was good to engage with some of the speakers in personal discussions.',
+    },
+    {
+      text: 'The Steps Foundation has changed my life — I don\'t feel lost anymore and have much more clarity about my future.',
+      author: 'Anonymous',
+      fullName: 'Ayesha Osmani',
+      audienceTag: 'Year 12',
+      consent: 'anon',
+      sourceTimestamp: '22/03/2026 19:23:06',
+      originalText: 'I would greatly appreciate if next time you could mention where prayer facilities will be located next time too - my friend missed their prayer because they werenât aware that you guys had a prayer space available. Other than that, thank you! You guys did an amazing job ðð',
+    },
+    {
+      text: 'Every single hour I spent at this event was 100% the best investment of my time.',
+      author: 'Anonymous',
+      fullName: 'Ayesha Osmani',
+      audienceTag: 'Year 12',
+      consent: 'anon',
+      sourceTimestamp: '22/03/2026 19:23:06',
+      originalText: 'I would greatly appreciate if next time you could mention where prayer facilities will be located next time too - my friend missed their prayer because they werenât aware that you guys had a prayer space available. Other than that, thank you! You guys did an amazing job ðð',
+    },
+    {
+      text: 'The revision methods and advice given at the Great Lock-In were hugely helpful and all the speakers made me feel reassured and less stressed out for A Levels.',
+      author: 'Anonymous',
+      fullName: 'Bemi Amoniyan',
+      audienceTag: 'Year 12',
+      consent: 'anon',
+      sourceTimestamp: '21/03/2026 17:28:05',
+      originalText: 'The revision methods and advice given at the great lock in were hugely helpful and all the speakers made me feel reassured and less stressed out for a levels.',
+    },
+    {
+      text: 'Really valuable — it changed my way of revision and how to do it effectively.',
+      author: 'Anonymous',
+      fullName: 'Amaan Kaleeah',
+      audienceTag: 'Year 12',
+      consent: 'anon',
+      sourceTimestamp: '21/03/2026 17:27:07',
+      originalText: 'Really valuable it changed my way of revision and how to do it effectively',
+    },
+    {
+      text: 'It was an amazing eye opening experience and I will make changes into my study routines to ensure I achieve good grades.',
+      author: 'Irfan',
+      fullName: 'Irfan Sediqi',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '21/03/2026 17:29:02',
+      originalText: 'It was an amazing eye opening experience and I will make changes into my study routines to ensure I achieve good grades',
+    },
+  ],
   appendix: [
     {
       timestamp: '21/03/2026 17:25:37',
-      name: 'Lucie O.',
+      name: 'Lucie',
+      fullName: 'Lucie O’Meara',
+      email: 'ol9965948@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Drop in)',
@@ -324,7 +489,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:25:49',
-      name: 'Hamza A.',
+      name: 'Hamza',
+      fullName: 'Hamza Ahmed',
+      email: '17hamzaahmed@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -334,7 +501,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:00',
-      name: 'Andreea B.',
+      name: 'Andreea',
+      fullName: 'Andreea Bajan',
+      email: 'andreeabajan07@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -344,7 +513,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:01',
-      name: 'Harvey C.',
+      name: 'Harvey',
+      fullName: 'Harvey Cheung',
+      email: 'harveyveyy@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Further Maths)',
@@ -354,7 +525,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:01',
-      name: 'Eamonn S.',
+      name: 'Eamonn',
+      fullName: 'Eamonn Slade',
+      email: 'eamonnslade@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -365,7 +538,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:14',
-      name: 'Chennnai V.',
+      name: 'Chennnai',
+      fullName: 'Chennnai Virgin',
+      email: 'virginchennai01@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Chemistry)',
@@ -375,7 +550,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:21',
-      name: 'Joshua D.',
+      name: 'Joshua',
+      fullName: 'Joshua Davis',
+      email: 'proxybaseball@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -386,7 +563,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:24',
-      name: 'Mohamed H.',
+      name: 'Mohamed',
+      fullName: 'Mohamed Hashim',
+      email: 'mohamedhashim.consult@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -397,7 +576,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:33',
-      name: 'Rayyan M.',
+      name: 'Rayyan',
+      fullName: 'Rayyan Mustafa',
+      email: 'rayyan.mustafa2007@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -408,7 +589,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:36',
-      name: 'Hilary T.',
+      name: 'Hilary',
+      fullName: 'Hilary Tesfaye',
+      email: 'tesfayehilary1@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -418,7 +601,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:39',
-      name: 'Ohemaa A.',
+      name: 'Ohemaa',
+      fullName: 'Ohemaa Agyekum-Koranchie',
+      email: 'agyekumkoranchieo@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -429,7 +614,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:39',
-      name: 'LJ A.',
+      name: 'LJ',
+      fullName: 'LJ A',
+      email: '18ayouchel.sjb@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -439,7 +626,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:51',
-      name: 'Zahra Q.',
+      name: 'Zahra',
+      fullName: 'Zahra Quyum',
+      email: 'zahraquyum60@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -450,7 +639,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:26:57',
-      name: 'Rudra P.',
+      name: 'Rudra',
+      fullName: 'Rudra Pandya',
+      email: 'rudrarpandya@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -460,7 +651,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:01',
-      name: 'Summer A.',
+      name: 'Summer',
+      fullName: 'Summer Akhtar',
+      email: 'summerakhtar41@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -472,7 +665,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:07',
-      name: 'Amaan K.',
+      name: 'Amaan',
+      fullName: 'Amaan Kaleeah',
+      email: 'hjhukory@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Drop in)',
@@ -485,7 +680,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:15',
-      name: 'George D.',
+      name: 'George',
+      fullName: 'George Denishev',
+      email: 'george@denishev.co.uk',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Sam Ellis Keynote',
@@ -496,7 +693,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:16',
-      name: 'Oliver P.',
+      name: 'Oliver',
+      fullName: 'Oliver Pyne',
+      email: 'opyne08@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -508,7 +707,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:23',
-      name: 'Anis Z.',
+      name: 'Anis',
+      fullName: 'Anis Zeddam',
+      email: 'zanis2007@icloud.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Deep Dive (Physics)',
@@ -518,7 +719,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:27',
-      name: 'casian t.',
+      name: 'Casian',
+      fullName: 'Casian Tegzes',
+      email: 'casiantegzes@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Further Maths)',
@@ -528,7 +731,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:27',
-      name: 'Elizabeth S.',
+      name: 'Elizabeth',
+      fullName: 'Elizabeth Silin',
+      email: 'silin.elizabeth@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -539,7 +744,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:28',
-      name: 'Aisha O.',
+      name: 'Aisha',
+      fullName: 'Aisha Odetunde',
+      email: 'aishaodetunde.014@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -550,7 +757,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:36',
-      name: 'Aiya O.',
+      name: 'Aiya',
+      fullName: 'Aiya Okasha',
+      email: 'aiyaokasha4@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Sam Ellis Keynote',
@@ -561,7 +770,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:39',
-      name: 'Madalena S.',
+      name: 'Madalena',
+      fullName: 'Madalena Stefanova',
+      email: 'madalenastefanova@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -573,7 +784,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:40',
-      name: 'Ahaan S.',
+      name: 'Ahaan',
+      fullName: 'Ahaan Saraf',
+      email: 'sarafahaan@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -583,7 +796,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:40',
-      name: 'Ayva B.',
+      name: 'Ayva',
+      fullName: 'Ayva Balagtey',
+      email: 'ayvabalagtey@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -594,7 +809,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:47',
-      name: 'Karola A.',
+      name: 'Karola',
+      fullName: 'Karola Amariutei',
+      email: 'karola.ata382@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -606,7 +823,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:27:55',
-      name: 'Shraiya R.',
+      name: 'Shraiya',
+      fullName: 'Shraiya Rajkumar',
+      email: 'shraiya.rajkumar@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Drop in)',
@@ -618,7 +837,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:05',
-      name: 'Bemi A.',
+      name: 'Bemi',
+      fullName: 'Bemi Amoniyan',
+      email: 'bemiamoniyan@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -630,7 +851,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:05',
-      name: 'Mariyah K.',
+      name: 'Mariyah',
+      fullName: 'Mariyah Khan',
+      email: 'khanmariyah312@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -642,7 +865,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:09',
-      name: 'Wilson P.',
+      name: 'Wilson',
+      fullName: 'Wilson Perez',
+      email: 'wilson193758@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Further Maths)',
@@ -652,7 +877,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:11',
-      name: 'Benjy A.',
+      name: 'Benjy',
+      fullName: 'Benjy Alexander',
+      email: 'mrbenjylewis@icloud.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -664,7 +891,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:19',
-      name: 'Terena-Faith W.',
+      name: 'Terena-Faith',
+      fullName: 'Terena-Faith Williams',
+      email: 'terenafaithwilliams@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Sam Ellis Keynote',
@@ -677,7 +906,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:31',
-      name: 'Jay K.',
+      name: 'Jay',
+      fullName: 'Jay Kumar',
+      email: 'jay009kmr@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -688,7 +919,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:38',
-      name: 'Ivan N.',
+      name: 'Ivan',
+      fullName: 'Ivan Nedkov',
+      email: 'ivannedkov1309@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -699,7 +932,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:28:47',
-      name: 'Aiden K.',
+      name: 'Aiden',
+      fullName: 'Aiden Kandasamy',
+      email: 'aiden030508@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Deep Dive (Chemistry)',
@@ -709,7 +944,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:01',
-      name: 'Godsfavour O.',
+      name: 'Godsfavour',
+      fullName: 'Godsfavour Omoniyi',
+      email: 'godsfavouromoniyi13@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -720,7 +957,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:02',
-      name: 'Irfan S.',
+      name: 'Irfan',
+      fullName: 'Irfan Sediqi',
+      email: 'irfansediqi2008@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -731,7 +970,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:04',
-      name: 'Ebenezer Z.',
+      name: 'Ebenezer',
+      fullName: 'Ebenezer Zelalem',
+      email: 'ebenezerze2@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Further Maths)',
@@ -744,7 +985,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:07',
-      name: 'Joseph S.',
+      name: 'Joseph',
+      fullName: 'Joseph Samson',
+      email: 'josephbsamson1@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Sam Ellis Keynote',
@@ -755,7 +998,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:14',
-      name: 'chiddi d.',
+      name: 'Chiddi',
+      fullName: 'Chiddi Domike',
+      email: 'chiddi247@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -768,7 +1013,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:17',
-      name: 'Nuo Han L.',
+      name: 'Nuo Han',
+      fullName: 'Nuo Han Lin',
+      email: 'nuohanlin10@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -779,7 +1026,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:35',
-      name: 'Vrishab E.',
+      name: 'Vrishab',
+      fullName: 'Vrishab Eli',
+      email: 'vrishab.eli@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -791,7 +1040,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:41',
-      name: 'Anirai B.',
+      name: 'Anirai',
+      fullName: 'Anirai Bindra',
+      email: 'binda020.312@haydonschool.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Sam Ellis Keynote',
@@ -804,7 +1055,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:42',
-      name: 'Bilal S.',
+      name: 'Bilal',
+      fullName: 'Bilal Salman',
+      email: 'bilalsalman2910@hotmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -815,7 +1068,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:29:56',
-      name: 'Sky I.',
+      name: 'Sky',
+      fullName: 'Sky Inganda',
+      email: 'skyinhandaz@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -826,7 +1081,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:30:03',
-      name: 'Mahir U.',
+      name: 'Mahir',
+      fullName: 'Mahir Uddin',
+      email: 'mahir1uddin@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -839,7 +1096,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:30:07',
-      name: 'Reuben G.',
+      name: 'Reuben',
+      fullName: 'Reuben Graham',
+      email: 'reubengschool@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Sam Ellis Keynote',
@@ -850,7 +1109,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:30:11',
-      name: 'Layla W.',
+      name: 'Layla',
+      fullName: 'Layla West',
+      email: 'la.westt0701@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -860,7 +1121,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:30:11',
-      name: 'Samira S.',
+      name: 'Samira',
+      fullName: 'Samira Sharif',
+      email: 'samirasharif1127@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Sam Ellis Keynote',
@@ -871,7 +1134,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:30:35',
-      name: 'Mohammad Z.',
+      name: 'Mohammad',
+      fullName: 'Mohammad Zeekiyas',
+      email: 'm.zeekiyas@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -882,7 +1147,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:31:19',
-      name: 'Harris H.',
+      name: 'Harris',
+      fullName: 'Harris Haque',
+      email: 'harrisjh08@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -894,7 +1161,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:31:30',
-      name: 'Asher S.',
+      name: 'Asher',
+      fullName: 'Asher Siddiqui',
+      email: 'ashersiddiqui15@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Deep Dive (Economics)',
@@ -907,7 +1176,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:31:31',
-      name: 'Pranjay Z.',
+      name: 'Pranjay',
+      fullName: 'Pranjay Zharotia',
+      email: 'prazharotia@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -918,7 +1189,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:31:39',
-      name: 'Lorena D.',
+      name: 'Lorena',
+      fullName: 'Lorena Da Silva Ie',
+      email: 'l6renapersonal@gmail.com',
       consent: 'no',
       fields: {
         'Most valuable part': 'Panel Discussion / Q&A',
@@ -930,7 +1203,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:32:39',
-      name: 'Rohan S.',
+      name: 'Rohan',
+      fullName: 'Rohan Sidhu',
+      email: 'rohansidhu88@gmail.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -943,7 +1218,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '21/03/2026 17:36:02',
-      name: 'Sevak A.',
+      name: 'Sevak',
+      fullName: 'Sevak Ark',
+      email: 'sevakark@icloud.com',
       consent: 'first_name',
       fields: {
         'Most valuable part': 'Daniyaal Anawar Keynote',
@@ -955,7 +1232,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '22/03/2026 19:23:06',
-      name: 'Ayesha O.',
+      name: 'Ayesha',
+      fullName: 'Ayesha Osmani',
+      email: 'ayeshaosmani27@gmail.com',
       consent: 'anon',
       fields: {
         'Most valuable part': 'Networking',

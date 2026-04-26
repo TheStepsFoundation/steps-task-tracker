@@ -192,49 +192,65 @@ export const dataset: EventFeedbackDataset = {
   testimonials: [
     {
       text: 'I really enjoyed starting point\nIt helped me connected with very acdemically focused people who were trying to reach the same places as i am. I made a lot of friends and we even created a cambridge groupchat were people have been posting lots of docs relating to getting into Cambridge!\nRegarding the event itself\nI really enjoyed learning about how the pannelists, (especially the investment bankers!) got to where they are today and the potential hidden downsides of their jobs such as the 80 hour work weeks.\nFurthermore i really liked the social skills aspects, its something which is not talked about enough and can be a make or break in nearly all interviews.\nFinally Daniyaals interview at goldman sachs! It was really interesting- i liked how we were aboe to see firsthand what an interview is like, and how he was able to break down the questions and control the interview, as well as making the interview seem almost effortless (except for that outrageous maths question😂😂)\nThanks very much for the opportunity \nRayyan Qureshi',
-      author: 'Rayyan Q.',
+      author: 'Rayyan',
+      fullName: 'Rayyan Qureshi',
+      email: 'rayqures@icloud.com',
       consent: 'first_name',
       sourceTimestamp: '9/29/2025 8:41:54',
     },
     {
       text: 'It was a great event! Starting Point was my first in-person event and as a Year 12 looking to attend many insight days and exploring a multitude of extracurriculars, the day felt like a brilliant way to get the ball rolling. Not only was it super helpful in helping me make informed choices about potential career prospects, hearing from people with lived experience (rather than endlessly searching the on Google) has really helped me gain clarity into what I may be potentially interested in. In the short-term, the event was a great opportunity for me to introduce myself to like-minded individuals, teaching me how to confront and overcome initial nerves in regards to networking and how simple networking can be. As Ania said, ‘be interested, not interesting’, which I definitely put at the front of a lot of my discussions, and proved very successful.',
-      author: 'Aima R.',
+      author: 'Aima',
+      fullName: 'Aima Rafiq',
+      email: '19a.rafiq@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 22:00:53',
     },
     {
       text: 'I loved today as they talked about a lot of my interests like the oxbridge process, what you need as well as getting good grades in a level and how to raise your grades, how to gain a network and how to communicate with people for personal and professional purposes, as well as what to do after yr13 if things doesn’t turn out the way u want them to and how that is okay and very common to have. I think these were very useful as I got to learn more about what I need to add to my schedule in these next two years to be seen as a better candidate for oxbridge. I loved the talks specific to some degrees but my personal interest was only in finance. The questions we all asked was answered very well and I’m so much detail which I loved as I could tell that they wanted us to know everything we wanted to know. I also loved the snacks and the water.',
-      author: 'Ekin T.',
+      author: 'Ekin',
+      fullName: 'Ekin Turan',
+      email: 'ekintr34@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:51:13',
     },
     {
       text: 'I believe that Starting Point has helped me to welcome the opportunity to discover more about finance. Although I am in year 13 and thought my head was set with Dentistry I realised even after having done my UCAT in summer that dentistry does not align with my interest of building long term wealth and being able to nurture my interest in technology, innovation and learning about how investment banking operates. I cannot stress the importance of attending these events. Speaking to people around me they told me that it was too late to switch courses but Starting Point has reassured me to go for what I want. Now I feel confident to take a gap year if I feel as though I need. Thank you on behalf of everyone - we cannot thank you enough for your selflessness and your hard work truly does not go unnoticed.',
-      author: 'Rakshiha M.',
+      author: 'Rakshiha',
+      fullName: 'Rakshiha Mohan',
+      email: 'rakshihamohan1@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:49:21',
     },
     {
       text: 'Truly this was such an insightful event, being my first ever networking event, I had no clue what really to expect but all organisers and panelists were beyond helpful, insightful and knowledgeable about their sectors and just wider environments. Each panelist was a delight to speak to and managed to perfectly tailor their responses to each of my questions in a way that was easily digestible for me. It was a spectacular confidence boost and im leaving more confident than I came and without the lingering feelings of imposter syndrome. It was event that didnt feel rigid and atoic but instead was dynamic interactive and engaging. So much gratitude for everyone that pulled through today! :-)',
-      author: 'Abdul A.',
+      author: 'Abdul',
+      fullName: 'Abdul Ahmed',
+      email: 'abdul.ahmed0109@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:45:53',
     },
     {
       text: 'Starting point truly captivated me from the start. As someone who’s been an avid consumer of the-called study-tok content for some time, I was excited from the start to have the opportunity to engage with individuals who were clearly knowledgable in their fields. The event truly delivered, I think the structure was well curated, catering well to all the questions a typical student may have. The selected cohort was truly amazing, and it gave a rare opportunity to talk to so many like minded individuals. Everyone I spoke to was willing to engage and share their advice. Thank you for running the event and I hope my suggestions are constructive to improving the next one :D',
-      author: 'Kyle M.',
+      author: 'Kyle',
+      fullName: 'Kyle Man',
+      email: 'kyleman.km2007@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/29/2025 0:10:20',
     },
     {
       text: 'Starting Point 2025 was an amazingly set-up event. The constant chiming in of panellists, university students as well as current students like me meant that not only did I develop a well-rounded understanding of career prospects and Oxbridge but I shared and engaged with people my age and those sitting beside me. Also, the information we were given regarding the featured careers and Oxbridge admissions was extremely detailed relative to other events I’ve attended which just gave me the ‘basics’. This opportunity provided me with everything and more I needed to know about future prospects. I’ve even begun to consider a career in finance which didn’t exist before.',
-      author: 'Aiya O.',
+      author: 'Aiya',
+      fullName: 'Aiya Okasha',
+      email: 'aiyaokasha4@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 18:42:17',
     },
     {
       text: 'Overall, the panellists at Starting Point were very high performing individuals, and their experience was very valuable to me in terms of networking skills, A-Levels, Consulting and Finance. More specifically, I liked the outlook people like Favour and Ania provided . The mock interviews for both Oxbridge and IB provided me with a sort of “model answer”. It’ll make me more confident when I’m applying in the future. I liked the insights we got into their success like how to use AI & breaking down studying into three steps. Overall the people were just aweosme and I can’t believe I got to network with them',
-      author: 'Tyra F.',
+      author: 'Tyra',
+      fullName: 'Tyra Ferreira De Araujo',
+      email: 'tyra.ferreiradearaujo@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:58:27',
     },
@@ -242,56 +258,72 @@ export const dataset: EventFeedbackDataset = {
   constructive: [
     {
       text: 'I understand the circumstances around the difficulties in organising. Perhaps in future you could divide the room into stations with one mentor at each. E.g middle room a row of consulting mentors, back of room finance etc. This will hasten the process and prevent the buildup of people at the front after every talk\n\nAdditionally, interactiveness and individual contribution for some was poor. In order to get a higher proportion of people actively involved perhaps incorporate focus groups etc., so people can perhaps make stronger connections with one mentor and group rather than connections with everyone. \n\nFinally, perhaps introduce some sort of seating plan. Ik it sounds a bit restrictive but it could prevent people from sitting just with people they know and meet people they otherwise wouldn’t go up to.\n\nLastly, I would love to have sessions with professionals further into their careers. I tend to see a lot about breaking into corporate work etc but not much about maintaining it and progressing further e.g promotions and mapping out careers - maybe some older speakers for the career longevity aspect. Also perhaps a focus on good habits and stuff outside of work - though Daniyaal touched on this in regards to his dislike towards timetabling',
-      author: 'Zain K.',
+      author: 'Zain',
+      fullName: 'Zain Khwaja',
+      email: 'zainkhw9002@gmail.com',
       context: 'Future event idea',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 23:47:02',
     },
     {
       text: 'The session was an incredible opportunity, and I am very grateful to have been able to attend. If I were to suggest any improvements, it would be regarding the duration of the day, as the back-to-back sessions made it a little challenging to maintain focus at times.\nI also found the session absolutely unmissable. I completely understand that the venue change was a last-minute adjustment, but it might be helpful in the future to have confirmation of participants’ places included in the programme, even if the venue or event is to be confirmed. Receiving the last-minute notice that I was on the programme made it difficult to make time for the event, as I had to rearrange work commitments and this caused some trouble with my workplace.\nOverall, thank you again. I really enjoyed the programme and found it highly valuable',
-      author: 'Skandaja K.',
+      author: 'Skandaja',
+      fullName: 'Skandaja Kalakota',
+      email: 'skandajakalakota@gmail.com',
       context: 'Liked least',
       consent: 'first_name',
       sourceTimestamp: '9/28/2025 17:17:46',
     },
     {
       text: 'I think it would be really valuable to include panel discussions where both university students and degree-apprenticeship students share their real experiences, as this would give a balanced view of the different routes and help us better understand which might suit our own goals. It would also be inspiring to hear from professionals working in emerging industries such as AI, sustainability and green energy, since these are shaping the future job market and could spark interest in areas we may not have considered before. Finally, I believe it’s important to hear from people who have overcome barriers e.g., first-generation students or women in STEM, because their stories provide encouragement and practical advice for those who might be facing similar challenges.',
-      author: 'Aima R.',
+      author: 'Aima',
+      fullName: 'Aima Rafiq',
+      email: '19a.rafiq@gmail.com',
       context: 'Future event idea',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 22:00:53',
     },
     {
       text: 'I thought the law and consulting panel lacked structure. As an individual who isn’t as captivated by these careers as opposed to finance I found it more challenging to follow as it felt like the speakers moving across different topics and blurting their thoughts out. While the advice given was still invaluable, perhaps a more detailed example delving into what their roles entail would have been more engaging or some of the students to truly gain an insight. For example, during the law panel they could have explained a case they were working on and showcased some of the things a barrister would say in a live case.',
-      author: 'Kyle M.',
+      author: 'Kyle',
+      fullName: 'Kyle Man',
+      email: 'kyleman.km2007@gmail.com',
       context: 'Liked least',
       consent: 'first_name',
       sourceTimestamp: '9/29/2025 0:10:20',
     },
     {
       text: 'I think one of the most enjoyable parts of the day was networking with students our age. At times I felt like time was limited to truly get into insightful conversations with as many people as we would have liked. The provision of lunch on site would have been a great opportunity to encourage students to use the time to further develop connections. In addition, the panelist’s could have spent more time engaging with all the individuals who had questions, alleviating the long queues that we all experienced when wanting to ask questions. Apologies if this is too ambitious of a suggestion.',
-      author: 'Kyle M.',
+      author: 'Kyle',
+      fullName: 'Kyle Man',
+      email: 'kyleman.km2007@gmail.com',
       context: 'Future event idea',
       consent: 'first_name',
       sourceTimestamp: '9/29/2025 0:10:20',
     },
     {
       text: 'One thing I do not like is the lack of social interaction and exposure.I spent most of my time learning and absorbing instead of truely making myself venerable and get out my comfort zone as it is very easy to sit in the back and have your attention wan away.Also many points seemed to be repeated and not very distinct and I feel like slideshows and pictures and more links would be loads better aswell and maybe even videos,even if they are short clips from other valuable insights people want to share that they can’t verbally in person or tangibly.',
-      author: 'Aaban H.',
+      author: 'Aaban',
+      fullName: 'Aaban Hashmat',
+      email: 'aabanhashmat@gmail.com',
       context: 'Liked least',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:45:01',
     },
     {
       text: 'Personally, I don\'t study any of the alevels that the panelists studied, I can understand how the session was useful for others since most of the students here do study the same subjects as them, but it just wasn\'t quite relevant for me. Also, it was nice to hear the law students\' experiences but I don\'t wish to study law, so maybe consider doing separate workshops for students to attend at rhe same event (this would obvi be a bit difficult due to venue space and costs etc, but where possible it would be really beneficial)',
-      author: 'Amena L.',
+      author: 'Amena',
+      fullName: 'Amena Lala Gul',
+      email: 'amenalalagul@gmail.com',
       context: 'Liked least',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:48:29',
     },
     {
       text: 'Personally, the law talk was the least useful to me for a plethora of reasons. Mainly because I don’t see myself working in this sector in the future, the reason being, law seems to be tailored to those with extensive literacy skills and debating prowess. Having done the ethics cup and trying my best, it’s evident my debating skills are lacking in a degree I hadn’t prepared for. And hence a career in that would be an ineffective use of my mental and Human Resources I have to offer to the job market.',
-      author: 'Kyro H.',
+      author: 'Kyro',
+      fullName: 'Kyro Hayter',
+      email: 'kyroh84@gmail.com',
       context: 'Liked least',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:47:20',
@@ -300,51 +332,168 @@ export const dataset: EventFeedbackDataset = {
   growth: [
     {
       text: 'I believe that Starting Point has helped me to welcome the opportunity to discover more about finance. Although I am in year 13 and thought my head was set with Dentistry I realised even after having done my UCAT in summer that dentistry does not align with my interest of building long term wealth and being able to nurture my interest in technology, innovation and learning about how investment banking operates. I cannot stress the importance of attending these events. Speaking to people around me they told me that it was too late to switch courses but Starting Point has reassured me to go for what I want. Now I feel confident to take a gap year if I feel as though I need. Thank you on behalf of everyone - we cannot thank you enough for your selflessness and your hard work truly does not go unnoticed.',
-      author: 'Rakshiha M.',
+      author: 'Rakshiha',
+      fullName: 'Rakshiha Mohan',
+      email: 'rakshihamohan1@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:49:21',
     },
     {
       text: 'I go to one of the best private schools in the country and a lot of my family have gone to top universities,  however I still found this event extremely beneficial and necessary . I’m the sort of person that you would expect wouldn’t need any help in terms of universities and future careers but I’ve still learned a lot today , gained new perspectives and made new friends . Most of all I feel very inspired by the people in the room and this has only driven me to strive even harder to go to a top university and succeed in order to remain in the same circles of inspirational people like this .',
-      author: 'Chloe L.',
+      author: 'Chloe',
+      fullName: 'Chloe Lukama',
+      email: 'clukama@st-marys-ascot.co.uk',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:41:43',
     },
     {
       text: 'My experience here at starting point has been a huge eye opener, not only for the panels and talks about finance, oxbridge etc but also HOW to communicate with other people, how to network and actually implementing that with the other students and talkers attending this event. I will be recommending this to many of my peers. Thank you very much.',
-      author: 'Senul W.',
+      author: 'Senul',
+      fullName: 'Senul Weerasinghe',
+      email: '20weerasinghes@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:44:59',
     },
     {
       text: 'The insightful and empowering words of such smart and intellectual individuals inspired me to embrace my love for finance and take the next steps forward with my head held high. The specific words of Favour that resonated with me and that I will take with me into my future prospers are  “You go further together than you do alone.”',
-      author: 'Stefani T.',
+      author: 'Stefani',
+      fullName: 'Stefani Teneva',
+      email: 'stef4ni.teneva@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:44:21',
     },
     {
       text: 'I really enjoyed starting point 2025 as it broadened my understanding of different fields such as law and consultancy. It taught me that there are different routes to go into different careers which schools dont really teach. It really changed my viewpoint on a gap year and has encouraged me to connect more and attend events',
-      author: 'Ahad H.',
+      author: 'Ahad',
+      fullName: 'Ahad Hashmi',
+      email: 'ahadhashmi798@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:45:23',
     },
     {
       text: 'Starting Point definitely opened my horizons. I came looking for finance and now am considering consulting and maybe taking a gap year. It definitely gave me a good overview and outlook on my future and provided me with useful resources and websites for me to use to revise for A-Levels and search for future opportunities.',
-      author: 'Sam J.',
+      author: 'Sam',
+      fullName: 'Sam Jaramillo',
+      email: 'samjaramillo09@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:42:53',
     },
     {
       text: 'i feel well informed about all my available options, and have opened doors to new career paths i didnt know i was interested in. the experts insights were really helpful',
-      author: 'karola a.',
+      author: 'Karola',
+      fullName: 'Karola Amariutei',
+      email: 'karola.ata382@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '9/27/2025 17:40:47',
+    },
+  ],
+  postableQuotes: [
+    {
+      text: 'I really liked the social skills aspect [of Starting Point] — it\'s something which is not talked about enough and can be a make or break in nearly all interviews.',
+      author: 'Rayyan',
+      fullName: 'Rayyan Qureshi',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '9/29/2025 8:41:54',
+      originalText: 'I really enjoyed starting point\nIt helped me connected with very acdemically focused people who were trying to reach the same places as i am. I made a lot of friends and we even created a cambridge groupchat were people have been posting lots of docs relating to getting into Cambridge!\nRegarding the event itself\nI really enjoyed learning about how the pannelists, (especially the investment bankers!) got to where they are today and the potential hidden downsides of their jobs such as the 80 hour work weeks.\nFurthermore i really liked the social skills aspects, its something which is not talked about enough and can be a make or break in nearly all interviews.\nFinally Daniyaals interview at goldman sachs! It was really interesting- i liked how we were aboe to see firsthand what an interview is like, and how he was able to break down the questions and control the interview, as well as making the interview seem almost effortless (except for that outrageous maths questionðð)\nThanks very much for the opportunity \nRayyan Qureshi',
+    },
+    {
+      text: 'Hearing from people with lived experience — rather than endlessly searching on Google — has really helped me gain clarity into what I may be potentially interested in.',
+      author: 'Aima',
+      fullName: 'Aima Rafiq',
+      audienceTag: 'Year 12',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 22:00:53',
+      originalText: 'It was a great event! Starting Point was my first in-person event and as a Year 12 looking to attend many insight days and exploring a multitude of extracurriculars, the day felt like a brilliant way to get the ball rolling. Not only was it super helpful in helping me make informed choices about potential career prospects, hearing from people with lived experience (rather than endlessly searching the on Google) has really helped me gain clarity into what I may be potentially interested in. In the short-term, the event was a great opportunity for me to introduce myself to like-minded individuals, teaching me how to confront and overcome initial nerves in regards to networking and how simple networking can be. As Ania said, âbe interested, not interestingâ, which I definitely put at the front of a lot of my discussions, and proved very successful.',
+    },
+    {
+      text: 'Speaking to people around me, they told me that it was too late to switch courses, but [Starting Point] has reassured me to go for what I want. Now I feel confident to take a gap year if I feel as though I need [to].',
+      author: 'Rakshiha',
+      fullName: 'Rakshiha Mohan',
+      audienceTag: 'Year 13',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:49:21',
+      originalText: 'I believe that Starting Point has helped me to welcome the opportunity to discover more about finance. Although I am in year 13 and thought my head was set with Dentistry I realised even after having done my UCAT in summer that dentistry does not align with my interest of building long term wealth and being able to nurture my interest in technology, innovation and learning about how investment banking operates. I cannot stress the importance of attending these events. Speaking to people around me they told me that it was too late to switch courses but Starting Point has reassured me to go for what I want. Now I feel confident to take a gap year if I feel as though I need. Thank you on behalf of everyone - we cannot thank you enough for your selflessness and your hard work truly does not go unnoticed.',
+    },
+    {
+      text: 'It was a spectacular confidence boost. I\'m leaving more confident than I came, and without the lingering feelings of imposter syndrome.',
+      author: 'Abdul',
+      fullName: 'Abdul Ahmed',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:45:53',
+      originalText: 'Truly this was such an insightful event, being my first ever networking event, I had no clue what really to expect but all organisers and panelists were beyond helpful, insightful and knowledgeable about their sectors and just wider environments. Each panelist was a delight to speak to and managed to perfectly tailor their responses to each of my questions in a way that was easily digestible for me. It was a spectacular confidence boost and im leaving more confident than I came and without the lingering feelings of imposter syndrome. It was event that didnt feel rigid and atoic but instead was dynamic interactive and engaging. So much gratitude for everyone that pulled through today! :-)',
+    },
+    {
+      text: 'The selected cohort was truly amazing, and it gave a rare opportunity to talk to so many like-minded individuals. Everyone I spoke to was willing to engage and share their advice.',
+      author: 'Kyle',
+      fullName: 'Kyle Man',
+      consent: 'first_name',
+      sourceTimestamp: '9/29/2025 0:10:20',
+      originalText: 'Starting point truly captivated me from the start. As someone whoâs been an avid consumer of the-called study-tok content for some time, I was excited from the start to have the opportunity to engage with individuals who were clearly knowledgable in their fields. The event truly delivered, I think the structure was well curated, catering well to all the questions a typical student may have. The selected cohort was truly amazing, and it gave a rare opportunity to talk to so many like minded individuals. Everyone I spoke to was willing to engage and share their advice. Thank you for running the event and I hope my suggestions are constructive to improving the next one :D',
+    },
+    {
+      text: '[Starting Point] provided me with everything and more I needed to know about future prospects. I\'ve even begun to consider a career in finance which didn\'t exist before.',
+      author: 'Aiya',
+      fullName: 'Aiya Okasha',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 18:42:17',
+      originalText: 'Starting Point 2025 was an amazingly set-up event. The constant chiming in of panellists, university students as well as current students like me meant that not only did I develop a well-rounded understanding of career prospects and Oxbridge but I shared and engaged with people my age and those sitting beside me. Also, the information we were given regarding the featured careers and Oxbridge admissions was extremely detailed relative to other events Iâve attended which just gave me the âbasicsâ. This opportunity provided me with everything and more I needed to know about future prospects. Iâve even begun to consider a career in finance which didnât exist before.',
+    },
+    {
+      text: 'I go to one of the best private schools in the country and a lot of my family have gone to top universities — however I still found this event extremely beneficial and necessary.',
+      author: 'Chloe',
+      fullName: 'Chloe Lukama',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:41:43',
+      originalText: 'I go to one of the best private schools in the country and a lot of my family have gone to top universities,  however I still found this event extremely beneficial and necessary . Iâm the sort of person that you would expect wouldnât need any help in terms of universities and future careers but Iâve still learned a lot today , gained new perspectives and made new friends . Most of all I feel very inspired by the people in the room and this has only driven me to strive even harder to go to a top university and succeed in order to remain in the same circles of inspirational people like this .',
+    },
+    {
+      text: 'My experience here at Starting Point has been a huge eye opener — not only for the panels and talks about finance, Oxbridge etc but also HOW to communicate with other people.',
+      author: 'Senul',
+      fullName: 'Senul Weerasinghe',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:44:59',
+      originalText: 'My experience here at starting point has been a huge eye opener, not only for the panels and talks about finance, oxbridge etc but also HOW to communicate with other people, how to network and actually implementing that with the other students and talkers attending this event. I will be recommending this to many of my peers. Thank you very much.',
+    },
+    {
+      text: 'The insightful and empowering words of such smart and intellectual individuals inspired me to embrace my love for finance and take the next steps forward with my head held high.',
+      author: 'Stefani',
+      fullName: 'Stefani Teneva',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:44:21',
+      originalText: 'The insightful and empowering words of such smart and intellectual individuals inspired me to embrace my love for finance and take the next steps forward with my head held high. The specific words of Favour that resonated with me and that I will take with me into my future prospers are  âYou go further together than you do alone.â',
+    },
+    {
+      text: 'Starting Point definitely opened my horizons. I came looking for finance and now am considering consulting and maybe taking a gap year.',
+      author: 'Sam',
+      fullName: 'Sam Jaramillo',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:42:53',
+      originalText: 'Starting Point definitely opened my horizons. I came looking for finance and now am considering consulting and maybe taking a gap year. It definitely gave me a good overview and outlook on my future and provided me with useful resources and websites for me to use to revise for A-Levels and search for future opportunities.',
+    },
+    {
+      text: 'I feel well informed about all my available options, and have opened doors to new career paths I didn\'t know I was interested in.',
+      author: 'Karola',
+      fullName: 'Karola Amariutei',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:40:47',
+      originalText: 'i feel well informed about all my available options, and have opened doors to new career paths i didnt know i was interested in. the experts insights were really helpful',
+    },
+    {
+      text: '[Starting Point] really changed my viewpoint on a gap year and has encouraged me to connect more and attend events.',
+      author: 'Ahad',
+      fullName: 'Ahad Hashmi',
+      consent: 'first_name',
+      sourceTimestamp: '9/27/2025 17:45:23',
+      originalText: 'I really enjoyed starting point 2025 as it broadened my understanding of different fields such as law and consultancy. It taught me that there are different routes to go into different careers which schools dont really teach. It really changed my viewpoint on a gap year and has encouraged me to connect more and attend events',
     },
   ],
   appendix: [
     {
       timestamp: '9/27/2025 17:37:56',
-      name: 'casian t.',
+      name: 'Casian',
+      fullName: 'Casian Tegzes',
+      email: 'bradohio10@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'revision sources for ecobomics and fm',
@@ -355,7 +504,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:38:31',
-      name: 'Zelal A.',
+      name: 'Zelal',
+      fullName: 'Zelal Albay',
+      email: 'zelalalbay22@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Put yourself out there and talk to people',
@@ -366,7 +517,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:39:06',
-      name: 'Steven P.',
+      name: 'Steven',
+      fullName: 'Steven Park',
+      email: 'jspark8088@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Find mentors, have an abundance mindset, and take action',
@@ -377,7 +530,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:40:07',
-      name: 'Aahana H.',
+      name: 'Aahana',
+      fullName: 'Aahana Hosabettu',
+      email: 'aahanah10@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Be interested not interesting',
@@ -388,7 +543,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:40:36',
-      name: 'Harris H.',
+      name: 'Harris',
+      fullName: 'Harris Haque',
+      email: 'harrisjh08@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The power of a strong network',
@@ -399,7 +556,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:40:42',
-      name: 'Hamza A.',
+      name: 'Hamza',
+      fullName: 'Hamza Ahmed',
+      email: '17hamzaahmed@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'oxbridge interview and admission tests',
@@ -410,7 +569,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:40:47',
-      name: 'Dawud H.',
+      name: 'Dawud',
+      fullName: 'Dawud Husayn',
+      email: 'dawud.husayn@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The tips on the how to answer question and the feedback live mock interview',
@@ -421,7 +582,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:40:47',
-      name: 'karola a.',
+      name: 'Karola',
+      fullName: 'Karola Amariutei',
+      email: 'karola.ata382@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'personal experiences shared from experts',
@@ -432,7 +595,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:40:57',
-      name: 'Heming J.',
+      name: 'Heming',
+      fullName: 'Heming Jiang',
+      email: 'hemingjiang2102@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I liked how the speakers encouraged people to put themselves out there and use their voice',
@@ -443,7 +608,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:40:57',
-      name: 'Ishan S.',
+      name: 'Ishan',
+      fullName: 'Ishan Shinde',
+      email: 'ishanshinde30@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The panelists were all very well qualified.',
@@ -454,7 +621,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:05',
-      name: 'Chloe C.',
+      name: 'Chloe',
+      fullName: 'Chloe Christo',
+      email: 'chloe2927@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The importance of having connections rather than seeing them as competition',
@@ -464,7 +633,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:07',
-      name: 'Veer J.',
+      name: 'Veer',
+      fullName: 'Veer Jain',
+      email: 'veermohanjain@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I came into Starting point wanting to learn about the finance market. However, the most useful part for me was how to network properly and efficiently.',
@@ -475,7 +646,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:14',
-      name: 'Jinan N.',
+      name: 'Jinan',
+      fullName: 'Jinan Nasser',
+      email: 'jinannasser.8@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That there is an opportunity for everyone and it’s never too late to start building your future.',
@@ -486,7 +659,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:25',
-      name: 'Augusta M.',
+      name: 'Augusta',
+      fullName: 'Augusta Mais-Harding',
+      email: 'a.maisharding@outlook.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That networking skills are important and are applicable to and beneficial in every kind of career',
@@ -497,7 +672,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:25',
-      name: 'Moyinoluwa O.',
+      name: 'Moyinoluwa',
+      fullName: 'Moyinoluwa Ogunsakin',
+      email: 'techie_riffle_0f@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Always be more interested than interesting',
@@ -508,7 +685,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:29',
-      name: 'Isfak U.',
+      name: 'Isfak',
+      fullName: 'Isfak Uzzaman',
+      email: 'isfak7668@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I’m not alone in my future pathway and there’s many opportunities, liked minded people and seniors who want to help me and there’s so many resources at my disposal',
@@ -519,7 +698,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:43',
-      name: 'Chloe L.',
+      name: 'Chloe',
+      fullName: 'Chloe Lukama',
+      email: 'clukama@st-marys-ascot.co.uk',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That no matter what setbacks I might experience and if things don’t go totally to plan , I can still be successful and ultimately be at where I want to be in life .',
@@ -530,7 +711,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:47',
-      name: 'Ryden O.',
+      name: 'Ryden',
+      fullName: "Ryden O'Brien-Kingston",
+      email: 'rydenobrienkingston182@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'It isn\'t about where you start, it is about where you finish as well as it is more important to be interested than to be interesting-that inspired me and made me reflect on myself being a very talkative person. It\'s made me want to try and listen and hear about others unique experiences.',
@@ -541,7 +724,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:41:55',
-      name: 'Shoime R.',
+      name: 'Shoime',
+      fullName: 'Shoime Roy',
+      email: 'shoime_roy@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I loved the part about being interested rather than interesting because it’s what allows networking to facilitate smoothly rather than awkward silence.',
@@ -552,7 +737,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:15',
-      name: 'Abel A.',
+      name: 'Abel',
+      fullName: 'Abel Adam',
+      email: 'abeladam.098@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I loved hearing from professionals in corporate roles and how they got there; I was able to ask questions that I wouldn’t normally be able to ask.',
@@ -563,7 +750,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:24',
-      name: 'Burhan S.',
+      name: 'Burhan',
+      fullName: 'Burhan Syed',
+      email: 'bsm123burhan@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'All the amazing advice given by the speakers on networking and meeting new people, which I was able to apply right away on the day and meet some great new people with similar aspirations.',
@@ -574,7 +763,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:26',
-      name: 'Rory K.',
+      name: 'Rory',
+      fullName: 'Rory Keller',
+      email: 'rorykeller09@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Interview prep - hearing the mock interviews and personal tips and experiences really made this day for me. Knowing the technique of structuring answers and formatting what you are saying',
@@ -585,7 +776,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:40',
-      name: 'Wasi K.',
+      name: 'Wasi',
+      fullName: 'Wasi Khan',
+      email: 'wasi2309khan@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'It doesn’t matter where you start. It only matters where you finish. Careers insights into pathways that I didn’t know much about. The multitude of different ways how people reached the same careers.',
@@ -596,7 +789,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:41',
-      name: 'Wilson X.',
+      name: 'Wilson',
+      fullName: 'Wilson Xu',
+      email: 'wilson23151811@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The importance of networking, something I hadn’t considered vital before as I was more focused on personal success',
@@ -607,7 +802,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:42',
-      name: 'Cullin P.',
+      name: 'Cullin',
+      fullName: 'Cullin Pangilinan',
+      email: 'cullinwork08@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Meeting like-minded people who are all striving and competing to become the best of the best.',
@@ -618,7 +815,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:44',
-      name: 'Jeremy C.',
+      name: 'Jeremy',
+      fullName: 'Jeremy Cheung',
+      email: 'jeremycheung2007@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The potential value of a gap year',
@@ -629,7 +828,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:49',
-      name: 'Rayyan A.',
+      name: 'Rayyan',
+      fullName: 'Rayyan Ahmed',
+      email: 'ahmedrayyan2345@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That A levels aren’t the be all or end all and even if you don’t get into your university of choice, you can still be successful. I mostly saw this from God’s Favour whilst facing two hard challenges, he still carried on chasing his aspirations in investment banking and secured 9 spring weeks.',
@@ -640,7 +841,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:53',
-      name: 'Sam J.',
+      name: 'Sam',
+      fullName: 'Sam Jaramillo',
+      email: 'samjaramillo09@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The fact that we had to sit through every panel allowed all of us to have the opportunity to explore different careers. Some people may be closed off to certain careers but this opened the doors once again.',
@@ -651,7 +854,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:42:56',
-      name: 'Elia N.',
+      name: 'Elia',
+      fullName: 'Elia Nadeem',
+      email: 'elianadeem2020@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Connecting with people is key in order to get more opportunities. “You network is you net-worth”. And to always explore industries you might not necessary might what to go into because it’s a never linear pathway.',
@@ -662,7 +867,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:43:00',
-      name: 'Kelly T.',
+      name: 'Kelly',
+      fullName: 'Kelly Tu',
+      email: 'tukelly9@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That even when faced with rejection, there may be a better outcome awaiting you. Rejection is not the end point but a new starting point',
@@ -673,7 +880,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:43:04',
-      name: 'William G.',
+      name: 'William',
+      fullName: 'William Gyamfi',
+      email: 'gyamfi08@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': '- Networking with high achieving individuals \n- The Q&A Segments of each panel\n- Opportunities to directly involve myself in the programs\n- Seeing so many different paths to achieve similar endpoints \n- Having the ability to speak to panelists',
@@ -684,7 +893,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:43:09',
-      name: 'Jimi O.',
+      name: 'Jimi',
+      fullName: 'Jimi Olunloyo',
+      email: 'olunloyoji@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The resources like Anki and',
@@ -695,7 +906,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:43:18',
-      name: 'Sheza A.',
+      name: 'Sheza',
+      fullName: 'Sheza Ali',
+      email: 'shezaali365@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Genuinely a really insightful programme, and I was able to connect with so many new people. Great networking event, highlights recommend!!',
@@ -706,7 +919,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:43:29',
-      name: 'Joseph S.',
+      name: 'Joseph',
+      fullName: 'Joseph Samson',
+      email: 'josephbsamson1@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'There are many piers, mentors, and like-minded individuals who would love to support my journey through A levels, Universities, and many other pathway plans. The speakers were all very enthusiastic and were constantly reminding us about the importance of certain points.',
@@ -717,7 +932,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:43:52',
-      name: 'Mohammad K.',
+      name: 'Mohammad',
+      fullName: 'Mohammad Kadum',
+      email: 'mohammadkadum22@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'It is not the end of the world if a levels do not go as planned, gap years, resits, degree apprenticeships are all viable alternatives',
@@ -728,7 +945,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:43:57',
-      name: 'Khishmeet D.',
+      name: 'Khishmeet',
+      fullName: 'Khishmeet Dhawan',
+      email: 'khishmeet6@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The guidance to be unique so that you can stand out and pursue something rigorous at university whilst linking it to something you enjoy doing, especially Ife, his advice was very useful.',
@@ -738,7 +957,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:01',
-      name: 'maria z.',
+      name: 'Maria',
+      fullName: 'Maria Zarubina',
+      email: 'maryzaru73@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That networking sometimes does mean stepping out of your comfort zone, even if you don’t want to, connections are made through communication.\nIt is important to be more interested than interesting, since people would prefer more to give you a favor if you are genuinely curious about the subject',
@@ -749,7 +970,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:09',
-      name: 'Aditya M.',
+      name: 'Aditya',
+      fullName: 'Aditya Mehta',
+      email: 'adityamehta0408@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Be interested more than interesting',
@@ -760,7 +983,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:14',
-      name: 'Alisa S.',
+      name: 'Alisa',
+      fullName: 'Alisa Safina',
+      email: 'asafina369@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I really liked the intensity and purposefulness of the A Level/Oxbridge panel. They really knew their stuff and hearing about the steps they took at our age was most vital.',
@@ -771,7 +996,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:21',
-      name: 'Stefani T.',
+      name: 'Stefani',
+      fullName: 'Stefani Teneva',
+      email: 'stef4ni.teneva@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The networking panel specifically resonated with me as I could see myself in each of the speakers but I could also see what I want my future self to be like as I take my first steps into the world of finance. I also really enjoyed the warm and welcoming atmosphere which made me feel confident to step outside of my comfort zone and socialise with other people with similar interests to me.',
@@ -782,7 +1009,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:28',
-      name: 'Dylan B.',
+      name: 'Dylan',
+      fullName: 'Dylan Boateng',
+      email: 'dkboateng14@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway was GodsFavours’ comments on how everybody has their own path, and how gate keeping and comparison are very short term mindset approaches and are not beneficial in the long run.',
@@ -793,7 +1022,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:39',
-      name: 'Dafina A.',
+      name: 'Dafina',
+      fullName: 'Dafina Aliu',
+      email: 'dafinaaliu999@outlook.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That you can restructure interviews to your advantage, and unfamiliar territory can become familiar if you know how to manipulate the questions given.',
@@ -804,7 +1035,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:40',
-      name: 'Adam D.',
+      name: 'Adam',
+      fullName: 'Adam Dar',
+      email: 'adam.f.dar@outlook.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The importance of a mentor and other people who were in your position x amount of years ago, who are currently in a position you want to see yourself by their age',
@@ -815,7 +1048,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:40',
-      name: 'Josie M.',
+      name: 'Josie',
+      fullName: 'Josie Mensah',
+      email: 'josiemensah@email.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'That it is possible for people without any connections and little experience to still be able to strive for what I’m interested in.',
@@ -826,7 +1061,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:43',
-      name: 'Sophia W.',
+      name: 'Sophia',
+      fullName: 'Sophia Wang',
+      email: 'sophiawang6609@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'In the Networking and People skills panel, Ania mentioned how you should always be more interested than interesting. This was really helpful as it gave me a direction as to how to network, as opposed to the awkward introductions that usually happen.',
@@ -837,7 +1074,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:45',
-      name: 'lucas m.',
+      name: 'Lucas',
+      fullName: 'Lucas Marshall',
+      email: 'lucaskaimarshall@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'hearing from a diverse range of people getting different perspectives on the corporate world.',
@@ -848,7 +1087,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:47',
-      name: 'Rashi V.',
+      name: 'Rashi',
+      fullName: 'Rashi Vyas',
+      email: 'rashivyas157@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'networking tips. all about how to start approaching people and why that is the basis of many different industries. finding out that other people have been in awkward situations aswell, which makes me feel included/not left out.',
@@ -858,7 +1099,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:51',
-      name: 'Arya S.',
+      name: 'Arya',
+      fullName: 'Arya Shah',
+      email: 'aryashah4879@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Understanding the importance of networking for a finance career. \nAs well as developing skills which are needed for the Oxbridge Process.\nOverall my favourite takeaway of Starting Point was the mock interviews and elevator interviews.',
@@ -868,7 +1111,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:51',
-      name: 'Rania C.',
+      name: 'Rania',
+      fullName: 'Rania Chanane',
+      email: 'raniachanane0@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'i enjoyed being exposed to different career types, understanding the university process as well as the options open to you- particularly taking an intentional gap year',
@@ -879,7 +1124,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:44:59',
-      name: 'Senul W.',
+      name: 'Senul',
+      fullName: 'Senul Weerasinghe',
+      email: '20weerasinghes@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The methods within writing a good personal statement such as implementing personal details while also linking them to the actual degree you are pursuing, instead of blatantly stating things you have done.',
@@ -890,7 +1137,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:01',
-      name: 'Aaban H.',
+      name: 'Aaban',
+      fullName: 'Aaban Hashmat',
+      email: 'aabanhashmat@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I like the diverse range of experiences shared by a variety of people from different corporate backgrounds offering knowledge to everyone and anyone.It is clear cut to work hard and the panelist’s helped dissolve many misconceptions and helped us all discover many opportunities that are more hidden especially from people of different socioeconomic backgrounds.Also finally the advice is real and unfiltered and helped make us all feel comftable by really diving into the nitty gritty and informalities but still maintaining professionalism,anybody and everybody could benefit from this event.',
@@ -901,7 +1150,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:06',
-      name: 'Sekemi A.',
+      name: 'Sekemi',
+      fullName: 'Sekemi Adeyemi',
+      email: 'sekemi008@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'In terms of networking skills, all of the advise was so useful however being more interested, than interesting as I feel sometimes I can get too carried away trying to sell myself to who I’m interested in connecting with so making the conscious effort to show that was great advise. In addition learning from the a-level panel was extremely useful as that is the position I’m currently in and I’m trying to adjust to sixth form life. Thankfully one of the panelist’s Jade actually went to my sixth form so speaking to her about school specific challenges was extremely helpful.Also that anki basically holds the fate of my a-levels🤣🤣',
@@ -912,7 +1163,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:10',
-      name: 'Edward N.',
+      name: 'Edward',
+      fullName: 'Edward Nayler',
+      email: 'edward.nayler@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'God’sFavour’s advice surrounding networking. It really changed my understanding of networking.',
@@ -923,7 +1176,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:23',
-      name: 'Vidhi S.',
+      name: 'Vidhi',
+      fullName: 'Vidhi Shah',
+      email: 'vidhiashah159@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The new ways of networking that I wasn\'t previously confident with, and a deeper understanding into the actual criteria for interviewers and how to meet these efficiently.',
@@ -934,7 +1189,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:23',
-      name: 'Ahad H.',
+      name: 'Ahad',
+      fullName: 'Ahad Hashmi',
+      email: 'ahadhashmi798@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': '. how to go about interviews in a STEM and a humanities form\n. the benefits and drawbacks of each sector such as investment banking, consultancy and law \n. the different types of law and consultancy and the different routes to work in these sectors, since before i thought that there was only 1 route to consultancy (economics) and 1 route to law (law)\n. the ways you can go about cold emailing and making yourself known to peers and firms, allowing us to benefit from connections\n. realistic revision strategies that arent just flashcards and blurting',
@@ -945,7 +1202,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:32',
-      name: 'Roxy C.',
+      name: 'Roxy',
+      fullName: 'Roxy Chaban',
+      email: 'roxolanachaban@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'be more interested than interesting',
@@ -956,7 +1215,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:36',
-      name: 'Anson S.',
+      name: 'Anson',
+      fullName: 'Anson Shine',
+      email: 'ansonshine316@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The way you phrase your experiences is extremely important',
@@ -967,7 +1228,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:40',
-      name: 'Salma E.',
+      name: 'Salma',
+      fullName: 'Salma El-Amin',
+      email: 'salmaoelamin@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway from the starting point is quite a difficult one as I have truly learned a lot and I would lie if I said I would only pick one but if I had to it\'s probably that in order to achieve great things you need to go that one extra mile and step out of your comfort zone in order to fulfill your full potential and to make that extra effort to meet new people as the saying goes your network is your network.',
@@ -978,7 +1241,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:42',
-      name: 'Elijah M.',
+      name: 'Elijah',
+      fullName: 'Elijah Mark',
+      email: 'elijahmark2008@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The idea that not all pathways are linear, everyone has their own path.',
@@ -989,7 +1254,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:45:53',
-      name: 'Abdul A.',
+      name: 'Abdul',
+      fullName: 'Abdul Ahmed',
+      email: 'abdul.ahmed0109@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'No matter what sector you want to go into all that matters is the effort that you yourself put in because no one else is going to do it for me. Be it networking or revision at the end of the day my mums not gonna do it for me daniyaals not going to do it for me. Its up to me always be more interested than interesting like ania said and as jade said to prepare practice and persist.',
@@ -1000,7 +1267,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:46:26',
-      name: 'Faiza K.',
+      name: 'Faiza',
+      fullName: 'Faiza Khanam',
+      email: 'faizakhanam09@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I really value the depth in which professionals went into today whilst discussing their career paths; the tips from the Oxbridge panel were extremely insightful, and the passion of these speakers inspired me a lot!!',
@@ -1011,7 +1280,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:46:44',
-      name: 'Anastasia P.',
+      name: 'Anastasia',
+      fullName: 'Anastasia Plamada Mint',
+      email: 'anastasiamint65@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I gained so much valuable information that will help me throughout a levels and beyond through my careers. I loved how Ania mentioned in the networking panel that you should be interested rather than interesting. Adding on to that, when God favour answered my question about mentors, I learnt the importance of asking for things straight away but forming a deep connection with others and then slowly and gradually ask for catch ups and further advice!',
@@ -1022,7 +1293,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:46:45',
-      name: 'Lydia A.',
+      name: 'Lydia',
+      fullName: 'Lydia Akande',
+      email: 'lydiaakande10@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I was able to understand how to network with other people, how socializing can get you really far. I learned the importance of using Linked In and I will be updating my profile today actually and the importance of having confidence when making connections. A quote I really liked was “always be more interested than interesting” as it seemed insightful to me in the sense that I should always work to find out more about things.',
@@ -1033,7 +1306,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:46:47',
-      name: 'Luka C.',
+      name: 'Luka',
+      fullName: 'Luka Cesnuleviciute',
+      email: 'luka.lc008@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'During the whole event, all of the panelists were very realistic and didn’t shy away from their experiences for example, Favour sharing his story about his alevels and how that dictated his gap year decision as well as Jade sharing her resources for amazing super curriculars.',
@@ -1044,7 +1319,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:47:09',
-      name: 'Freya B.',
+      name: 'Freya',
+      fullName: 'Freya Bhavnani',
+      email: 'freyabhavnani13@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The career opportunities available are so much more varied that I had previously thought - I would definitely consider consulting as a career now\nThe networking tips seem so practical and easy to implement \nThe A level revision tips and the Oxbridge tips were all really practical - I will definitely be using Anki! It was great that every body could give concrete examples of what had worked for them because we can now follow the same structures and timelines.',
@@ -1055,7 +1332,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:47:17',
-      name: 'Jiwon S.',
+      name: 'Jiwon',
+      fullName: 'Jiwon Samson',
+      email: 'jiwonsamson@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'To storytell and be personable in interviews',
@@ -1066,7 +1345,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:47:20',
-      name: 'Charlie C.',
+      name: 'Charlie',
+      fullName: 'Charlie Coombes',
+      email: 'coombescharlie09@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Just go and Experience, sometimes you can get caught up in your own life and not see all the opportunities around you and today I learnt so many practical opportunities',
@@ -1077,7 +1358,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:47:20',
-      name: 'Kyro H.',
+      name: 'Kyro',
+      fullName: 'Kyro Hayter',
+      email: 'kyroh84@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'There’s a million things I could comment on throughout the extensive knowledge shared with me today, although consulting in particular struck me surprisingly. Having not known in particular what I would do past university, starting point seemed to have shined a pathway to something I was never fully aware of. To me, consulting was presented as a bridge between problem solving and socialising/ working with people which would 1) aid my knowledge on current affairs and my ability to think critically \n2) improve my public speaking skills and networking ability.',
@@ -1088,7 +1371,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:47:46',
-      name: 'Sara T.',
+      name: 'Sara',
+      fullName: 'Sara Thomas',
+      email: 'sarathomas.01234@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The importance of networking and preparation in fields of interest, and to always push yourself outside your comfort zone so you don\'t limit any opportunities.',
@@ -1099,7 +1384,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:47:52',
-      name: 'Poppy K.',
+      name: 'Poppy',
+      fullName: 'Poppy Kirihettige',
+      email: 'pkirihettige@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': '- take the risk the first time: put yourself out there - be interested as you are interesting wether it’s cold reaching out to people or warm reaching out. Have a strong network and build long term relationships \n\n- maximising resources: e.g LinkedIn - reaching out to uni students to ask for tips for college choices / career advice / internship recommendations',
@@ -1110,7 +1397,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:48:29',
-      name: 'Amena L.',
+      name: 'Amena',
+      fullName: 'Amena Lala Gul',
+      email: 'amenalalagul@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'There was SO many gems in today\'s event, my favourite takeaways being: if you don\'t ask, your success rate is zero; a muscle breaks before it grows, and it grows back much stronger; always be more interested than interesting. Across all the sessions, I learn those key things about networking, perseverance and having some courage. Also, I absolutely loved seeing the mock interviews for both finance and oxbridge because it was so realistic and not something you see very often! Thank you🙌',
@@ -1121,7 +1410,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:49:05',
-      name: 'Vania B.',
+      name: 'Vania',
+      fullName: 'Vania Basoah',
+      email: 'basoahvania@outlook.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': '"Be interested not interesting" I think this was such a powerful takeaway because all of the panels stressed the importance of having a network and this advice from Ania and God\'sFavour gave us a great starting point (see what I did there) for striking up conversations and keeping meaningful relationships.',
@@ -1132,7 +1423,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:49:20',
-      name: 'Zara H.',
+      name: 'Zara',
+      fullName: 'Zara Haque',
+      email: 'zhaque2@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite take away is definitely the insight it provided. As my first networking event i learned the foundation of information which i need to help culminate my future career covering the key basis that I had many questions on.',
@@ -1143,7 +1436,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:49:21',
-      name: 'Rakshiha M.',
+      name: 'Rakshiha',
+      fullName: 'Rakshiha Mohan',
+      email: 'rakshihamohan1@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I loved how everyone defined success differently and no one had a linear path to where they are now- this gave me a real insight into how I can manifest in my own future by starting NOW',
@@ -1154,7 +1449,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:49:28',
-      name: 'Maria G.',
+      name: 'Maria',
+      fullName: 'Maria Gromlyuk',
+      email: 'maria.gromlyuk@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Be more interested than you are interesting',
@@ -1165,7 +1462,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:49:32',
-      name: 'Amaan U.',
+      name: 'Amaan',
+      fullName: 'Amaan Usman',
+      email: 'usman.mau86@yahoo.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'I most enjoyed the feeling of being in a community of hard-working intellectual upcoming students interested in similar fields as me - something previously extremely difficult to achieve. It allowed for deep conversations between me and others, which helped me make decisions, gain insight into future options, and overall boosted my confidence over my future career path',
@@ -1176,7 +1475,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:51:13',
-      name: 'Ekin T.',
+      name: 'Ekin',
+      fullName: 'Ekin Turan',
+      email: 'ekintr34@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway was on how to improve my networking skills and how to be able to make small talk and introduced myself quickly as well as making myself memorable for who I am talking to. I also loved learning more about investment banking and oxbridge as well as the whole application process and what to do to improve my personal statement and cv. I loved getting advice about new websites and apps I can use for active recall, work experience and mentoring.',
@@ -1187,7 +1488,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 17:58:27',
-      name: 'Tyra F.',
+      name: 'Tyra',
+      fullName: 'Tyra Ferreira De Araujo',
+      email: 'tyra.ferreiradearaujo@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': '“Be more interested than you are interesting”, and I enjoyed the mock interview from the Finance Panel, seeing how to respond & hearing the feedback- will help me for future interviews, how to use AI to your advantage',
@@ -1198,7 +1501,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 18:42:17',
-      name: 'Aiya O.',
+      name: 'Aiya',
+      fullName: 'Aiya Okasha',
+      email: 'aiyaokasha4@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Witnessing, first hand how the panellists approached the mock interviews whether that be during the Oxbridge or Finance panel was extremely helpful. My main takeaway from it was the importance of seeking clarification from the interviewer and looking at how the interviewee broke down the question, splitting their responses so that it was more understandable and succinct to the interviewer. I also really enjoyed the level of honesty from panelists. Hearing about the use of ai openly as opposed to hiding and disregarding its use in our day to day lives meant that we could have truthful conversations about ways to maximise efficiency.',
@@ -1209,7 +1514,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 19:34:00',
-      name: 'Jennifer P.',
+      name: 'Jennifer',
+      fullName: 'Jennifer Pepga',
+      email: 'jenpepga@yahoo.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'Definitely the tips about A levels. I think that coming to this event set me up to have a successful academic year in year 12 and 13. Not only the tips on revision strategies and working hours but also the work experiences available.',
@@ -1220,7 +1527,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 22:00:53',
-      name: 'Aima R.',
+      name: 'Aima',
+      fullName: 'Aima Rafiq',
+      email: '19a.rafiq@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': '‘We are not bound by time, but by mindset.’ - Jade',
@@ -1231,7 +1540,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/27/2025 23:47:02',
-      name: 'Zain K.',
+      name: 'Zain',
+      fullName: 'Zain Khwaja',
+      email: 'zainkhw9002@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway would be Favour’s spin off on cold emails - ‘hot’/‘warm’ emails. I have found no matter how many different approaches I take that cold emailing has a low success rate. Favour’s strategy is cogent in my opinion as it allows you to ‘steal’ the reputation of existing friends and connections in a constructive way to make new connections. If one is able to take advantage of this and make a good individual reputation to the  new connection it benefits yourself and the person who referred you',
@@ -1242,7 +1553,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/28/2025 9:35:36',
-      name: 'Tiffany B.',
+      name: 'Tiffany',
+      fullName: 'Tiffany Banyong',
+      email: 'tiffanybanyong@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway from Starting Point was actually the motivational words from all of the speakers. For example, Ania’s words of ‘’finding space and making space” for yourself in an environment, and Jade’s encouragement stating we are “not bound by time” but “bound by mindset”. These powerful words from the speakers today had a key role in shifting my mindset, and will all play an important part in shaping my 2 years at sixth form. Another thing I really liked was how the sessions were broken up with 10-minute breaks. These intermissions were vital to making sure we returned to each of the sessions with fresh and engaged minds, ready to take in as much information as possible from these experts. I also think it was important to paying the due respect we owe to the speakers.',
@@ -1253,7 +1566,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/28/2025 12:40:17',
-      name: 'Sophia S.',
+      name: 'Sophia',
+      fullName: 'Sophia Shahzad',
+      email: 'soph.shahzad@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The fact that there are other ways to get to the places you want to be, despite setbacks. Specifically, that hard work and resilience will get you to where you aspire to be.',
@@ -1264,7 +1579,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/28/2025 15:29:40',
-      name: 'Meer N.',
+      name: 'Meer',
+      fullName: 'Meer Nitine',
+      email: 'meern5207@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The process of interviews and tips on how to be successful, seeing a practice mock interview allowed me to see that not everything needs to be perfect. I learnt that the most important skill is the ability to story tell in interviews and in your personal statement.',
@@ -1275,7 +1592,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/28/2025 17:17:46',
-      name: 'Skandaja K.',
+      name: 'Skandaja',
+      fullName: 'Skandaja Kalakota',
+      email: 'skandajakalakota@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway would have to be the real ( and seriously human) insights that I gained during the gap year/ resits session. It was great to hear from the bright and successful panellists about how taking a gap year doesn’t have to be a disadvantage, and can actually put you in a seriously unique position.  Although I am only in year 12, it has widened my horizons in terms of the bigger picture and how everyone’s career path is different and not linear. This comfort in the uncomfortable is something I’ll take with me on my career and personal journey hereafter (from the starting point). (That and Anki!)',
@@ -1286,7 +1605,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/29/2025 0:10:20',
-      name: 'Kyle M.',
+      name: 'Kyle',
+      fullName: 'Kyle Man',
+      email: 'kyleman.km2007@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway was the importance of finding a mentor to help you guide your future career. This was something I hadn’t thought about before and I’ll be sure to utilise this advice going forward.',
@@ -1297,7 +1618,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/29/2025 7:40:50',
-      name: 'Taalay U.',
+      name: 'Taalay',
+      fullName: 'Taalay Ullah',
+      email: 'taalayuk@gmail.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway was that gap years arent always negative and for people who arent going anywhere in life and rather are people who are focused and resilient on their goals to reach target unversities.',
@@ -1308,7 +1631,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/29/2025 8:41:54',
-      name: 'Rayyan Q.',
+      name: 'Rayyan',
+      fullName: 'Rayyan Qureshi',
+      email: 'rayqures@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'My favourite takeaway was learning that the best way to engage with people was to be more interested then interesting.Especially when talking to your seniors, listening to them speak will build a better relationship with them making them much more likely to favour you over others.\nI really liked the idea of a warm approach whereby you find a mutual link to help you apply for a job or get you in connection with someone you want to meet (academically speaking!!)\nFinally Daniyaals advocation of Anki made me create flashcards for most topics in  12 chemistry (im in year 13)-and i really liked its use of space repitition.',
@@ -1319,7 +1644,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '9/30/2025 21:14:20',
-      name: 'Isabella P.',
+      name: 'Isabella',
+      fullName: 'Isabella Pagadala',
+      email: 'isabella.pagadala@icloud.com',
       consent: 'first_name',
       fields: {
         'Favourite takeaway': 'The 3 P’s as well as the general idea that A-levels really are a short term sacrifice and long term gain and that’s not something you can get away from. Also the range of places the panellists have ended up and are going - the way that can really do have the power to shape your own path.',

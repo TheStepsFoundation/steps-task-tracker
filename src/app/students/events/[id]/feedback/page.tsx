@@ -5,10 +5,12 @@ import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { eventFeedbackByEventId } from '@/data/event-feedback'
 import type {
+  Consent,
   CuratedQuote,
   EventFeedbackDataset,
   FeedbackKpi,
   FreeTextResponse,
+  PostableQuote,
   RatingBreakdown,
 } from '@/data/event-feedback/types'
 
@@ -45,6 +47,25 @@ function consentBadge(c: CuratedQuote['consent']): { label: string; className: s
     className:
       'bg-gray-100 text-gray-600 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
   }
+}
+
+/**
+ * Internal byline — always shows the staffer the FULL name, with the
+ * external display string they consented to in parentheses. For 'name'
+ * consent the two are the same, so we hide the parenthetical.
+ */
+function InternalByline({ author, fullName, consent }: { author: string; fullName: string; consent: Consent }) {
+  const same = author === fullName
+  return (
+    <span className="font-medium text-gray-700 dark:text-gray-300">
+      {fullName}
+      {!same && (
+        <span className="ml-1.5 font-normal text-gray-500 dark:text-gray-400">
+          (shares as &ldquo;{author}&rdquo;{consent === 'no' ? ' — internal only' : ''})
+        </span>
+      )}
+    </span>
+  )
 }
 
 function maxOf(counts: Record<string, number>): number {
@@ -134,7 +155,8 @@ function QuoteCard({ quote }: { quote: CuratedQuote }) {
         &ldquo;{quote.text}&rdquo;
       </blockquote>
       <figcaption className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <span className="font-medium text-gray-700 dark:text-gray-300">— {quote.author}</span>
+        <span>— </span>
+        <InternalByline author={quote.author} fullName={quote.fullName} consent={quote.consent} />
         {quote.context && (
           <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
             {quote.context}
@@ -153,13 +175,18 @@ function AppendixRow({ row }: { row: FreeTextResponse }) {
   return (
     <div className="rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3">
       <div className="flex items-center justify-between gap-2 mb-2 text-xs text-gray-500 dark:text-gray-400">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-700 dark:text-gray-300">{row.name}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide ${badge.className}`}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <InternalByline author={row.name} fullName={row.fullName || row.name} consent={row.consent} />
+          {row.email && (
+            <span className="truncate text-gray-400 dark:text-gray-500" title={row.email}>
+              · {row.email}
+            </span>
+          )}
+          <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${badge.className}`}>
             {badge.label}
           </span>
         </div>
-        <span className="tabular-nums">{row.timestamp}</span>
+        <span className="tabular-nums shrink-0">{row.timestamp}</span>
       </div>
       <dl className="space-y-1.5">
         {Object.entries(row.fields).map(([k, v]) => (
@@ -201,10 +228,70 @@ function CopyableQuote({ quote }: { quote: CuratedQuote }) {
   )
 }
 
+function PostableCard({ quote }: { quote: PostableQuote }) {
+  const [copied, setCopied] = useState(false)
+  const [showSource, setShowSource] = useState(false)
+  const badge = consentBadge(quote.consent)
+  const onCopy = async () => {
+    try {
+      const tag = quote.audienceTag ? `, ${quote.audienceTag}` : ''
+      await navigator.clipboard.writeText(`"${quote.text}" — ${quote.author}${tag}`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1400)
+    } catch {
+      /* ignore */
+    }
+  }
+  return (
+    <figure className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-white to-steps-blue-50/30 dark:from-gray-900 dark:to-steps-blue-950/20 p-5 relative group">
+      <blockquote className="font-serif italic text-base sm:text-lg leading-relaxed text-gray-800 dark:text-gray-100">
+        &ldquo;{quote.text}&rdquo;
+      </blockquote>
+      <figcaption className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <span>— </span>
+        <InternalByline author={quote.author} fullName={quote.fullName} consent={quote.consent} />
+        {quote.audienceTag && (
+          <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+            {quote.audienceTag}
+          </span>
+        )}
+        <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide ${badge.className}`}>
+          {badge.label}
+        </span>
+      </figcaption>
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onCopy}
+          className="px-2.5 py-1 text-[11px] font-medium rounded bg-steps-blue-600 hover:bg-steps-blue-700 text-white"
+          title="Copy paste-ready quote (external attribution only)"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSource((v) => !v)}
+          className="text-[11px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        >
+          {showSource ? 'Hide original ▴' : 'Show original ▾'}
+        </button>
+        {quote.sourceTimestamp && (
+          <span className="text-[11px] text-gray-400 dark:text-gray-600 ml-auto tabular-nums">{quote.sourceTimestamp}</span>
+        )}
+      </div>
+      {showSource && (
+        <div className="mt-3 rounded border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-3 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-line">
+          {quote.originalText}
+        </div>
+      )}
+    </figure>
+  )
+}
+
 // ------------------------------------------------------------
 // Page
 // ------------------------------------------------------------
-type Tab = 'curated' | 'appendix'
+type Tab = 'curated' | 'postable' | 'appendix'
 
 export default function EventFeedbackPage() {
   const params = useParams<{ id: string }>()
@@ -224,7 +311,9 @@ export default function EventFeedbackPage() {
       if (consentFilter === 'anon' && row.consent !== 'anon') return false
       if (consentFilter === 'internal' && row.consent !== 'no') return false
       if (!q) return true
-      const haystack = (row.name + ' ' + Object.values(row.fields).join(' ')).toLowerCase()
+      const haystack = (
+        row.name + ' ' + (row.fullName || '') + ' ' + (row.email || '') + ' ' + Object.values(row.fields).join(' ')
+      ).toLowerCase()
       return haystack.includes(q)
     })
   }, [dataset, appendixFilter, consentFilter])
@@ -309,7 +398,7 @@ export default function EventFeedbackPage() {
 
       {/* Tab switcher */}
       <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800">
-        {(['curated', 'appendix'] as Tab[]).map((t) => (
+        {(['curated', 'postable', 'appendix'] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -322,7 +411,9 @@ export default function EventFeedbackPage() {
           >
             {t === 'curated'
               ? `Curated quotes (${dataset.testimonials.length + dataset.constructive.length + dataset.growth.length})`
-              : `Full appendix (${dataset.appendix.length})`}
+              : t === 'postable'
+                ? `Postable quotes (${dataset.postableQuotes?.length ?? 0})`
+                : `Full appendix (${dataset.appendix.length})`}
           </button>
         ))}
       </div>
@@ -373,6 +464,28 @@ export default function EventFeedbackPage() {
         </div>
       )}
 
+      {tab === 'postable' && (
+        <div className="space-y-4">
+          <div className="rounded-md border border-steps-blue-200 dark:border-steps-blue-900/40 bg-steps-blue-50/50 dark:bg-steps-blue-950/20 p-3 text-xs text-steps-blue-900 dark:text-steps-blue-200">
+            Tightly-cropped 1–2 sentence pulls from longer responses, ready to drop into pitch
+            decks and socials. Word choices are verbatim; <code className="font-mono">[brackets]</code>
+            mark editorial clarifications. Copy uses the external attribution only — the full name
+            shown here is staff-only.
+          </div>
+          {dataset.postableQuotes && dataset.postableQuotes.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {dataset.postableQuotes.map((q) => (
+                <PostableCard key={q.text.slice(0, 40)} quote={q} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              No postable quotes curated yet for this event.
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === 'appendix' && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -399,7 +512,7 @@ export default function EventFeedbackPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredAppendix.map((row) => (
-              <AppendixRow key={row.timestamp + row.name} row={row} />
+              <AppendixRow key={row.timestamp + (row.fullName || row.name)} row={row} />
             ))}
           </div>
         </div>

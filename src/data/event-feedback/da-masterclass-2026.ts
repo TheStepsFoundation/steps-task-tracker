@@ -98,49 +98,65 @@ export const dataset: EventFeedbackDataset = {
   testimonials: [
     {
       text: 'This was genuinely a 10/10 event. Not only did we get to speak directly to degree apprentices at prestigious firms, we were given in-depth top tips and tricks on how to perform our best at interviews. The run down of different question types for both answering and asking questions was very helpful and I think can be applied to networking generally, not only in an interview. I was fortunate enough to attend The Starting Point event and now this one too, so I can confidently say that The Steps Foundation go above and beyond to provide insightful and incredibly valuable experiences that any student would benefit from. I’m extremely grateful for these opportunities and excited for future ones!!',
-      author: 'Luka C.',
+      author: 'Luka',
+      fullName: 'Luka Cesnuleviciute',
+      email: 'luka.lc008@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:45:11',
     },
     {
       text: 'I joined this Degree Apprenticeship Interview Masterclass to help me through current apprenticeship applications that I am applying to and was amazed at how beneficial it was! The structure was very well planned out - one thing in particular I found useful, was the example of each tip, e.g. an example of the STAR method - this really helped me in understanding how I can use this strategy in future to help me get further in my applications. Thank you so much!',
-      author: 'Francesca B.',
+      author: 'Francesca',
+      fullName: 'Francesca Burke',
+      email: 'fburke68@icloud.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:29:39',
     },
     {
       text: 'This interview masterclass was so insightful and I gained guidance on how to answer questions and what type of questions I can ask interviewers. Jin and Favour shared many useful tips and I would definitely recommend this to other aspiring apprentices. The breakout rooms was something different but helpful as you can choose which session you want to attend based on the industry you are interested in.',
-      author: 'Minal B.',
+      author: 'Minal',
+      fullName: 'Minal Baguandas',
+      email: 'minalp14@outlook.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:27:02',
     },
     {
       text: 'This workshop made me more confident for my interview and gave me practical, actionable tips for my preparation. The hosts were very responsive to any questions asked and gave honest and detailed answers. Definitely join this workshop if you need more guidance for degree apprenticeship interviews from people who have been in the same place!',
-      author: 'Romaisa Z.',
+      author: 'Romaisa',
+      fullName: 'Romaisa Zaidi',
+      email: 'romaisazaidi@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 16:15:55',
     },
     {
       text: 'This experience was truly insightful, initially I didn’t know a lot about the interview and degree apprenticeship process, but with the knowledgeable presentation from the tech hosts and main hosts, it has widened my viewpoint on how to hit an interview with the ground running',
-      author: 'Abel V.',
+      author: 'Abel',
+      fullName: 'Abel Varghese',
+      email: 'vargheseabel601@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:22:00',
     },
     {
       text: 'These speakers were world class experts at DAs. They answered every question so well, they guided us and gave us expert advice and overall made me ready to get into a top DA. I can\'t believe that this was free!! I shall definitely attend their next event!!',
-      author: 'Yash M.',
+      author: 'Yash',
+      fullName: 'Yash Mehta',
+      email: 'mryash9877@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:23:16',
     },
     {
       text: 'It was great! The session truly lived up to the idea that there are no stupid questions. It was really insightful, the breakout rooms felt personal, and concepts were broken down more clearly than I’ve ever experienced.',
-      author: 'Aima R.',
+      author: 'Aima',
+      fullName: 'Aima Rafiq',
+      email: '19a.rafiq@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:28:07',
     },
     {
       text: 'What a fantastic webinar and some really important insights into the experience of current DA. The messages that were shared around interview skills and tips were incredibly useful and I look forward for the next one.',
-      author: 'William K.',
+      author: 'William',
+      fullName: 'William Keen',
+      email: 'keenwill69@gmail.com',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:26:11',
     },
@@ -149,6 +165,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'Thank you so much for the time you put into today. You helped us a lot with reflection, so if you’d like something to reflect on, let it be that you’ve definitely helped me today and I feel much more comfortable applying for degree apprenticeships rather than just universities. Today has changed my view massively on post-18 pathways, so thank you so much for your time!',
       author: 'Anonymous',
+      fullName: 'Shifa Memon',
+      email: 'shifamem08@gmail.com',
       context: 'Final comments',
       consent: 'anon',
       sourceTimestamp: '07/02/2026 15:53:38',
@@ -156,13 +174,17 @@ export const dataset: EventFeedbackDataset = {
     {
       text: '3) Perhaps we could have a bit more of an interactive part to the session where we actually get to practice answering the questions the same way Jin and Favour demonstrated, and you give us feedback on them, or we could have a bit of a workshop style session where we put together STARR style responses to common questions and you give us feedback on them',
       author: 'Anonymous',
+      fullName: 'Shifa Memon',
+      email: 'shifamem08@gmail.com',
       context: 'Improvement suggestions',
       consent: 'anon',
       sourceTimestamp: '07/02/2026 15:53:38',
     },
     {
       text: 'More examples. Something I think would have been beneficial to change would be to let future participants know there would be a breakout room just so people can think even harder about the best questions to ask.',
-      author: 'Kyle M.',
+      author: 'Kyle',
+      fullName: 'Kyle Man',
+      email: 'kyleman.km2007@gmail.com',
       context: 'Improvement suggestions',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:29:41',
@@ -170,6 +192,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: '(1) More on application process and chances of increasing getting an interview (although I missed the start so may have been included then...\n(2) Not sure, it was all relevant \n(3) Not sure, again',
       author: 'Anonymous',
+      fullName: 'Mustafah Khalid',
+      email: 'mmkhalid2021@hotmail.com',
       context: 'Improvement suggestions',
       consent: 'anon',
       sourceTimestamp: '09/02/2026 17:46:34',
@@ -177,6 +201,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'Would there be a recording of the event/workshop, seeing as a I missed the first hour and a bit for a sporting fixture. If there is, please could I be emailed it - hopes thats okay, thanks!',
       author: 'Anonymous',
+      fullName: 'Mustafah Khalid',
+      email: 'mmkhalid2021@hotmail.com',
       context: 'Final comments',
       consent: 'anon',
       sourceTimestamp: '09/02/2026 17:46:34',
@@ -184,20 +210,26 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'Jim Samson is so incredibly good at talking and effectively communicating, his advice about consulting and how to engage with the interviewer were really intriguing and useful.',
       author: 'Anonymous',
+      fullName: 'Haleema Choudary',
+      email: 'haleema4488@gmail.com',
       context: 'Final comments',
       consent: 'no',
       sourceTimestamp: '07/02/2026 15:22:18',
     },
     {
       text: 'Thank you for another incredible event, the whole team are so well-spoken and inspiring and I’m very excited for future events!!!',
-      author: 'Luka C.',
+      author: 'Luka',
+      fullName: 'Luka Cesnuleviciute',
+      email: 'luka.lc008@gmail.com',
       context: 'Final comments',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:45:11',
     },
     {
       text: 'Less answers that we can find the information to via the internet am more specific knowledge that can only be answered by people',
-      author: 'Ismaìl a.',
+      author: 'Ismaìl',
+      fullName: 'Ismaìl Abdullah',
+      email: 'ish_abz@icloud.com',
       context: 'Improvement suggestions',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:29:11',
@@ -206,21 +238,27 @@ export const dataset: EventFeedbackDataset = {
   growth: [
     {
       text: 'This workshop made me more confident for my interview and gave me practical, actionable tips for my preparation. The hosts were very responsive to any questions asked and gave honest and detailed answers. Definitely join this workshop if you need more guidance for degree apprenticeship interviews from people who have been in the same place!',
-      author: 'Romaisa Z.',
+      author: 'Romaisa',
+      fullName: 'Romaisa Zaidi',
+      email: 'romaisazaidi@gmail.com',
       context: 'Testimonial',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 16:15:55',
     },
     {
       text: 'These speakers were world class experts at DAs. They answered every question so well, they guided us and gave us expert advice and overall made me ready to get into a top DA. I can\'t believe that this was free!! I shall definitely attend their next event!!',
-      author: 'Yash M.',
+      author: 'Yash',
+      fullName: 'Yash Mehta',
+      email: 'mryash9877@gmail.com',
       context: 'Testimonial',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:23:16',
     },
     {
       text: 'I had a great experience and learnt a lot of key information and alot of information I woudl not be able to find on google or chatgpt and really opened my eyes on interviews and how to prepare for them',
-      author: 'Ismaìl a.',
+      author: 'Ismaìl',
+      fullName: 'Ismaìl Abdullah',
+      email: 'ish_abz@icloud.com',
       context: 'Testimonial',
       consent: 'first_name',
       sourceTimestamp: '07/02/2026 15:29:11',
@@ -228,6 +266,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'The workshop was an incredible experience, very eye opening into the process of applying to and gaining an apprenticeship, alongside a degree. For anyone interested in a Degree Apprenticeship, the Masterclass is a must-watch for specific advantage in securing careers such as Investment Banking, Consulting, Management, Law,  Software Engineering and more.',
       author: 'Anonymous',
+      fullName: 'Mustafah Khalid',
+      email: 'mmkhalid2021@hotmail.com',
       context: 'Testimonial',
       consent: 'anon',
       sourceTimestamp: '09/02/2026 17:46:34',
@@ -235,6 +275,8 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'This masterclass was honestly incredible, the speakers really made me feel more confident going into other interviews, and they answered all my questions clearing up any misconceptions or confusions I had. Jins consulting session was so helpful for me, giving quality advice for final interviews and overall tech roles in consulting. Thank you!!',
       author: 'Anonymous',
+      fullName: 'Hafsa Ahmed',
+      email: 'hafsa.ahmdd@gmail.com',
       context: 'Testimonial',
       consent: 'anon',
       sourceTimestamp: '07/02/2026 15:20:22',
@@ -242,15 +284,111 @@ export const dataset: EventFeedbackDataset = {
     {
       text: 'I applied for this not 100% on if it would help me but now I’m going to leave soon with more confidence in myself and useful knowledge in how to increase the chances of succeeding in my interviews.',
       author: 'Anonymous',
+      fullName: 'Rosaria Branford',
+      email: 'rosariabranford@gmail.com',
       context: 'Testimonial',
       consent: 'anon',
       sourceTimestamp: '07/02/2026 15:20:29',
     },
   ],
+  postableQuotes: [
+    {
+      text: 'This was genuinely a 10/10 event. The Steps Foundation go above and beyond to provide insightful and incredibly valuable experiences that any student would benefit from.',
+      author: 'Luka',
+      fullName: 'Luka Cesnuleviciute',
+      audienceTag: 'DA applicant',
+      consent: 'first_name',
+      sourceTimestamp: '07/02/2026 15:45:11',
+      originalText: 'This was genuinely a 10/10 event. Not only did we get to speak directly to degree apprentices at prestigious firms, we were given in-depth top tips and tricks on how to perform our best at interviews. The run down of different question types for both answering and asking questions was very helpful and I think can be applied to networking generally, not only in an interview. I was fortunate enough to attend The Starting Point event and now this one too, so I can confidently say that The Steps Foundation go above and beyond to provide insightful and incredibly valuable experiences that any student would benefit from. Iâm extremely grateful for these opportunities and excited for future ones!!',
+    },
+    {
+      text: 'I joined this Degree Apprenticeship Interview Masterclass to help me through current apprenticeship applications that I am applying to — and was amazed at how beneficial it was!',
+      author: 'Francesca',
+      fullName: 'Francesca Burke',
+      audienceTag: 'DA applicant',
+      consent: 'first_name',
+      sourceTimestamp: '07/02/2026 15:29:39',
+      originalText: 'I joined this Degree Apprenticeship Interview Masterclass to help me through current apprenticeship applications that I am applying to and was amazed at how beneficial it was! The structure was very well planned out - one thing in particular I found useful, was the example of each tip, e.g. an example of the STAR method - this really helped me in understanding how I can use this strategy in future to help me get further in my applications. Thank you so much!',
+    },
+    {
+      text: 'These speakers were world class experts at DAs. They guided us and gave us expert advice and overall made me ready to get into a top DA. I can\'t believe that this was free!!',
+      author: 'Yash',
+      fullName: 'Yash Mehta',
+      audienceTag: 'DA applicant',
+      consent: 'first_name',
+      sourceTimestamp: '07/02/2026 15:23:16',
+      originalText: 'These speakers were world class experts at DAs. They answered every question so well, they guided us and gave us expert advice and overall made me ready to get into a top DA. I can\'t believe that this was free!! I shall definitely attend their next event!!',
+    },
+    {
+      text: 'It was really insightful, the breakout rooms felt personal, and concepts were broken down more clearly than I\'ve ever experienced.',
+      author: 'Aima',
+      fullName: 'Aima Rafiq',
+      audienceTag: 'DA applicant',
+      consent: 'first_name',
+      sourceTimestamp: '07/02/2026 15:28:07',
+      originalText: 'It was great! The session truly lived up to the idea that there are no stupid questions. It was really insightful, the breakout rooms felt personal, and concepts were broken down more clearly than Iâve ever experienced.',
+    },
+    {
+      text: 'What a fantastic webinar and some really important insights into the experience of current DA[s]. The messages that were shared around interview skills and tips were incredibly useful.',
+      author: 'William',
+      fullName: 'William Keen',
+      audienceTag: 'DA applicant',
+      consent: 'first_name',
+      sourceTimestamp: '07/02/2026 15:26:11',
+      originalText: 'What a fantastic webinar and some really important insights into the experience of current DA. The messages that were shared around interview skills and tips were incredibly useful and I look forward for the next one.',
+    },
+    {
+      text: 'You\'ve definitely helped me today and I feel much more comfortable applying for degree apprenticeships rather than just universities. Today has changed my view massively on post-18 pathways.',
+      author: 'Anonymous',
+      fullName: 'Shifa Memon',
+      audienceTag: 'DA applicant',
+      consent: 'anon',
+      sourceTimestamp: '07/02/2026 15:53:38',
+      originalText: 'Thank you so much for the time you put into today. You helped us a lot with reflection, so if youâd like something to reflect on, let it be that youâve definitely helped me today and I feel much more comfortable applying for degree apprenticeships rather than just universities. Today has changed my view massively on post-18 pathways, so thank you so much for your time!',
+    },
+    {
+      text: 'This masterclass was honestly incredible — the speakers really made me feel more confident going into other interviews, and they answered all my questions clearing up any misconceptions or confusions I had.',
+      author: 'Anonymous',
+      fullName: 'Hafsa Ahmed',
+      audienceTag: 'DA applicant',
+      consent: 'anon',
+      sourceTimestamp: '07/02/2026 15:20:22',
+      originalText: 'This masterclass was honestly incredible, the speakers really made me feel more confident going into other interviews, and they answered all my questions clearing up any misconceptions or confusions I had. Jins consulting session was so helpful for me, giving quality advice for final interviews and overall tech roles in consulting. Thank you!!',
+    },
+    {
+      text: 'I applied for this not 100% on if it would help me — but now I\'m going to leave soon with more confidence in myself and useful knowledge in how to increase the chances of succeeding in my interviews.',
+      author: 'Anonymous',
+      fullName: 'Rosaria Branford',
+      audienceTag: 'DA applicant',
+      consent: 'anon',
+      sourceTimestamp: '07/02/2026 15:20:29',
+      originalText: 'I applied for this not 100% on if it would help me but now Iâm going to leave soon with more confidence in myself and useful knowledge in how to increase the chances of succeeding in my interviews.',
+    },
+    {
+      text: 'This workshop made me more confident for my interview and gave me practical, actionable tips for my preparation. Definitely join this workshop if you need more guidance for degree apprenticeship interviews from people who have been in the same place!',
+      author: 'Romaisa',
+      fullName: 'Romaisa Zaidi',
+      audienceTag: 'DA applicant',
+      consent: 'first_name',
+      sourceTimestamp: '07/02/2026 16:15:55',
+      originalText: 'This workshop made me more confident for my interview and gave me practical, actionable tips for my preparation. The hosts were very responsive to any questions asked and gave honest and detailed answers. Definitely join this workshop if you need more guidance for degree apprenticeship interviews from people who have been in the same place!',
+    },
+    {
+      text: 'This experience was truly insightful — it has widened my viewpoint on how to hit an interview with the ground running.',
+      author: 'Abel',
+      fullName: 'Abel Varghese',
+      audienceTag: 'DA applicant',
+      consent: 'first_name',
+      sourceTimestamp: '07/02/2026 15:22:00',
+      originalText: 'This experience was truly insightful, initially I didnât know a lot about the interview and degree apprenticeship process, but with the knowledgeable presentation from the tech hosts and main hosts, it has widened my viewpoint on how to hit an interview with the ground running',
+    },
+  ],
   appendix: [
     {
       timestamp: '07/02/2026 15:19:56',
-      name: 'Faozan Q.',
+      name: 'Faozan',
+      fullName: 'Faozan Qosim',
+      email: 'faozan_qosim@outlook.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'The difference between a good interview and a great interview, star method, Ricardo had some really great points.',
@@ -258,7 +396,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:20:19',
-      name: 'Kyle F.',
+      name: 'Kyle',
+      fullName: 'Kyle Fontiveros',
+      email: 'kyle',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'Do your research!',
@@ -268,7 +408,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:20:22',
-      name: 'Hafsa A.',
+      name: 'Hafsa',
+      fullName: 'Hafsa Ahmed',
+      email: 'hafsa.ahmdd@gmail.com',
       consent: 'anon',
       fields: {
         'Most important thing learnt': 'Asking questions to the interviewer - really prepared me for future interviews!!',
@@ -277,7 +419,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:20:29',
-      name: 'Rosaria B.',
+      name: 'Rosaria',
+      fullName: 'Rosaria Branford',
+      email: 'rosariabranford@gmail.com',
       consent: 'anon',
       fields: {
         'Most important thing learnt': 'To learn more about your interviewer and the company before the interview.',
@@ -287,7 +431,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:20:51',
-      name: 'Krish G.',
+      name: 'Krish',
+      fullName: 'Krish Gohil',
+      email: 'krishgohil456@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'Importance of asking questions to interviewer',
@@ -295,7 +441,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:22:00',
-      name: 'Abel V.',
+      name: 'Abel',
+      fullName: 'Abel Varghese',
+      email: 'vargheseabel601@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'That coming to an interview fully prepared with releavant and unique research can be the main factor point to getting that job',
@@ -304,7 +452,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:22:18',
-      name: 'Haleema C.',
+      name: 'Haleema',
+      fullName: 'Haleema Choudary',
+      email: 'haleema4488@gmail.com',
       consent: 'no',
       fields: {
         'Most important thing learnt': 'Learned a lot about the interview process and how to effectively story tell and make the interview more engaging.',
@@ -313,7 +463,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:22:41',
-      name: 'Stanley W.',
+      name: 'Stanley',
+      fullName: 'Stanley Wright',
+      email: 'stanleywright27@outlook.com',
       consent: 'anon',
       fields: {
         'Most important thing learnt': 'To have story banks prepared for interview',
@@ -323,7 +475,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:23:16',
-      name: 'Yash M.',
+      name: 'Yash',
+      fullName: 'Yash Mehta',
+      email: 'mryash9877@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'That degree apprenticeships are amazing',
@@ -334,7 +488,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:23:49',
-      name: 'Darshan A.',
+      name: 'Darshan',
+      fullName: 'Darshan Anand',
+      email: 'darshananand32@gmail.com',
       consent: 'anon',
       fields: {
         'Most important thing learnt': 'Researching your interviewers!',
@@ -345,7 +501,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:26:11',
-      name: 'William K.',
+      name: 'William',
+      fullName: 'William Keen',
+      email: 'keenwill69@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'How to successfully answer interview questions',
@@ -356,7 +514,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:27:02',
-      name: 'Minal B.',
+      name: 'Minal',
+      fullName: 'Minal Baguandas',
+      email: 'minalp14@outlook.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'I learn’t about storytelling and how to use it in interview answers.',
@@ -365,7 +525,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:28:07',
-      name: 'Aima R.',
+      name: 'Aima',
+      fullName: 'Aima Rafiq',
+      email: '19a.rafiq@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'Be teachable.',
@@ -376,7 +538,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:29:11',
-      name: 'Ismaìl a.',
+      name: 'Ismaìl',
+      fullName: 'Ismaìl Abdullah',
+      email: 'ish_abz@icloud.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'How to prepare stories to hit all skills when asked star method questions',
@@ -386,7 +550,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:29:39',
-      name: 'Francesca B.',
+      name: 'Francesca',
+      fullName: 'Francesca Burke',
+      email: 'fburke68@icloud.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'The example of Storytelling was incredibly helpful in understanding how we can twist our answers slightly just to make it sound less robotic, and much more genuine.',
@@ -396,7 +562,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:29:41',
-      name: 'Kyle M.',
+      name: 'Kyle',
+      fullName: 'Kyle Man',
+      email: 'kyleman.km2007@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'The importance of storytelling',
@@ -406,7 +574,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:30:07',
-      name: 'Nuo H.',
+      name: 'Nuo',
+      fullName: 'Nuo Han Lin',
+      email: 'nuohanlin10@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'The most important thing I learnt is how crucial it is to build rapport with your interviewer and making it personal by turning the actual interview into a conversation.',
@@ -416,7 +586,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:42:58',
-      name: 'Esa B.',
+      name: 'Esa',
+      fullName: 'Esa Butt',
+      email: 'esa.ali1237@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'Understanding the importance of building a story bank before interviews and how it helps structure answers effectively.',
@@ -427,7 +599,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:43:27',
-      name: 'Ryan N.',
+      name: 'Ryan',
+      fullName: 'Ryan Nzeribe',
+      email: 'ryannzeribe@yahoo.com',
       consent: 'no',
       fields: {
         'Most important thing learnt': 'Learning how to build rapport with the interviewer and also how to make sure my answers always relate to the firm, their values and strategy.',
@@ -435,7 +609,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:45:11',
-      name: 'Luka C.',
+      name: 'Luka',
+      fullName: 'Luka Cesnuleviciute',
+      email: 'luka.lc008@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'It’s very difficult to narrow it down, but Luca mentioned how mistakes are not the end, the important factor is how you come back from them and I think that is amazing advice. Also of course the step by step framework is an wonderful summary of the whole event.',
@@ -446,7 +622,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 15:53:38',
-      name: 'Shifa M.',
+      name: 'Shifa',
+      fullName: 'Shifa Memon',
+      email: 'shifamem08@gmail.com',
       consent: 'anon',
       fields: {
         'Most important thing learnt': 'Spending time learning about the company and interviewer is definitely worth it and can be incredibly valuable',
@@ -457,7 +635,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '07/02/2026 16:15:55',
-      name: 'Romaisa Z.',
+      name: 'Romaisa',
+      fullName: 'Romaisa Zaidi',
+      email: 'romaisazaidi@gmail.com',
       consent: 'first_name',
       fields: {
         'Most important thing learnt': 'Technical knowledge isn’t expected. Be familiar with macroeconomic events and listen to podcasts to know how to confidently talk about the industry.',
@@ -468,7 +648,9 @@ export const dataset: EventFeedbackDataset = {
     },
     {
       timestamp: '09/02/2026 17:46:34',
-      name: 'Mustafah K.',
+      name: 'Mustafah',
+      fullName: 'Mustafah Khalid',
+      email: 'mmkhalid2021@hotmail.com',
       consent: 'anon',
       fields: {
         'Most important thing learnt': 'The STARR method was quite good, I look forward to using it and testing it over the course of my application process.',

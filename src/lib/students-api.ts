@@ -21,6 +21,13 @@ export const ATTRIBUTION_SOURCES: { value: string; label: string }[] = [
 export type SchoolType = 'state' | 'grammar' | 'independent' | 'independent_bursary'
 export type Eligibility = 'eligible' | 'ineligible' | 'unknown'
 
+export type QualificationEntry = {
+  qualType: string        // 'a_level' | 'ib' | 'btec' | 't_level' | 'pre_u'
+  subject: string
+  level?: string          // IB: 'HL' | 'SL'; BTEC size, etc.
+  grade: string           // A*–U for A-Level, 7–1 for IB, D*/D/M/P for BTEC, etc.
+}
+
 export type StudentRow = {
   id: string
   first_name: string | null
@@ -37,6 +44,12 @@ export type StudentRow = {
   bursary_90plus: boolean | null
   notes: string | null
   created_at: string
+  // Profile fields collected on the apply form (migrations 0024/0025).
+  // Persist across applications so students don't re-enter them.
+  first_generation_uni: boolean | null
+  gcse_results: string | null
+  qualifications: QualificationEntry[] | null
+  additional_context: string | null
 }
 
 export type ApplicationRow = {
@@ -148,7 +161,7 @@ export function invalidateStudentsCache() {
 }
 
 const STUDENT_COLUMNS =
-  'id,first_name,last_name,preferred_name,personal_email,school_name_raw,school_id,year_group,free_school_meals,parental_income_band,subscribed_to_mailing,school_type,bursary_90plus,notes,created_at'
+  'id,first_name,last_name,preferred_name,personal_email,school_name_raw,school_id,year_group,free_school_meals,parental_income_band,subscribed_to_mailing,school_type,bursary_90plus,notes,created_at,first_generation_uni,gcse_results,qualifications,additional_context'
 
 export async function fetchAllStudentsEnriched(opts?: { forceRefresh?: boolean }): Promise<EnrichedStudent[]> {
   // Kick off event-name cache priming in parallel with the student fetch so

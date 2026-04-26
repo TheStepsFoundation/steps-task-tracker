@@ -16,6 +16,10 @@ import {
   useEvents,
 } from '@/lib/students-api'
 import SchoolPicker from '@/components/SchoolPicker'
+import QualificationsEditor, { defaultQualifications } from '@/components/QualificationsEditor'
+import type { QualificationEntry } from '@/lib/students-api'
+import { eventFeedbackByEventId } from '@/data/event-feedback'
+import type { FreeTextResponse } from '@/data/event-feedback/types'
 import { useAuth } from '@/lib/auth-provider'
 import { supabase } from '@/lib/supabase'
 import {
@@ -86,6 +90,10 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       subscribed_to_mailing: student.subscribed_to_mailing,
       school_type: student.school_type,
       notes: student.notes,
+      first_generation_uni: student.first_generation_uni,
+      gcse_results: student.gcse_results,
+      qualifications: student.qualifications,
+      additional_context: student.additional_context,
     })
     setEditing(true)
   }
@@ -234,6 +242,45 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             <Field label="Mailing list" value={boolLabel(student.subscribed_to_mailing)} />
             <Field label="School type" value={schoolTypeLabel(student.school_type)} />
             <Field label="Eligibility" value={enriched.eligibility} />
+            <Field
+              label="Parent went to university"
+              value={
+                student.first_generation_uni === true
+                  ? 'No (first-generation)'
+                  : student.first_generation_uni === false
+                    ? 'Yes'
+                    : null
+              }
+            />
+            <Field label="GCSE results" value={student.gcse_results} />
+            <div className="sm:col-span-2">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Subjects and grades</div>
+              <div className="text-gray-900 dark:text-gray-100">
+                {Array.isArray(student.qualifications) && student.qualifications.length > 0 ? (
+                  <ul className="mt-1 space-y-0.5">
+                    {student.qualifications.map((q, i) => {
+                      const subj = q.subject === '__other' ? 'Other' : q.subject
+                      const lvl = q.qualType === 'ib' && q.level ? ` (${q.level.split(' ')[0]})` : ''
+                      const type = qualTypeLabel(q.qualType)
+                      return (
+                        <li key={i}>
+                          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mr-2">{type}</span>
+                          {subj}{lvl} — <span className="font-medium">{q.grade || '—'}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Additional context</div>
+              <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                {student.additional_context || <span className="text-gray-400">—</span>}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -291,6 +338,51 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
                 onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))}
                 rows={4}
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Parent went to university</label>
+              <select
+                value={draft.first_generation_uni === true ? 'no' : draft.first_generation_uni === false ? 'yes' : ''}
+                onChange={e => {
+                  const v = e.target.value
+                  setDraft(d => ({ ...d, first_generation_uni: v === 'no' ? true : v === 'yes' ? false : null }))
+                }}
+                className="w-full px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="">Unknown</option>
+                <option value="yes">Yes (parent attended uni)</option>
+                <option value="no">No (first-generation)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">GCSE results</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={draft.gcse_results ?? ''}
+                onChange={e => setDraft(d => ({ ...d, gcse_results: e.target.value.replace(/\D/g, '') || null }))}
+                placeholder="e.g. 999887766"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-mono tracking-wider"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Subjects and grades</label>
+              <QualificationsEditor
+                value={Array.isArray(draft.qualifications) && draft.qualifications.length > 0 ? draft.qualifications : defaultQualifications()}
+                onChange={(next: QualificationEntry[]) => setDraft(d => ({ ...d, qualifications: next.filter(q => q.subject && q.grade).length > 0 ? next : null }))}
+                allowEmpty
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Additional context</label>
+              <textarea
+                value={draft.additional_context ?? ''}
+                onChange={e => setDraft(d => ({ ...d, additional_context: e.target.value || null }))}
+                rows={3}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                placeholder="Care experience, young carer, school disruption, etc."
               />
             </div>
           </div>
@@ -413,6 +505,13 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
         </table>
       </section>
 
+      <EventFeedbackPanel
+        studentEmail={student.personal_email}
+        studentFullName={fullName}
+        attendedEventIds={apps.filter(a => a.attended || a.status === 'submitted' || a.status === 'accepted').map(a => a.event_id)}
+        eventNameById={Object.fromEntries(EVENTS.map(e => [e.id, e.name]))}
+      />
+
       <div className="flex flex-wrap gap-2">
         {student.free_school_meals && <Flag>Free school meals</Flag>}
         {student.parental_income_band && <Flag>Income: {incomeLabel(student.parental_income_band)}</Flag>}
@@ -425,6 +524,16 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
 function boolLabel(v: boolean | null | undefined) {
   if (v === null || v === undefined) return '—'
   return v ? 'Yes' : 'No'
+}
+
+function qualTypeLabel(v: string | null | undefined) {
+  if (!v) return ''
+  if (v === 'a_level') return 'A-Level'
+  if (v === 'ib') return 'IB'
+  if (v === 'btec') return 'BTEC'
+  if (v === 't_level') return 'T-Level'
+  if (v === 'pre_u') return 'Pre-U'
+  return v
 }
 
 function schoolTypeLabel(v: string | null | undefined) {
@@ -508,6 +617,86 @@ function incomeLabel(code: string | null | undefined): string | null {
   if (code === 'over_40k') return '£40k or more'
   if (code === 'prefer_na') return 'Prefer not to say'
   return code
+}
+
+// =============================================================================
+// Per-event feedback panel
+// =============================================================================
+//
+// Surfaces, per event the student attended (or applied to), the free-text
+// answers they gave on that event's feedback form. Matches by email first,
+// then by case-insensitive full-name match as a fallback (some early sheets
+// were submitted without an email column).
+
+function EventFeedbackPanel({
+  studentEmail,
+  studentFullName,
+  attendedEventIds,
+  eventNameById,
+}: {
+  studentEmail: string | null
+  studentFullName: string
+  attendedEventIds: string[]
+  eventNameById: Record<string, string>
+}) {
+  const normEmail = (studentEmail ?? '').trim().toLowerCase()
+  const normName = studentFullName.trim().toLowerCase()
+
+  const matches = attendedEventIds
+    .map(eventId => {
+      const dataset = eventFeedbackByEventId[eventId]
+      if (!dataset) return null
+      const row = dataset.appendix.find(r => {
+        const rowEmail = (r.email ?? '').trim().toLowerCase()
+        if (normEmail && rowEmail && rowEmail === normEmail) return true
+        const rowName = (r.fullName || r.name || '').trim().toLowerCase()
+        return rowName === normName && normName.length > 0
+      })
+      if (!row) return null
+      return { eventId, eventName: eventNameById[eventId] ?? dataset.eventName, row }
+    })
+    .filter((x): x is { eventId: string; eventName: string; row: FreeTextResponse } => x !== null)
+
+  if (matches.length === 0) return null
+
+  return (
+    <section className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden mb-6">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+        <h2 className="font-medium text-gray-900 dark:text-gray-100">Feedback they&rsquo;ve left ({matches.length})</h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          Free-text responses this student submitted on each event&rsquo;s feedback form.
+        </p>
+      </div>
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        {matches.map(({ eventId, eventName, row }) => (
+          <div key={eventId} className="px-4 py-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/students/events/${eventId}/feedback`}
+                  className="text-sm font-medium text-steps-blue-600 dark:text-steps-blue-400 hover:underline"
+                >
+                  {eventName}
+                </Link>
+                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                  consent: {row.consent}
+                </span>
+              </div>
+              <span className="text-[11px] tabular-nums text-gray-400">{row.timestamp}</span>
+            </div>
+            <dl className="space-y-1.5">
+              {Object.entries(row.fields).map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{k}</dt>
+                  <dd className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-line">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
 }
 
 // =============================================================================
