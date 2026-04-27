@@ -152,6 +152,224 @@ const STANDARD_GROUP_LABELS: Record<'about' | 'context' | 'finishing', { title: 
 }
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Module-level styles + sub-editors
+// These are hoisted out of the FormBuilder component body so React doesn't
+// recreate the component types on every render — that was unmounting inputs
+// on each keystroke and dropping focus from option/condition editors.
+// ---------------------------------------------------------------------------
+
+const inputClass = "w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+
+const OptionListEditor = ({ options, onOptionsChange }: {
+  options: { value: string; label: string }[]
+  onOptionsChange: (opts: { value: string; label: string }[]) => void
+}) => (
+  <div className="ml-2 space-y-1.5">
+    {options.map((opt, oi) => (
+      <div key={oi} className="flex items-center gap-2">
+        <input value={opt.label}
+          onChange={e => {
+            const updated = [...options]
+            const label = e.target.value
+            updated[oi] = { value: label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""), label }
+            onOptionsChange(updated)
+          }}
+          placeholder={`Option ${oi + 1}`} className={`flex-1 ${inputClass}`} />
+        {options.length > 1 && (
+          <button onClick={() => onOptionsChange(options.filter((_, i) => i !== oi))}
+            className="text-red-400 hover:text-red-600 text-sm font-bold px-1">×</button>
+        )}
+      </div>
+    ))}
+    <button onClick={() => onOptionsChange([...options, { value: "", label: "" }])}
+      className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add option</button>
+  </div>
+)
+
+// ---------------------------------------------------------------------------
+// Stable option editor — values are immutable IDs, decoupled from labels.
+// Used for standard-question options where historical answers reference the
+// value and must not be silently re-keyed when labels change.
+//
+// Deleting an option retires it (not dropped) so past applications keep
+// their label, and readding a label that collides with a retired value
+// auto-revives rather than creating a duplicate.
+// ---------------------------------------------------------------------------
+
+const StableOptionListEditor = ({ active, retired, onChange }: {
+  active: { value: string; label: string }[]
+  retired: { value: string; label: string }[]
+  onChange: (active: { value: string; label: string }[], retired: { value: string; label: string }[]) => void
+}) => {
+  const [adding, setAdding] = useState(false)
+  const [newLabel, setNewLabel] = useState("")
+
+  const deriveValue = (label: string) =>
+    label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+
+  const retire = (idx: number) => {
+    const opt = active[idx]
+    if (!opt) return
+    onChange(
+      active.filter((_, i) => i !== idx),
+      [...retired.filter(r => r.value !== opt.value), opt],
+    )
+  }
+
+  const revive = (value: string) => {
+    const opt = retired.find(r => r.value === value)
+    if (!opt) return
+    if (active.find(a => a.value === value)) return
+    onChange([...active, opt], retired.filter(r => r.value !== value))
+  }
+
+  const addNew = () => {
+    const label = newLabel.trim()
+    if (!label) return
+    const value = deriveValue(label)
+    if (!value) return
+    // Collision with an active value — ignore silently; UX hint below.
+    if (active.find(a => a.value === value)) return
+    // Collision with retired → auto-revive (use the admin's new label).
+    const retiredMatch = retired.find(r => r.value === value)
+    if (retiredMatch) {
+      onChange([...active, { value, label }], retired.filter(r => r.value !== value))
+    } else {
+      onChange([...active, { value, label }], retired)
+    }
+    setNewLabel("")
+    setAdding(false)
+  }
+
+  const derivedForNew = deriveValue(newLabel)
+  const collidesActive = !!active.find(a => a.value === derivedForNew)
+  const wouldRevive = !!retired.find(r => r.value === derivedForNew)
+
+  return (
+    <div className="ml-2 space-y-1.5">
+      {active.map((opt, oi) => (
+        <div key={opt.value} className="flex items-center gap-2">
+          <input value={opt.label}
+            onChange={e => {
+              const updated = [...active]
+              updated[oi] = { ...updated[oi], label: e.target.value }
+              onChange(updated, retired)
+            }}
+            placeholder={`Option ${oi + 1}`} className={`flex-1 ${inputClass}`} />
+          <span className="text-[10px] font-mono text-gray-400 shrink-0 px-1" title="Stable ID — never changes, so historical answers stay linked">
+            {opt.value}
+          </span>
+          {active.length > 1 && (
+            <button onClick={() => retire(oi)}
+              className="text-red-400 hover:text-red-600 text-sm font-bold px-1"
+              title="Retire this option (kept in history — past answers keep their label)">×</button>
+          )}
+        </div>
+      ))}
+
+      {adding ? (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <input value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addNew() } if (e.key === "Escape") { setNewLabel(""); setAdding(false) } }}
+              placeholder="New option label"
+              autoFocus
+              className={`flex-1 ${inputClass}`} />
+            <button onClick={addNew}
+              disabled={!newLabel.trim() || collidesActive}
+              className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline disabled:opacity-40 disabled:cursor-not-allowed">
+              Add
+            </button>
+            <button onClick={() => { setNewLabel(""); setAdding(false) }}
+              className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+          </div>
+          {newLabel.trim() && collidesActive && (
+            <p className="text-[10px] text-red-500">An active option already uses the value <span className="font-mono">{derivedForNew}</span>.</p>
+          )}
+          {newLabel.trim() && !collidesActive && wouldRevive && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-500">This will revive the retired <span className="font-mono">{derivedForNew}</span> (past answers stay linked).</p>
+          )}
+          {newLabel.trim() && !collidesActive && !wouldRevive && (
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">New stable ID: <span className="font-mono">{derivedForNew || "—"}</span></p>
+          )}
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)}
+          className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">
+          + Add option
+        </button>
+      )}
+
+      {retired.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-amber-200 dark:border-amber-800/60">
+          <p className="text-[10px] text-amber-700 dark:text-amber-500 mb-1 font-medium">
+            Retired options ({retired.length}) — hidden from new applicants, but still link past answers
+          </p>
+          <div className="space-y-1">
+            {retired.map(opt => (
+              <div key={opt.value} className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span className="flex-1 italic">{opt.label}</span>
+                <span className="text-[10px] font-mono text-gray-400">{opt.value}</span>
+                <button onClick={() => revive(opt.value)}
+                  className="text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline text-[11px]">
+                  Revive
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Conditional visibility editor
+// ---------------------------------------------------------------------------
+
+const ConditionEditor = ({ conditions, onConditionsChange, allFields }: {
+  conditions: ConditionalRule[]
+  onConditionsChange: (c: ConditionalRule[]) => void
+  allFields: FormFieldConfig[]
+}) => (
+  <div className="space-y-2">
+    {conditions.map((cond, ci) => (
+      <div key={ci} className="flex items-center gap-2 flex-wrap">
+        <select value={cond.fieldId}
+          onChange={e => { const u = [...conditions]; u[ci] = { ...u[ci], fieldId: e.target.value }; onConditionsChange(u) }}
+          className={`flex-1 min-w-[120px] ${inputClass}`}>
+          <option value="">Select field…</option>
+          {allFields.filter(f => f.type !== "section_heading" && f.type !== "media").map(f => (
+            <option key={f.id} value={f.id}>{f.label || f.id}</option>
+          ))}
+        </select>
+        <select value={cond.operator}
+          onChange={e => { const u = [...conditions]; u[ci] = { ...u[ci], operator: e.target.value as ConditionalRule["operator"] }; onConditionsChange(u) }}
+          className={`w-32 ${inputClass}`}>
+          <option value="equals">equals</option>
+          <option value="not_equals">not equals</option>
+          <option value="contains">contains</option>
+          <option value="is_empty">is empty</option>
+          <option value="is_not_empty">is not empty</option>
+        </select>
+        {!["is_empty", "is_not_empty"].includes(cond.operator) && (
+          <input value={cond.value ?? ""}
+            onChange={e => { const u = [...conditions]; u[ci] = { ...u[ci], value: e.target.value }; onConditionsChange(u) }}
+            placeholder="value" className={`flex-1 min-w-[80px] ${inputClass}`} />
+        )}
+        <button onClick={() => onConditionsChange(conditions.filter((_, i) => i !== ci))}
+          className="text-red-400 hover:text-red-600 text-sm font-bold px-1">×</button>
+      </div>
+    ))}
+    <button onClick={() => onConditionsChange([...conditions, { fieldId: "", operator: "equals", value: "" }])}
+      className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add condition</button>
+  </div>
+)
+
+
 // Props
 // ---------------------------------------------------------------------------
 
@@ -204,7 +422,6 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
     onChange(fields, pages, Object.keys(copy).length > 0 ? copy : undefined)
   }
 
-  const inputClass = "w-full px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
 
   // ---------------------------------------------------------------------------
   // Multi-page helpers — always ensure at least page 1 exists
@@ -314,211 +531,6 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
   // Option list editor (reusable)
   // ---------------------------------------------------------------------------
 
-  const OptionListEditor = ({ options, onOptionsChange }: {
-    options: { value: string; label: string }[]
-    onOptionsChange: (opts: { value: string; label: string }[]) => void
-  }) => (
-    <div className="ml-2 space-y-1.5">
-      {options.map((opt, oi) => (
-        <div key={oi} className="flex items-center gap-2">
-          <input value={opt.label}
-            onChange={e => {
-              const updated = [...options]
-              const label = e.target.value
-              updated[oi] = { value: label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""), label }
-              onOptionsChange(updated)
-            }}
-            placeholder={`Option ${oi + 1}`} className={`flex-1 ${inputClass}`} />
-          {options.length > 1 && (
-            <button onClick={() => onOptionsChange(options.filter((_, i) => i !== oi))}
-              className="text-red-400 hover:text-red-600 text-sm font-bold px-1">×</button>
-          )}
-        </div>
-      ))}
-      <button onClick={() => onOptionsChange([...options, { value: "", label: "" }])}
-        className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add option</button>
-    </div>
-  )
-
-  // ---------------------------------------------------------------------------
-  // Stable option editor — values are immutable IDs, decoupled from labels.
-  // Used for standard-question options where historical answers reference the
-  // value and must not be silently re-keyed when labels change.
-  //
-  // Deleting an option retires it (not dropped) so past applications keep
-  // their label, and readding a label that collides with a retired value
-  // auto-revives rather than creating a duplicate.
-  // ---------------------------------------------------------------------------
-
-  const StableOptionListEditor = ({ active, retired, onChange }: {
-    active: { value: string; label: string }[]
-    retired: { value: string; label: string }[]
-    onChange: (active: { value: string; label: string }[], retired: { value: string; label: string }[]) => void
-  }) => {
-    const [adding, setAdding] = useState(false)
-    const [newLabel, setNewLabel] = useState("")
-
-    const deriveValue = (label: string) =>
-      label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
-
-    const retire = (idx: number) => {
-      const opt = active[idx]
-      if (!opt) return
-      onChange(
-        active.filter((_, i) => i !== idx),
-        [...retired.filter(r => r.value !== opt.value), opt],
-      )
-    }
-
-    const revive = (value: string) => {
-      const opt = retired.find(r => r.value === value)
-      if (!opt) return
-      if (active.find(a => a.value === value)) return
-      onChange([...active, opt], retired.filter(r => r.value !== value))
-    }
-
-    const addNew = () => {
-      const label = newLabel.trim()
-      if (!label) return
-      const value = deriveValue(label)
-      if (!value) return
-      // Collision with an active value — ignore silently; UX hint below.
-      if (active.find(a => a.value === value)) return
-      // Collision with retired → auto-revive (use the admin's new label).
-      const retiredMatch = retired.find(r => r.value === value)
-      if (retiredMatch) {
-        onChange([...active, { value, label }], retired.filter(r => r.value !== value))
-      } else {
-        onChange([...active, { value, label }], retired)
-      }
-      setNewLabel("")
-      setAdding(false)
-    }
-
-    const derivedForNew = deriveValue(newLabel)
-    const collidesActive = !!active.find(a => a.value === derivedForNew)
-    const wouldRevive = !!retired.find(r => r.value === derivedForNew)
-
-    return (
-      <div className="ml-2 space-y-1.5">
-        {active.map((opt, oi) => (
-          <div key={opt.value} className="flex items-center gap-2">
-            <input value={opt.label}
-              onChange={e => {
-                const updated = [...active]
-                updated[oi] = { ...updated[oi], label: e.target.value }
-                onChange(updated, retired)
-              }}
-              placeholder={`Option ${oi + 1}`} className={`flex-1 ${inputClass}`} />
-            <span className="text-[10px] font-mono text-gray-400 shrink-0 px-1" title="Stable ID — never changes, so historical answers stay linked">
-              {opt.value}
-            </span>
-            {active.length > 1 && (
-              <button onClick={() => retire(oi)}
-                className="text-red-400 hover:text-red-600 text-sm font-bold px-1"
-                title="Retire this option (kept in history — past answers keep their label)">×</button>
-            )}
-          </div>
-        ))}
-
-        {adding ? (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <input value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addNew() } if (e.key === "Escape") { setNewLabel(""); setAdding(false) } }}
-                placeholder="New option label"
-                autoFocus
-                className={`flex-1 ${inputClass}`} />
-              <button onClick={addNew}
-                disabled={!newLabel.trim() || collidesActive}
-                className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline disabled:opacity-40 disabled:cursor-not-allowed">
-                Add
-              </button>
-              <button onClick={() => { setNewLabel(""); setAdding(false) }}
-                className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-            </div>
-            {newLabel.trim() && collidesActive && (
-              <p className="text-[10px] text-red-500">An active option already uses the value <span className="font-mono">{derivedForNew}</span>.</p>
-            )}
-            {newLabel.trim() && !collidesActive && wouldRevive && (
-              <p className="text-[10px] text-amber-600 dark:text-amber-500">This will revive the retired <span className="font-mono">{derivedForNew}</span> (past answers stay linked).</p>
-            )}
-            {newLabel.trim() && !collidesActive && !wouldRevive && (
-              <p className="text-[10px] text-gray-500 dark:text-gray-400">New stable ID: <span className="font-mono">{derivedForNew || "—"}</span></p>
-            )}
-          </div>
-        ) : (
-          <button onClick={() => setAdding(true)}
-            className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">
-            + Add option
-          </button>
-        )}
-
-        {retired.length > 0 && (
-          <div className="mt-3 pt-2 border-t border-amber-200 dark:border-amber-800/60">
-            <p className="text-[10px] text-amber-700 dark:text-amber-500 mb-1 font-medium">
-              Retired options ({retired.length}) — hidden from new applicants, but still link past answers
-            </p>
-            <div className="space-y-1">
-              {retired.map(opt => (
-                <div key={opt.value} className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span className="flex-1 italic">{opt.label}</span>
-                  <span className="text-[10px] font-mono text-gray-400">{opt.value}</span>
-                  <button onClick={() => revive(opt.value)}
-                    className="text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline text-[11px]">
-                    Revive
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // ---------------------------------------------------------------------------
-  // Conditional visibility editor
-  // ---------------------------------------------------------------------------
-
-  const ConditionEditor = ({ conditions, onConditionsChange }: {
-    conditions: ConditionalRule[]
-    onConditionsChange: (c: ConditionalRule[]) => void
-  }) => (
-    <div className="space-y-2">
-      {conditions.map((cond, ci) => (
-        <div key={ci} className="flex items-center gap-2 flex-wrap">
-          <select value={cond.fieldId}
-            onChange={e => { const u = [...conditions]; u[ci] = { ...u[ci], fieldId: e.target.value }; onConditionsChange(u) }}
-            className={`flex-1 min-w-[120px] ${inputClass}`}>
-            <option value="">Select field…</option>
-            {allFields.filter(f => f.type !== "section_heading" && f.type !== "media").map(f => (
-              <option key={f.id} value={f.id}>{f.label || f.id}</option>
-            ))}
-          </select>
-          <select value={cond.operator}
-            onChange={e => { const u = [...conditions]; u[ci] = { ...u[ci], operator: e.target.value as ConditionalRule["operator"] }; onConditionsChange(u) }}
-            className={`w-32 ${inputClass}`}>
-            <option value="equals">equals</option>
-            <option value="not_equals">not equals</option>
-            <option value="contains">contains</option>
-            <option value="is_empty">is empty</option>
-            <option value="is_not_empty">is not empty</option>
-          </select>
-          {!["is_empty", "is_not_empty"].includes(cond.operator) && (
-            <input value={cond.value ?? ""}
-              onChange={e => { const u = [...conditions]; u[ci] = { ...u[ci], value: e.target.value }; onConditionsChange(u) }}
-              placeholder="value" className={`flex-1 min-w-[80px] ${inputClass}`} />
-          )}
-          <button onClick={() => onConditionsChange(conditions.filter((_, i) => i !== ci))}
-            className="text-red-400 hover:text-red-600 text-sm font-bold px-1">×</button>
-        </div>
-      ))}
-      <button onClick={() => onConditionsChange([...conditions, { fieldId: "", operator: "equals", value: "" }])}
-        className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">+ Add condition</button>
-    </div>
-  )
 
   // ---------------------------------------------------------------------------
   // Render
@@ -794,6 +806,7 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
                       }} className="text-red-400 hover:text-red-600 text-[10px] font-bold">×</button>
                     </div>
                     <ConditionEditor
+                      allFields={allFields}
                       conditions={rule.conditions}
                       onConditionsChange={c => {
                         const rules = [...(activePageObj.routing?.rules ?? [])]
@@ -1178,6 +1191,7 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
                   <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                     <p className="text-[10px] text-gray-400 mb-2">Only show this field when all conditions are met.</p>
                     <ConditionEditor
+                      allFields={allFields}
                       conditions={field.config?.showIf ?? []}
                       onConditionsChange={c => updateField(idx, { config: { ...field.config, showIf: c.length > 0 ? c : undefined } })}
                     />
