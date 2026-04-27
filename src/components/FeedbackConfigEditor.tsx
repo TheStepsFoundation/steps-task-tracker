@@ -24,41 +24,53 @@ type Props = {
 
 const RESERVED_IDS = new Set(['consent', 'postable_quote'])
 
-/** Default fields seeded when admin clicks "+ Add feedback form". */
+/** Default fields seeded when admin clicks "+ Add feedback form".
+ *
+ * Note: name / school / year group are intentionally absent — the student is
+ * always logged in to the hub when filling this in, so we already know all of
+ * that from their profile. We only ask for things we can’t derive.
+ */
 function defaultFields(): FormFieldConfig[] {
   return [
     {
       id: 'rating',
       type: 'scale',
-      label: 'How would you rate this event?',
+      label: 'How would you rate this event overall?',
       required: true,
       config: { scaleMin: 1, scaleMax: 5, scaleMinLabel: 'Poor', scaleMaxLabel: 'Excellent' },
     },
     {
-      id: 'comments',
-      type: 'textarea',
-      label: 'Anything else you’d like to share?',
-      required: false,
-      config: { placeholder: 'Optional' },
-    },
-    {
       id: 'postable_quote',
       type: 'textarea',
-      label: 'A short quote we could share publicly',
-      description: 'Optional. Saved to its own column so we can curate testimonials.',
+      label: 'Leave a testimonial for us',
+      description: 'A short quote we could share publicly about your experience.',
       required: false,
       config: { placeholder: 'e.g. The mentors gave me real confidence about applying to Oxbridge.' },
     },
     {
+      id: 'improvements',
+      type: 'textarea',
+      label: 'What’s something we could improve on?',
+      required: false,
+      config: { placeholder: 'Anything that didn’t quite land, or felt rushed, or was missing.' },
+    },
+    {
+      id: 'constructive_feedback',
+      type: 'textarea',
+      label: 'Any constructive feedback for us or the organisers?',
+      required: false,
+      config: { placeholder: 'Optional. Honest is helpful.' },
+    },
+    {
       id: 'consent',
       type: 'radio',
-      label: 'May we share your feedback publicly?',
+      label: 'How would you like us to credit you if we share your testimonial?',
       required: true,
       options: [
-        { value: 'no', label: 'No, keep it private' },
-        { value: 'first_name', label: 'Yes — with my first name' },
-        { value: 'name', label: 'Yes — with my full name' },
-        { value: 'anon', label: 'Yes — anonymously' },
+        { value: 'no', label: 'Don’t share my feedback publicly' },
+        { value: 'first_name', label: 'Share with my first name only' },
+        { value: 'name', label: 'Share with my full name' },
+        { value: 'anon', label: 'Share anonymously' },
       ],
     },
   ]
@@ -140,6 +152,9 @@ export default function FeedbackConfigEditor({ value, onChange }: Props) {
       <FormBuilder
         fields={value.fields ?? []}
         pages={value.pages}
+        showStandardQuestions={false}
+        headerTitle="Feedback form fields"
+        perPageHint="These are the only questions students see — we already know their name, school, and year group from their hub profile."
         onChange={(nextFields, nextPages) => onChange({
           ...value,
           fields: nextFields,

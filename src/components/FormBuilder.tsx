@@ -160,13 +160,24 @@ type Props = {
   pages?: FormPage[]
   standardOverrides?: StandardOverrides
   onChange: (fields: FormFieldConfig[], pages?: FormPage[], standardOverrides?: StandardOverrides) => void
+  /**
+   * Show the "Standard questions" block (name / school / year group / contextual data).
+   * Defaults to true for the apply form. Pass false when the form is used in a context
+   * where the student is already authenticated and that profile data is known
+   * (e.g. post-event feedback).
+   */
+  showStandardQuestions?: boolean
+  /** Header label. Defaults to "Application Form Builder". */
+  headerTitle?: string
+  /** Hint text shown above the per-page field list. */
+  perPageHint?: string
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export default function FormBuilder({ fields, pages, standardOverrides, onChange }: Props) {
+export default function FormBuilder({ fields, pages, standardOverrides, onChange, showStandardQuestions = true, headerTitle = 'Application Form Builder', perPageHint }: Props) {
   const [showTypePicker, setShowTypePicker] = useState(false)
   const [activePage, setActivePage] = useState(0)
   const [openStandardGroups, setOpenStandardGroups] = useState<Record<'about' | 'context' | 'finishing', boolean>>({
@@ -517,7 +528,7 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
     <div>
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-          Application Form Builder
+          {headerTitle}
         </h4>
         <button onClick={addPage}
           className="text-xs text-steps-blue-600 dark:text-steps-blue-400 font-medium hover:underline">
@@ -526,6 +537,7 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
       </div>
 
       {/* ---- Standard questions (grouped by form position) ---- */}
+      {showStandardQuestions && (
       <div className="mb-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
         <div className="px-3 py-2 border-b border-amber-200 dark:border-amber-800">
           <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
@@ -717,6 +729,7 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
           )
         })}
       </div>
+      )}
 
       {/* ---- Page tabs ---- */}
       <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1">
@@ -818,7 +831,7 @@ export default function FormBuilder({ fields, pages, standardOverrides, onChange
       )}
 
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-        {`Fields on "${stripToText(activePageObj?.title ?? "") || "this page"}" — students see these after the standard questions.`}
+        {perPageHint ?? `Fields on "${stripToText(activePageObj?.title ?? "") || "this page"}" — students see these after the standard questions.`}
       </p>
 
       {/* Existing fields */}
