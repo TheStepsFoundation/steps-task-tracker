@@ -15,6 +15,8 @@ import { getDisplayLocation, canSeeFullAddress } from '@/lib/event-display'
 import { sanitizeRichHtml, stripToText } from '@/lib/sanitize-html'
 import { formatOpenTo } from '@/lib/events-api'
 import { isEligibleForYearGroup } from '@/lib/eligibility'
+import { supabase } from '@/lib/supabase-student'
+import QRCode from 'qrcode'
 
 // ---------------------------------------------------------------------------
 // Constants / helpers
@@ -356,6 +358,14 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
             )}
           </div>
 
+          {/* QR check-in code — shown only to accepted students for upcoming
+              events. The admin scanner page reads this at the door and marks
+              the student attended. See lib/checkin-token.ts for the token
+              format and /api/events/[id]/check-in for the scan endpoint. */}
+          {application?.status === 'accepted' && !isPast && (
+            <CheckinQrCard eventId={event.id} eventDate={event.event_date} />
+          )}
+
           {event.description && (
             <div className="mt-6 pt-6 border-t border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900 mb-2">About this event</h2>
@@ -507,6 +517,104 @@ function Field({ label, children, className }: { label: string; children: React.
     <div className={className}>
       <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</div>
       <div className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{children}</div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CheckinQrCard
+//
+// Renders the student's per-event QR code that the admin scans at the door.
+// Pulls a freshly-minted HMAC token from /api/events/[id]/checkin-token and
+// rasterises it as an SVG via the qrcode library.
+//
+// We render the *raw* token in the QR rather than a URL. If a student
+// accidentally scans their own code with a regular phone camera, they'll
+// see a string of base64url that doesn't link anywhere — which is fine,
+// the QR is intended for the staff scanner page only. Encoding a URL
+// would be friendlier on accidental scans but would also expose the
+// token to URL-history persistence, password-manager autofill, and the
+// like, which I'd rather avoid for what is effectively a session token.
+//
+// The endpoint will refuse to mint a token if the application's status
+// isn't 'accepted', so the in-component error handling for that case is
+// soft — we just don't render the card. The parent already gates on
+// status === 'accepted', so anything other than a successful 200 here
+// means the session expired or the app was just withdrawn; show a
+// retry button rather than a stack trace.
+// ---------------------------------------------------------------------------
+
+function CheckinQrCard({ eventId, eventDate }: { eventId: string; eventDate: string | null }) {
+  const [qrSvg, setQrSvg] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const loadToken = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+      if (!accessToken) throw new Error('Your session has expired — sign in again')
+      const res = await fetch(`/api/events/${eventId}/checkin-token`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(payload?.error ?? `Couldn't generate QR (HTTP ${res.status})`)
+      const svg = await QRCode.toString(payload.token as string, {
+        type: 'svg',
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        color: { dark: '#0F172A', light: '#FFFFFF' },
+      })
+      setQrSvg(svg)
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to load QR code')
+    } finally {
+      setLoading(false)
+    }
+  }, [eventId])
+
+  useEffect(() => { void loadToken() }, [loadToken])
+
+  // Light-touch helper text — explicit about what we expect at the door
+  // without making it sound like the student must do anything beyond
+  // showing their phone screen.
+  const dateHint = eventDate
+    ? `Show this on the day (${new Date(eventDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}).`
+    : 'Show this on the day of the event.'
+
+  return (
+    <div className="mt-6 pt-6 border-t border-gray-100">
+      <h2 className="text-sm font-semibold text-gray-900">Your check-in code</h2>
+      <p className="text-xs text-gray-500 mt-0.5">{dateHint} A team member will scan it at the door to mark you as attended — no need to print it.</p>
+
+      <div className="mt-4 flex flex-col sm:flex-row items-center sm:items-start gap-4">
+        <div className="shrink-0 rounded-2xl border border-gray-200 bg-white p-3 w-44 h-44 flex items-center justify-center">
+          {loading && <span className="text-xs text-gray-400 animate-pulse">Loading…</span>}
+          {!loading && error && <span className="text-xs text-rose-600 text-center px-2">{error}</span>}
+          {!loading && !error && qrSvg && (
+            <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+          )}
+        </div>
+
+        <div className="text-sm text-gray-600 max-w-md flex-1 self-center">
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>Bring your phone fully charged — you won't be able to attend without showing your code.</li>
+            <li>If your screen is hard to read, turn brightness up before queuing at the door.</li>
+            <li>Lost your phone? Speak to a team member — they can check you in manually.</li>
+          </ul>
+          {error && (
+            <button
+              type="button"
+              onClick={() => { void loadToken() }}
+              className="mt-3 text-xs text-steps-blue-700 hover:underline"
+            >
+              Try again
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

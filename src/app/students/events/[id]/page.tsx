@@ -2316,6 +2316,12 @@ export default function EventDetailPage() {
                       Feedback QR
                     </a>
                   )}
+                  <a href={`/students/events/${event.id}/check-in`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 dark:bg-sky-900/20 dark:text-sky-400 dark:border-sky-800 dark:hover:bg-sky-900/30 transition-colors"
+                    title="Open the door check-in scanner on this device">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z" /></svg>
+                    Door check-in
+                  </a>
                 </div>
                 {/* Event detail tags */}
                 <div className="flex flex-wrap items-center gap-2 mt-1">
