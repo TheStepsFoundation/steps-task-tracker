@@ -422,6 +422,78 @@ function Section({ id, title, subtitle, defaultOpen = false, children }: {
   )
 }
 
+// ---------------------------------------------------------------------------
+// AutosaveStatusPill — small visual indicator next to the Cancel/Save buttons
+// while editing. Shows live save progress so admins can trust their edits are
+// landing without having to remember to click Save.
+// ---------------------------------------------------------------------------
+function AutosaveStatusPill({
+  status,
+  savedAt,
+  error,
+  onRetry,
+}: {
+  status: 'idle' | 'saving' | 'saved' | 'error'
+  savedAt: Date | null
+  error: string | null
+  onRetry: () => void
+}) {
+  // Re-render every 30s so the "x ago" stays roughly fresh while the pill is
+  // mounted. Cheap — only runs while editing.
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (status !== 'saved') return
+    const i = window.setInterval(() => setTick(t => t + 1), 30_000)
+    return () => window.clearInterval(i)
+  }, [status])
+
+  if (status === 'idle') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400" title="Autosave is on. Edits save 1.5 seconds after you stop typing.">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        Autosave on
+      </span>
+    )
+  }
+  if (status === 'saving') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+        <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+        Saving…
+      </span>
+    )
+  }
+  if (status === 'saved') {
+    const label = savedAt ? formatRelativeTime(savedAt) : 'just now'
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" title={savedAt ? `Last saved at ${savedAt.toLocaleTimeString()}` : undefined}>
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+        Saved {label}
+      </span>
+    )
+  }
+  // status === 'error'
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" title={error ?? 'Autosave failed'}>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      Save failed
+      <button onClick={onRetry} className="underline decoration-dotted underline-offset-2 hover:text-red-900 dark:hover:text-red-300" type="button">Retry</button>
+    </span>
+  )
+}
+
+// Compact "x ago" formatter for the saved pill. Anything > 1h falls back to a
+// timestamp tooltip on the pill, so we just need second/minute precision here.
+function formatRelativeTime(date: Date): string {
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000))
+  if (seconds < 5) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ago`
+}
+
 export default function EventDetailPage() {
   const params = useParams()
   const eventId = params.id as string
@@ -584,6 +656,19 @@ export default function EventDetailPage() {
   const [editing, setEditing] = useState(false)
   const [editDraft, setEditDraft] = useState<Partial<EventRow>>({})
   const [editSaving, setEditSaving] = useState(false)
+  // Autosave: snapshot of the event row taken at startEditing, used by
+  // cancelEditing to revert any autosaved changes back to the user's
+  // starting point. Lives in a ref because it never drives render.
+  const editOriginalRef = useRef<EventRow | null>(null)
+  // Status pill state — surfaces autosave progress in the editor header.
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [autosaveSavedAt, setAutosaveSavedAt] = useState<Date | null>(null)
+  const [autosaveError, setAutosaveError] = useState<string | null>(null)
+  // Debounce + in-flight tracking. Manual Save flushes both before exiting,
+  // and we de-dup overlapping save attempts so user typing during a save
+  // gets picked up by the next debounce instead of stacking requests.
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autosaveInflightRef = useRef<Promise<'noop' | 'saved' | 'failed'> | null>(null)
   const [signupLinkCopied, setSignupLinkCopied] = useState<string | null>(null)
   const copySignupLink = (slug: string) => {
     const url = `${window.location.origin}/apply/${slug}`
@@ -595,8 +680,65 @@ export default function EventDetailPage() {
     })
   }
 
+  // ---------------------------------------------------------------------------
+  // buildEventPatch — pure diff of an editDraft against an EventRow baseline.
+  // Shared between manual save, autosave, and the cancel-revert path so all
+  // three agree on which fields actually need writing.
+  // ---------------------------------------------------------------------------
+  const buildEventPatch = useCallback((draft: Partial<EventRow>, baseline: EventRow): Record<string, any> => {
+    const patch: Record<string, any> = {}
+    if (draft.name && draft.name !== baseline.name) patch.name = draft.name
+    if (draft.slug && draft.slug !== baseline.slug) patch.slug = draft.slug
+    if ((draft.event_date ?? '') !== (baseline.event_date ?? '')) patch.event_date = draft.event_date || null
+    if ((draft.location ?? '') !== (baseline.location ?? '')) patch.location = draft.location || null
+    if ((draft.location_full ?? '') !== (baseline.location_full ?? '')) patch.location_full = draft.location_full || null
+    if ((draft.format ?? '') !== (baseline.format ?? '')) patch.format = draft.format || null
+    if ((draft.description ?? '') !== (baseline.description ?? '')) patch.description = draft.description || null
+    if (draft.capacity !== baseline.capacity) patch.capacity = draft.capacity ?? null
+    if ((draft.time_start ?? '') !== (baseline.time_start ?? '')) patch.time_start = draft.time_start || null
+    if ((draft.time_end ?? '') !== (baseline.time_end ?? '')) patch.time_end = draft.time_end || null
+    if ((draft.dress_code ?? '') !== (baseline.dress_code ?? '')) patch.dress_code = draft.dress_code || null
+    if (draft.status && draft.status !== baseline.status) patch.status = draft.status
+    const openAt = draft.applications_open_at ? new Date(draft.applications_open_at as string).toISOString() : null
+    const closeAt = draft.applications_close_at ? new Date(draft.applications_close_at as string).toISOString() : null
+    if (openAt !== (baseline.applications_open_at ?? null)) patch.applications_open_at = openAt
+    if (closeAt !== (baseline.applications_close_at ?? null)) patch.applications_close_at = closeAt
+
+    if ((draft.banner_image_url ?? null) !== (baseline.banner_image_url ?? null)) patch.banner_image_url = draft.banner_image_url ?? null
+    if ((draft.hub_image_url ?? null) !== (baseline.hub_image_url ?? null)) patch.hub_image_url = draft.hub_image_url ?? null
+    if ((draft.banner_focal_x ?? 50) !== (baseline.banner_focal_x ?? 50)) patch.banner_focal_x = draft.banner_focal_x ?? 50
+    if ((draft.banner_focal_y ?? 50) !== (baseline.banner_focal_y ?? 50)) patch.banner_focal_y = draft.banner_focal_y ?? 50
+    if ((draft.hub_focal_x ?? 50) !== (baseline.hub_focal_x ?? 50)) patch.hub_focal_x = draft.hub_focal_x ?? 50
+    if ((draft.hub_focal_y ?? 50) !== (baseline.hub_focal_y ?? 50)) patch.hub_focal_y = draft.hub_focal_y ?? 50
+
+    const eygDraft = Array.isArray(draft.eligible_year_groups) && draft.eligible_year_groups.length > 0
+      ? [...draft.eligible_year_groups].sort((a, b) => a - b)
+      : null
+    const eygBaseline = Array.isArray(baseline.eligible_year_groups) && baseline.eligible_year_groups.length > 0
+      ? [...baseline.eligible_year_groups].sort((a, b) => a - b)
+      : null
+    if (JSON.stringify(eygDraft) !== JSON.stringify(eygBaseline)) patch.eligible_year_groups = eygDraft
+
+    const gapDraft = draft.open_to_gap_year ?? false
+    const gapBaseline = baseline.open_to_gap_year ?? false
+    if (gapDraft !== gapBaseline) patch.open_to_gap_year = gapDraft
+
+    const currentFormConfig = JSON.stringify(baseline.form_config ?? { fields: [] })
+    const draftFormConfig = JSON.stringify(draft.form_config ?? { fields: [] })
+    if (draftFormConfig !== currentFormConfig) patch.form_config = draft.form_config
+
+    const currentFeedbackConfig = JSON.stringify(baseline.feedback_config ?? null)
+    const draftFeedbackConfig = JSON.stringify((draft as { feedback_config?: EventFeedbackConfig | null }).feedback_config ?? null)
+    if (draftFeedbackConfig !== currentFeedbackConfig) patch.feedback_config = (draft as { feedback_config?: EventFeedbackConfig | null }).feedback_config ?? null
+
+    return patch
+  }, [])
+
   const startEditing = () => {
     if (!event) return
+    // Snapshot the row state at the moment Edit was clicked so cancelEditing
+    // can revert any autosaved changes the user made before clicking Cancel.
+    editOriginalRef.current = event
     setEditDraft({
       name: event.name,
       slug: event.slug,
@@ -623,82 +765,171 @@ export default function EventDetailPage() {
       open_to_gap_year: event.open_to_gap_year ?? false,
       feedback_config: event.feedback_config ?? null,
     })
+    setAutosaveStatus('idle')
+    setAutosaveError(null)
+    setAutosaveSavedAt(null)
     setEditing(true)
   }
 
-  const cancelEditing = () => { setEditing(false); setEditDraft({}) }
+  const cancelEditing = async () => {
+    // Stop any pending or in-flight autosave so we don't fight the revert.
+    if (autosaveTimerRef.current) { clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null }
+    if (autosaveInflightRef.current) { try { await autosaveInflightRef.current } catch { /* swallow */ } }
+    const original = editOriginalRef.current
+    if (event && original) {
+      // Build a draft matching the editDraft shape from the original snapshot,
+      // then diff it against the *current* event row (which may include
+      // autosaved changes). The resulting patch reverts everything that
+      // landed during this edit session.
+      const revertDraft: Partial<EventRow> = {
+        name: original.name,
+        slug: original.slug,
+        event_date: original.event_date ?? '',
+        location: original.location ?? '',
+        location_full: original.location_full ?? '',
+        format: original.format ?? '',
+        description: original.description ?? '',
+        capacity: original.capacity,
+        time_start: original.time_start ?? '',
+        time_end: original.time_end ?? '',
+        dress_code: original.dress_code ?? '',
+        status: original.status,
+        applications_open_at: toLocalDatetimeInputValue(original.applications_open_at),
+        applications_close_at: toLocalDatetimeInputValue(original.applications_close_at),
+        form_config: original.form_config ?? { fields: [] },
+        banner_image_url: original.banner_image_url,
+        hub_image_url: original.hub_image_url,
+        banner_focal_x: original.banner_focal_x,
+        banner_focal_y: original.banner_focal_y,
+        hub_focal_x: original.hub_focal_x,
+        hub_focal_y: original.hub_focal_y,
+        eligible_year_groups: original.eligible_year_groups ?? null,
+        open_to_gap_year: original.open_to_gap_year ?? false,
+        feedback_config: original.feedback_config ?? null,
+      }
+      const revertPatch = buildEventPatch(revertDraft, event)
+      if (Object.keys(revertPatch).length > 0) {
+        try {
+          const reverted = await updateEvent(event.id, revertPatch as any)
+          setEvent(reverted)
+          if (revertPatch.name !== undefined || revertPatch.event_date !== undefined) {
+            void refreshEvents()
+          }
+        } catch (err) {
+          console.error('Failed to revert event:', err)
+          alert('Could not revert your changes — they may already be saved. ' + (err && typeof err === 'object' && 'message' in err ? (err as any).message : ''))
+        }
+      }
+    }
+    setEditing(false)
+    setEditDraft({})
+    setAutosaveStatus('idle')
+    setAutosaveError(null)
+    setAutosaveSavedAt(null)
+    editOriginalRef.current = null
+  }
 
+  // ---------------------------------------------------------------------------
+  // runAutosave — diffs editDraft against the current event row and persists
+  // any changes via updateEvent, with up to 3 retry attempts on failure.
+  // Returns 'noop' / 'saved' / 'failed' so callers (manual save, retry button)
+  // can decide whether it's safe to exit edit mode.
+  // ---------------------------------------------------------------------------
+  const runAutosave = useCallback(async (): Promise<'noop' | 'saved' | 'failed'> => {
+    if (!event) return 'noop'
+    // Skip if a save is already in flight — the next debounce tick will
+    // pick up any further user changes once this one finishes.
+    if (autosaveInflightRef.current) {
+      try { return await autosaveInflightRef.current } catch { return 'failed' }
+    }
+    const patch = buildEventPatch(editDraft, event)
+    if (Object.keys(patch).length === 0) {
+      // Nothing changed since last save. Don't clobber a 'saved' pill — but if
+      // we previously errored, treat a no-op as a recovery and clear.
+      setAutosaveStatus(prev => (prev === 'error' ? 'idle' : prev))
+      return 'noop'
+    }
+    setAutosaveStatus('saving')
+    setAutosaveError(null)
+    const promise = (async (): Promise<'noop' | 'saved' | 'failed'> => {
+      let lastErr: unknown = null
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const updated = await updateEvent(event.id, patch as any)
+          setEvent(updated)
+          if (patch.name !== undefined || patch.event_date !== undefined) {
+            void refreshEvents()
+          }
+          setAutosaveStatus('saved')
+          setAutosaveSavedAt(new Date())
+          return 'saved'
+        } catch (err) {
+          lastErr = err
+          // eslint-disable-next-line no-console
+          console.error(`Autosave attempt ${attempt + 1} failed:`, err)
+          if (attempt < 3) {
+            await new Promise(r => setTimeout(r, 800 * Math.pow(2, attempt)))
+          }
+        }
+      }
+      const msg = lastErr && typeof lastErr === 'object' && 'message' in lastErr
+        ? (lastErr as { message?: unknown }).message
+        : 'Save failed'
+      setAutosaveStatus('error')
+      setAutosaveError(typeof msg === 'string' ? msg : 'Save failed')
+      return 'failed'
+    })()
+    autosaveInflightRef.current = promise
+    try { return await promise } finally { autosaveInflightRef.current = null }
+  }, [event, editDraft, buildEventPatch])
+
+  // Debounce: 1.5s after the last editDraft mutation, fire an autosave.
+  // Re-running the effect on every editDraft change cancels the previous
+  // timer, so rapid typing only ever triggers one save 1.5s after the user
+  // stops.
+  useEffect(() => {
+    if (!editing) return
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null
+      void runAutosave()
+    }, 1500)
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+    }
+  }, [editDraft, editing, runAutosave])
+
+  // saveEditing — explicit Save changes button. Flushes any pending or
+  // in-flight autosave, then exits edit mode if the final state is clean.
+  // On persistent failure, stays in edit mode so the user can retry.
   const saveEditing = async () => {
     if (!event) return
     setEditSaving(true)
     try {
-      const patch: Record<string, any> = {}
-      if (editDraft.name && editDraft.name !== event.name) patch.name = editDraft.name
-      if (editDraft.slug && editDraft.slug !== event.slug) patch.slug = editDraft.slug
-      if ((editDraft.event_date ?? '') !== (event.event_date ?? '')) patch.event_date = editDraft.event_date || null
-      if ((editDraft.location ?? '') !== (event.location ?? '')) patch.location = editDraft.location || null
-      if ((editDraft.location_full ?? '') !== (event.location_full ?? '')) patch.location_full = editDraft.location_full || null
-      if ((editDraft.format ?? '') !== (event.format ?? '')) patch.format = editDraft.format || null
-      if ((editDraft.description ?? '') !== (event.description ?? '')) patch.description = editDraft.description || null
-      if (editDraft.capacity !== event.capacity) patch.capacity = editDraft.capacity ?? null
-      if ((editDraft.time_start ?? '') !== (event.time_start ?? '')) patch.time_start = editDraft.time_start || null
-      if ((editDraft.time_end ?? '') !== (event.time_end ?? '')) patch.time_end = editDraft.time_end || null
-      if ((editDraft.dress_code ?? '') !== (event.dress_code ?? '')) patch.dress_code = editDraft.dress_code || null
-      if (editDraft.status && editDraft.status !== event.status) patch.status = editDraft.status
-      const openAt = editDraft.applications_open_at ? new Date(editDraft.applications_open_at as string).toISOString() : null
-      const closeAt = editDraft.applications_close_at ? new Date(editDraft.applications_close_at as string).toISOString() : null
-      if (openAt !== (event.applications_open_at ?? null)) patch.applications_open_at = openAt
-      if (closeAt !== (event.applications_close_at ?? null)) patch.applications_close_at = closeAt
-
-      if ((editDraft.banner_image_url ?? null) !== (event.banner_image_url ?? null)) patch.banner_image_url = editDraft.banner_image_url ?? null
-      if ((editDraft.hub_image_url ?? null) !== (event.hub_image_url ?? null)) patch.hub_image_url = editDraft.hub_image_url ?? null
-      if ((editDraft.banner_focal_x ?? 50) !== (event.banner_focal_x ?? 50)) patch.banner_focal_x = editDraft.banner_focal_x ?? 50
-      if ((editDraft.banner_focal_y ?? 50) !== (event.banner_focal_y ?? 50)) patch.banner_focal_y = editDraft.banner_focal_y ?? 50
-      if ((editDraft.hub_focal_x ?? 50) !== (event.hub_focal_x ?? 50)) patch.hub_focal_x = editDraft.hub_focal_x ?? 50
-      if ((editDraft.hub_focal_y ?? 50) !== (event.hub_focal_y ?? 50)) patch.hub_focal_y = editDraft.hub_focal_y ?? 50
-
-      // eligible_year_groups — null means "open to all". Compare as sorted JSON.
-      const eygDraft = Array.isArray(editDraft.eligible_year_groups) && editDraft.eligible_year_groups.length > 0
-        ? [...editDraft.eligible_year_groups].sort((a, b) => a - b)
-        : null
-      const eygCurrent = Array.isArray(event.eligible_year_groups) && event.eligible_year_groups.length > 0
-        ? [...event.eligible_year_groups].sort((a, b) => a - b)
-        : null
-      if (JSON.stringify(eygDraft) !== JSON.stringify(eygCurrent)) patch.eligible_year_groups = eygDraft
-
-      // open_to_gap_year — independent boolean. Default false.
-      const gapDraft = editDraft.open_to_gap_year ?? false
-      const gapCurrent = event.open_to_gap_year ?? false
-      if (gapDraft !== gapCurrent) patch.open_to_gap_year = gapDraft
-
-      // Always include form_config if it was edited
-      const currentFormConfig = JSON.stringify(event.form_config ?? { fields: [] })
-      const draftFormConfig = JSON.stringify(editDraft.form_config ?? { fields: [] })
-      if (draftFormConfig !== currentFormConfig) patch.form_config = editDraft.form_config
-
-      // feedback_config — null means "no live feedback form". Compare as JSON.
-      const currentFeedbackConfig = JSON.stringify(event.feedback_config ?? null)
-      const draftFeedbackConfig = JSON.stringify((editDraft as { feedback_config?: EventFeedbackConfig | null }).feedback_config ?? null)
-      if (draftFeedbackConfig !== currentFeedbackConfig) patch.feedback_config = (editDraft as { feedback_config?: EventFeedbackConfig | null }).feedback_config ?? null
-
-      if (Object.keys(patch).length > 0) {
-        const updated = await updateEvent(event.id, patch as any)
-        setEvent(updated)
-        // If name/date changed, propagate to the shared events cache so every
-        // student-facing page picks up the new label on next render.
-        if (patch.name !== undefined || patch.event_date !== undefined) {
-          void refreshEvents()
-        }
+      // Cancel pending debounce; we're saving right now.
+      if (autosaveTimerRef.current) { clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null }
+      // Wait for any in-flight autosave so we don't race it.
+      if (autosaveInflightRef.current) { try { await autosaveInflightRef.current } catch { /* swallow */ } }
+      // Final flush — picks up the latest editDraft state.
+      const result = await runAutosave()
+      if (result === 'failed') {
+        // Surface the failure via the pill; don't exit edit mode.
+        return
       }
       setEditing(false)
       setEditDraft({})
-    } catch (err) {
-      console.error('Failed to save event:', err)
-      alert('Failed to save: ' + (err && typeof err === 'object' && 'message' in err ? (err as any).message : JSON.stringify(err)))
+      setAutosaveStatus('idle')
+      setAutosaveError(null)
+      setAutosaveSavedAt(null)
+      editOriginalRef.current = null
     } finally {
       setEditSaving(false)
     }
   }
+
   const [templates, setTemplates] = useState<{ id: string; name: string; type: string; subject: string; body_html: string; event_id: string | null }[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [emailSubject, setEmailSubject] = useState('')
@@ -1829,7 +2060,9 @@ export default function EventDetailPage() {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                 Preview
               </a>
-              <button onClick={cancelEditing} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
+              {/* Autosave status pill — shows live progress so the admin can trust their edits are landing without hitting Save. */}
+              <AutosaveStatusPill status={autosaveStatus} savedAt={autosaveSavedAt} error={autosaveError} onRetry={() => { void runAutosave() }} />
+              <button onClick={() => { void cancelEditing() }} disabled={editSaving} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50" title="Reverts any changes saved during this edit session">Cancel</button>
               <button onClick={saveEditing} disabled={editSaving || !editDraft.name || !editDraft.slug} className="px-4 py-1.5 text-sm rounded-md bg-steps-blue-600 text-white hover:bg-steps-blue-700 disabled:opacity-50">{editSaving ? 'Saving…' : 'Save changes'}</button>
             </div>
 
