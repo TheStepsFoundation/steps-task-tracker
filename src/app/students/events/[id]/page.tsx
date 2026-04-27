@@ -849,7 +849,9 @@ export default function EventDetailPage() {
       setAutosaveStatus(prev => (prev === 'error' ? 'idle' : prev))
       return 'noop'
     }
-    setAutosaveStatus('saving')
+    // Note: deliberately do NOT flip the pill to 'saving' here. The pill stays
+    // on the most recent 'Saved just now' through background autosaves to avoid
+    // a distracting flicker. Manual Save has its own button-level saving state.
     setAutosaveError(null)
     const promise = (async (): Promise<'noop' | 'saved' | 'failed'> => {
       let lastErr: unknown = null
