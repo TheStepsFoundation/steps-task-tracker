@@ -326,9 +326,9 @@ export default function StudentHub() {
   // --- Loading ---
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-50 to-white" role="status" aria-live="polite" aria-label="Loading your hub">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-steps-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
+          <div aria-hidden="true" className="animate-spin w-8 h-8 border-2 border-steps-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-slate-500 text-sm">Loading your hub…</p>
         </div>
       </div>
@@ -354,14 +354,18 @@ export default function StudentHub() {
             Student Hub
           </div>
           <h1 className="font-display text-3xl sm:text-4xl font-black text-steps-dark tracking-tight">
-            {profile?.first_name ? `Hey, ${profile.first_name}!` : 'Welcome'}
+            {profile?.first_name ? `Hey, ${profile.first_name}!` : 'Welcome back'}
           </h1>
           <p className="text-slate-500 text-sm mt-2">{authEmail}</p>
         </div>
 
       {/* Success banner */}
       {saveMsg && (
-        <div className={`mb-6 p-4 rounded-xl text-sm font-medium ${saveMsg.startsWith('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+        <div
+          role={saveMsg.startsWith('Error') ? 'alert' : 'status'}
+          aria-live="polite"
+          className={`mb-6 p-4 rounded-xl text-sm font-medium ${saveMsg.startsWith('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}
+        >
           {saveMsg}
         </div>
       )}
@@ -442,7 +446,7 @@ export default function StudentHub() {
               <Link
                 key={event.id}
                 href={`/my/events/${event.id}`}
-                className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 transition group"
+                className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steps-blue-500 focus-visible:ring-offset-2 transition group"
               >
                 <div className="flex items-stretch min-h-[160px] sm:min-h-[200px]">
                   <div className="flex-1 min-w-0 p-5 sm:p-6 flex flex-col">
@@ -514,7 +518,7 @@ export default function StudentHub() {
                 <Link
                   key={event.id}
                   href={`/my/events/${event.id}`}
-                  className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden opacity-60 hover:opacity-80 hover:shadow-md transition group"
+                  className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden opacity-60 hover:opacity-80 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steps-blue-500 focus-visible:ring-offset-2 focus-visible:opacity-100 transition group"
                   title={yearLabel}
                 >
                   <div className="flex items-stretch min-h-[160px] sm:min-h-[200px]">
@@ -575,6 +579,11 @@ export default function StudentHub() {
                 <p className="text-gray-500 text-sm">You haven&apos;t applied to any events yet.</p>
                 <p className="text-steps-blue-600 text-sm mt-2 font-medium">Check out the open events above!</p>
               </>
+            ) : ineligibleOpenEvents.length > 0 ? (
+              <>
+                <p className="text-gray-700 text-sm font-medium">Nothing open for your year group yet</p>
+                <p className="text-gray-500 text-sm mt-1">We&apos;ll email you as soon as something opens up &mdash; the events above are for other year groups.</p>
+              </>
             ) : (
               <>
                 <p className="text-gray-700 text-sm font-medium">No new opportunities right now</p>
@@ -594,7 +603,7 @@ export default function StudentHub() {
                 <Link
                   key={app.id}
                   href={`/my/events/${app.event.id}`}
-                  className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 transition group"
+                  className="relative block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-steps-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steps-blue-500 focus-visible:ring-offset-2 transition group"
                 >
                   <div className="flex items-stretch min-h-[140px] sm:min-h-[180px]">
                     <div className="flex-1 min-w-0 p-5 sm:p-6 flex flex-col">
@@ -610,7 +619,7 @@ export default function StudentHub() {
                           {journey.primary}
                         </span>
                         {isPast && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-400">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                             Past event
                           </span>
                         )}
@@ -684,19 +693,21 @@ export default function StudentHub() {
           ) : editing ? (
             /* ---- Edit mode ---- */
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+                  <label htmlFor="hub-firstname" className="block text-sm font-medium text-gray-700 mb-1">First name</label>
                   <input
-                    type="text" value={firstName}
+                    id="hub-firstname"
+                    type="text" value={firstName} autoComplete="given-name"
                     onChange={e => setFirstName(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+                  <label htmlFor="hub-lastname" className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
                   <input
-                    type="text" value={lastName}
+                    id="hub-lastname"
+                    type="text" value={lastName} autoComplete="family-name"
                     onChange={e => setLastName(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition"
                   />
@@ -709,10 +720,10 @@ export default function StudentHub() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Year group</label>
+                <label htmlFor="hub-yeargroup" className="block text-sm font-medium text-gray-700 mb-1">Year group</label>
                 {profile.year_group != null ? (
                   <>
-                    <div className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-gray-700">
+                    <div id="hub-yeargroup" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-gray-700">
                       {profile.year_group === 14 ? 'Gap year' : `Year ${profile.year_group}`}
                     </div>
                     <p className="text-xs text-gray-500 mt-1.5">
@@ -721,6 +732,7 @@ export default function StudentHub() {
                   </>
                 ) : (
                   <select
+                    id="hub-yeargroup"
                     value={yearGroup}
                     onChange={e => setYearGroup(e.target.value ? Number(e.target.value) : '')}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
@@ -734,8 +746,9 @@ export default function StudentHub() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">School type</label>
+                <label htmlFor="hub-schooltype" className="block text-sm font-medium text-gray-700 mb-1">School type</label>
                 <select
+                  id="hub-schooltype"
                   value={schoolType}
                   onChange={e => setSchoolType(e.target.value)}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
@@ -747,8 +760,8 @@ export default function StudentHub() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Eligible for Free School Meals?</label>
+              <fieldset>
+                <legend className="block text-sm font-medium text-gray-700 mb-1">Eligible for Free School Meals?</legend>
                 <div className="flex gap-4">
                   {[
                     { v: true, l: 'Yes' },
@@ -765,11 +778,12 @@ export default function StudentHub() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Household income under £40k?</label>
+                <label htmlFor="hub-income" className="block text-sm font-medium text-gray-700 mb-1">Household income under £40k?</label>
                 <select
+                  id="hub-income"
                   value={incomeBand}
                   onChange={e => setIncomeBand(e.target.value)}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition bg-white"
@@ -781,10 +795,10 @@ export default function StudentHub() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <fieldset>
+                <legend className="block text-sm font-medium text-gray-700 mb-1">
                   Did you grow up in a household where at least one parent went to university?
-                </label>
+                </legend>
                 <div className="flex gap-4">
                   {[{ v: 'yes' as const, l: 'Yes' }, { v: 'no' as const, l: 'No' }].map(opt => (
                     <label key={opt.v} className="flex items-center gap-2 cursor-pointer">
@@ -798,7 +812,7 @@ export default function StudentHub() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
               <div>
                 <label htmlFor="gcse-hub" className="block text-sm font-medium text-gray-700 mb-1">
@@ -919,7 +933,7 @@ export default function StudentHub() {
 
       {/* Success toast after withdraw */}
       {withdrawSuccess && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[90%]">
+        <div role="status" aria-live="polite" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[90%]">
           <div className="bg-white rounded-2xl shadow-xl border border-emerald-200 px-4 py-3 flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -946,18 +960,24 @@ export default function StudentHub() {
 
       {/* Withdraw confirmation modal */}
       {withdrawTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="hub-withdraw-title"
+          aria-describedby="hub-withdraw-desc"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+        >
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 max-w-md w-full">
-            <h3 className="font-display text-xl font-bold text-steps-dark mb-1">
+            <h3 id="hub-withdraw-title" className="font-display text-xl font-bold text-steps-dark mb-1">
               Withdraw your application?
             </h3>
-            <p className="text-sm text-slate-600 mb-4">
-              You're about to withdraw your application to <span className="font-semibold text-steps-dark">{withdrawTarget.event.name}</span>.
-              This can&apos;t be undone &mdash; if you change your mind, you&apos;ll need to reapply.
+            <p id="hub-withdraw-desc" className="text-sm text-slate-600 mb-4">
+              You&apos;re about to withdraw your application to <span className="font-semibold text-steps-dark">{withdrawTarget.event.name}</span>.
+              You can re-apply while applications are still open &mdash; but once the deadline passes, you won&apos;t be able to submit again.
             </p>
 
             {withdrawError && (
-              <p className="mb-4 text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{withdrawError}</p>
+              <p role="alert" className="mb-4 text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{withdrawError}</p>
             )}
 
             <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">

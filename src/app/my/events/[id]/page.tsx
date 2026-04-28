@@ -231,7 +231,10 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
             Sign out
           </button>
         </TopNav>
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center text-gray-500">Loading…</div>
+        <div role="status" aria-live="polite" aria-label="Loading event details" className="max-w-4xl mx-auto px-4 py-16 flex flex-col items-center gap-3">
+          <div aria-hidden="true" className="animate-spin w-7 h-7 border-2 border-steps-blue-600 border-t-transparent rounded-full" />
+          <p className="text-sm text-gray-500">Loading event details…</p>
+        </div>
       </div>
     )
   }
@@ -325,7 +328,7 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
                   {journey.primary}
                 </span>
                 {isPast && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-400">Past event</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Past event</span>
                 )}
               </div>
             )}
@@ -481,19 +484,25 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
 
       {/* Withdraw confirmation modal */}
       {showWithdrawModal && application && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="withdraw-title"
+          aria-describedby="withdraw-desc"
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+        >
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900">Withdraw your application?</h3>
-            <p className="text-sm text-gray-600 mt-2">
-              You can always re-apply while applications are open. Once the deadline passes, you won&apos;t be able to re-submit.
+            <h3 id="withdraw-title" className="text-lg font-semibold text-gray-900">Withdraw your application?</h3>
+            <p id="withdraw-desc" className="text-sm text-gray-600 mt-2">
+              You can re-apply while applications are still open &mdash; but once the deadline passes, you won&apos;t be able to submit again.
             </p>
-            {withdrawErr && <p className="text-sm text-red-600 mt-3">{withdrawErr}</p>}
-            <div className="flex justify-end gap-2 mt-6">
-              <button type="button" onClick={() => setShowWithdrawModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium">
-                Never mind
+            {withdrawErr && <p role="alert" className="text-sm text-red-600 mt-3">{withdrawErr}</p>}
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+              <button type="button" onClick={() => setShowWithdrawModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium rounded-xl hover:bg-gray-50 transition">
+                Keep my application
               </button>
-              <button type="button" disabled={withdrawing} onClick={confirmWithdraw} className="px-4 py-2 text-sm text-white font-medium bg-steps-berry hover:bg-steps-berry/90 rounded-xl disabled:opacity-60">
-                {withdrawing ? 'Withdrawing…' : 'Withdraw application'}
+              <button type="button" disabled={withdrawing} onClick={confirmWithdraw} className="px-4 py-2 text-sm text-white font-semibold bg-steps-berry hover:bg-steps-berry/90 rounded-xl disabled:opacity-60 transition">
+                {withdrawing ? 'Withdrawing\u2026' : 'Yes, withdraw'}
               </button>
             </div>
           </div>

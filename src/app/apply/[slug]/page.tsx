@@ -836,7 +836,7 @@ export default function ApplyPage() {
     const studentId = profileStudentIdRef.current
     if (!studentId) {
       submittingRef.current = false
-      setError('We lost track of your profile mid-submit. Please click Continue on the previous step and try again.')
+      setError('Something went wrong on our end — your details are safe. Please review the previous step and try Continue again.')
       setStep('details')
       return
     }
@@ -1002,33 +1002,61 @@ export default function ApplyPage() {
         <p className="text-gray-500 text-sm">{event.location ?? ''}</p>
       </div>
 
-      {/* Progress */}
+      {/* Progress — semantic step list. Bubbles get short labels on sm+ so
+          students always know what step they're on. The active step has
+          aria-current="step" and the visually-hidden "Step X of Y" line
+          gives screen-reader users a clear position fix. */}
       {step !== 'loading' && step !== 'success' && step !== 'submitting' && step !== 'applied' && (() => {
-        // Progress bubbles. The middle 'application' step is only shown when
-        // the admin has configured custom questions; otherwise we collapse to
-        // a 4-bubble flow (email -> otp -> details -> wrapup).
         const progressSteps: Step[] = (() => {
           const base: Step[] = ['email', 'otp', 'details']
           if (hasApplicationContent()) base.push('application')
           return base
         })()
+        const STEP_LABELS: Record<string, string> = {
+          email: 'Sign in',
+          otp: 'Verify',
+          details: 'About you',
+          application: 'Application',
+        }
         const stepIdx = progressSteps.indexOf(step as Step)
+        const total = progressSteps.length
+        const currentLabel = STEP_LABELS[step] ?? step
         return (
-          <div className="flex items-center gap-2 mb-8 justify-center">
-            {progressSteps.map((s, i) => (
-              <div key={s} className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                  step === s ? 'bg-steps-blue-600 text-white' :
-                  (stepIdx > i) ? 'bg-steps-blue-200 text-steps-blue-700' : 'bg-gray-200 text-gray-500'
-                }`}>
-                  {i + 1}
-                </div>
-                {i < progressSteps.length - 1 && <div className={`w-8 h-0.5 ${
-                  (stepIdx > i) ? 'bg-steps-blue-300' : 'bg-gray-200'
-                }`} />}
-              </div>
-            ))}
-          </div>
+          <nav aria-label="Application progress" className="mb-8">
+            <p className="sr-only">Step {stepIdx + 1} of {total}: {currentLabel}</p>
+            <ol className="flex items-center gap-2 justify-center flex-wrap">
+              {progressSteps.map((s, i) => {
+                const isActive = step === s
+                const isComplete = stepIdx > i
+                return (
+                  <li key={s} className="flex items-center gap-2">
+                    <div
+                      aria-current={isActive ? 'step' : undefined}
+                      className={`flex items-center gap-2 px-2 py-1 rounded-full transition-colors ${
+                        isActive ? 'bg-steps-blue-50' : ''
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                          isActive ? 'bg-steps-blue-600 text-white' :
+                          isComplete ? 'bg-steps-blue-200 text-steps-blue-700' : 'bg-gray-200 text-gray-500'
+                        }`}
+                      >
+                        {isComplete ? '\u2713' : i + 1}
+                      </span>
+                      <span className={`text-xs font-medium hidden sm:inline ${
+                        isActive ? 'text-steps-blue-700' : isComplete ? 'text-steps-blue-700/80' : 'text-gray-400'
+                      }`}>{STEP_LABELS[s]}</span>
+                    </div>
+                    {i < progressSteps.length - 1 && (
+                      <span aria-hidden="true" className={`w-6 h-0.5 ${isComplete ? 'bg-steps-blue-300' : 'bg-gray-200'}`} />
+                    )}
+                  </li>
+                )
+              })}
+            </ol>
+          </nav>
         )
       })()}
 
@@ -1113,6 +1141,9 @@ export default function ApplyPage() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 autoFocus
+                autoComplete="email"
+                inputMode="email"
+                spellCheck={false}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-3"
               />
               <label htmlFor="loginPw" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1125,6 +1156,7 @@ export default function ApplyPage() {
                 onChange={e => setLoginPassword(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handlePasswordLogin()}
                 placeholder="Your password"
+                autoComplete="current-password"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-4"
               />
               <button
@@ -1168,6 +1200,9 @@ export default function ApplyPage() {
                 onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
                 placeholder="you@example.com"
                 autoFocus
+                autoComplete="email"
+                inputMode="email"
+                spellCheck={false}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition mb-4"
               />
               <button
@@ -1214,12 +1249,15 @@ export default function ApplyPage() {
             id="otp"
             type="text"
             inputMode="numeric"
+            pattern="[0-9]*"
             maxLength={6}
             value={otpCode}
             onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
             onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
             placeholder="000000"
             autoFocus
+            autoComplete="one-time-code"
+            aria-label="6-digit verification code"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition text-center text-2xl tracking-[0.3em] font-mono mb-4"
           />
           <button
@@ -1266,18 +1304,20 @@ export default function ApplyPage() {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div data-error-key="firstName">
               <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                First name <span className="text-red-400">*</span>
+                First name <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </label>
-              <input id="firstName" type="text" value={firstName}
+              <input id="firstName" type="text" value={firstName} autoComplete="given-name"
+                aria-invalid={!!fieldErrors.firstName}
                 onChange={e => { setFirstName(e.target.value); clearFieldError('firstName') }}
                 className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition ${fieldErrors.firstName ? 'border-red-400 bg-red-50/30' : 'border-gray-200'}`} />
               {fieldErrors.firstName && <p className="mt-1 text-xs text-red-600">{fieldErrors.firstName}</p>}
             </div>
             <div data-error-key="lastName">
               <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                Last name <span className="text-red-400">*</span>
+                Last name <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </label>
-              <input id="lastName" type="text" value={lastName}
+              <input id="lastName" type="text" value={lastName} autoComplete="family-name"
+                aria-invalid={!!fieldErrors.lastName}
                 onChange={e => { setLastName(e.target.value); clearFieldError('lastName') }}
                 className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition ${fieldErrors.lastName ? 'border-red-400 bg-red-50/30' : 'border-gray-200'}`} />
               {fieldErrors.lastName && <p className="mt-1 text-xs text-red-600">{fieldErrors.lastName}</p>}
@@ -1287,14 +1327,15 @@ export default function ApplyPage() {
           {/* Email (read-only) */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input type="email" value={email} disabled
-              className="w-full px-4 py-2.5 border border-gray-100 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed" />
+            <input type="email" value={email} disabled aria-label="Your email"
+              autoComplete="email"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-gray-700 cursor-not-allowed" />
           </div>
 
           {/* School */}
           <div className="mb-4" data-error-key="school">
             <label htmlFor="school" className="block text-sm font-medium text-gray-700 mb-1">
-              {stdLabel('std_school', 'Current school / sixth form college')} <span className="text-red-400">*</span>
+              {stdLabel('std_school', 'Current school / sixth form college')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
             </label>
             {stdDesc('std_school') && (
               <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_school')) }} />
@@ -1307,7 +1348,7 @@ export default function ApplyPage() {
           {!stdHidden('std_year_group') && (
             <div className="mb-6" data-error-key="yearGroup">
               <label htmlFor="yearGroup" className="block text-sm font-medium text-gray-700 mb-1">
-                {stdLabel('std_year_group', 'Year group')} <span className="text-red-400">*</span>
+                {stdLabel('std_year_group', 'Year group')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </label>
               {stdDesc('std_year_group') && (
                 <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_year_group')) }} />
@@ -1334,7 +1375,7 @@ export default function ApplyPage() {
             {!stdHidden('std_school_type') && (isIndependentSchool(school.typeGroup) ? (
               <fieldset className="mb-4" data-error-key="schoolType">
                 <legend className="block text-sm font-medium text-gray-700 mb-2">
-                  Does your school provide you with a bursary or scholarship covering 90%+ of fees? <span className="text-red-400">*</span>
+                  Does your school provide you with a bursary or scholarship covering 90%+ of fees? <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
                 </legend>
                 <p className="text-xs text-gray-400 mb-2">
                   We detected your school is independent from the schools register.
@@ -1356,7 +1397,7 @@ export default function ApplyPage() {
             ) : (
               <fieldset className="mb-4" data-error-key="schoolType">
                 <legend className="block text-sm font-medium text-gray-700 mb-2">
-                  {stdLabel('std_school_type', 'What type of school do you currently attend?')} <span className="text-red-400">*</span>
+                  {stdLabel('std_school_type', 'What type of school do you currently attend?')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
                 </legend>
                 {stdDesc('std_school_type') && (
                   <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_school_type')) }} />
@@ -1377,7 +1418,7 @@ export default function ApplyPage() {
             {!stdHidden('std_income') && (
             <fieldset className="mb-4" data-error-key="householdIncome">
               <legend className="block text-sm font-medium text-gray-700 mb-2">
-                {stdLabel('std_income', 'Is your average household income less than £40,000?')} <span className="text-red-400">*</span>
+                {stdLabel('std_income', 'Is your average household income less than £40,000?')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </legend>
               {stdDesc('std_income') && (
                 <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_income')) }} />
@@ -1396,7 +1437,7 @@ export default function ApplyPage() {
             {!stdHidden('std_fsm') && (
             <fieldset className="mb-4" data-error-key="freeSchoolMeals">
               <legend className="block text-sm font-medium text-gray-700 mb-2">
-                {stdLabel('std_fsm', 'Are you eligible for Free School Meals?')} <span className="text-red-400">*</span>
+                {stdLabel('std_fsm', 'Are you eligible for Free School Meals?')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </legend>
               {stdDesc('std_fsm') && (
                 <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_fsm')) }} />
@@ -1421,7 +1462,7 @@ export default function ApplyPage() {
             {!stdHidden('std_first_gen') && (
             <fieldset className="mb-4" data-error-key="firstGenerationUni">
               <legend className="block text-sm font-medium text-gray-700 mb-2">
-                {stdLabel('std_first_gen', 'Did you grow up in a household where at least one parent went to university?')} <span className="text-red-400">*</span>
+                {stdLabel('std_first_gen', 'Did you grow up in a household where at least one parent went to university?')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </legend>
               {stdDesc('std_first_gen') && (
                 <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_first_gen')) }} />
@@ -1481,7 +1522,7 @@ export default function ApplyPage() {
           {!stdHidden('std_gcse') && (
             <div className="mb-6" data-error-key="gcseResults">
               <label htmlFor="gcse" className="block text-sm font-medium text-gray-700 mb-1">
-                {stdLabel('std_gcse', 'Achieved GCSE results')} <span className="text-red-400">*</span>
+                {stdLabel('std_gcse', 'Achieved GCSE results')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </label>
               <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_gcse', 'Enter your grades as numbers only, highest to lowest (e.g. 999887766).')) }} />
               <input
@@ -1502,7 +1543,7 @@ export default function ApplyPage() {
           {!stdHidden('std_qualifications') && (
           <div className="mb-6" data-error-key="qualifications">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {stdLabel('std_qualifications', 'Subjects and predicted/achieved grades')} <span className="text-red-400">*</span>
+              {stdLabel('std_qualifications', 'Subjects and predicted/achieved grades')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
             </label>
             <p className="text-xs text-gray-400 mb-3" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_qualifications', 'Add each subject you study. Select your qualification type, subject, and current predicted (or achieved) grade.')) }} />
 
@@ -1537,7 +1578,7 @@ export default function ApplyPage() {
           {!stdHidden('std_attribution') && (
             <div className="mb-6" data-error-key="attribution">
               <label htmlFor="attribution" className="block text-sm font-medium text-gray-700 mb-1">
-                {stdLabel('std_attribution', 'How did you hear about this opportunity?')} <span className="text-red-400">*</span>
+                {stdLabel('std_attribution', 'How did you hear about this opportunity?')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
               </label>
               {stdDesc('std_attribution') && (
                 <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_attribution')) }} />
@@ -1724,7 +1765,7 @@ export default function ApplyPage() {
                 <div className="border-t border-gray-100 pt-6 mb-6">
                   <fieldset className="mb-6" data-error-key="attribution">
                     <legend className="block text-sm font-medium text-gray-700 mb-2">
-                      {stdLabel('std_attribution')} <span className="text-red-400">*</span>
+                      {stdLabel('std_attribution')} <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">required</span>
                     </legend>
                     {stdDesc('std_attribution') && (
                       <p className="text-xs text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(stdDesc('std_attribution')) }} />
@@ -1837,11 +1878,16 @@ export default function ApplyPage() {
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{passwordError}</div>
               )}
               <div className="space-y-3 mb-4">
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder="Create a password (min 6 characters)"
+                <input id="apply-newpw" type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="Create a password (min 8 characters)"
+                  autoComplete="new-password"
+                  aria-label="New password"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition" />
-                <input type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}
+                <input id="apply-newpw-confirm" type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}
                   placeholder="Confirm password"
+                  autoComplete="new-password"
+                  aria-label="Confirm new password"
+                  onKeyDown={e => { if (e.key === 'Enter') handlePasswordUpgrade() }}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-steps-blue-500 focus:border-transparent outline-none transition" />
               </div>
               <div className="flex gap-3">

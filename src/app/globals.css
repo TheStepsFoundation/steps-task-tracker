@@ -80,3 +80,40 @@ html {
 .dark .always-scrollbar::-webkit-scrollbar-track { background: rgb(31 41 55); }
 .dark .always-scrollbar::-webkit-scrollbar-thumb { background: rgb(75 85 99); border-color: rgb(31 41 55); }
 .dark .always-scrollbar::-webkit-scrollbar-thumb:hover { background: rgb(107 114 128); }
+
+/* ---------------------------------------------------------------------------
+ * Respect prefers-reduced-motion (WCAG 2.3.3). Strip large transforms and
+ * animation loops for users who've turned motion off at the OS level. We
+ * keep a hint of transition (75ms) so focus rings still feel responsive.
+ * --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 75ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Tailwind hover-translate utilities */
+  .hover\:-translate-y-0\.5:hover,
+  .hover\:-translate-y-1:hover,
+  .group:hover .group-hover\:-translate-y-0\.5,
+  .active\:translate-y-0\.5:active,
+  .active\:translate-y-1:active,
+  .active\:scale-\[0\.98\]:active {
+    transform: none !important;
+  }
+}
+
+/* sr-only — Tailwind ships this but include it explicitly so it's stable
+   even if a future tailwind config tweak removes the default utility. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

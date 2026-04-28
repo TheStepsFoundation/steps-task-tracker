@@ -163,14 +163,19 @@ function HubSignInInner() {
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-7 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <label htmlFor="signin-email" className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
               <input
+                id="signin-email"
                 type="email"
                 className={INPUT_CLASSES}
                 placeholder="your@email.com"
                 value={email}
                 onChange={e => { setEmail(e.target.value); setError(null) }}
                 disabled={step === 'otp'}
+                autoFocus
+                autoComplete="email"
+                inputMode="email"
+                spellCheck={false}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && email.trim()) {
                     if (useOtp) handleSendOtp()
@@ -183,12 +188,14 @@ function HubSignInInner() {
             {step === 'email' && !useOtp && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                  <label htmlFor="signin-password" className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
                   <input
+                    id="signin-password"
                     type="password"
                     className={INPUT_CLASSES}
                     placeholder="Enter your password"
                     value={password}
+                    autoComplete="current-password"
                     onChange={e => { setPassword(e.target.value); setError(null) }}
                     onKeyDown={e => { if (e.key === 'Enter') handlePasswordSignIn() }}
                   />
@@ -239,13 +246,18 @@ function HubSignInInner() {
                 </p>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  <label htmlFor="signin-otp" className="block text-sm font-medium text-slate-700 mb-1.5">
                     Verification code
                   </label>
                   <input
+                    id="signin-otp"
                     type="text"
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={6}
+                    autoComplete="one-time-code"
+                    aria-label="6-digit verification code"
+                    autoFocus
                     className={`${INPUT_CLASSES} tracking-widest text-center font-semibold`}
                     placeholder="000000"
                     value={otpCode}
@@ -280,7 +292,7 @@ function HubSignInInner() {
             )}
 
             {error && (
-              <p className="text-sm text-steps-berry bg-steps-berry/10 rounded-lg px-3 py-2">{error}</p>
+              <p role="alert" aria-live="polite" className="text-sm text-steps-berry bg-steps-berry/10 rounded-lg px-3 py-2">{error}</p>
             )}
           </div>
 
