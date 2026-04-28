@@ -417,3 +417,34 @@ export async function fetchFeedbackForStudent(studentId: string): Promise<(Event
   if (error) throw error
   return (data ?? []) as unknown as (EventFeedbackRow & { event: { id: string; name: string; slug: string; event_date: string | null; feedback_config: EventFeedbackConfig | null } | null })[]
 }
+
+// ---------------------------------------------------------------------------
+// Admin edit/delete on live feedback rows. RLS gates these to admins.
+// updateFeedback uses a partial patch — only the fields the admin actually
+// changed are written, so editing one quote doesn't blow away ratings.
+// ---------------------------------------------------------------------------
+
+export type FeedbackPatch = Partial<{
+  ratings: Record<string, number>
+  answers: Record<string, string | string[]>
+  postable_quote: string | null
+  consent: 'name' | 'first_name' | 'anon' | 'no'
+}>
+
+/** Patch a single live-feedback row. Only writes the keys present in `patch`. */
+export async function updateFeedback(id: string, patch: FeedbackPatch): Promise<EventFeedbackRow> {
+  const { data, error } = await supabase
+    .from('event_feedback')
+    .update(patch)
+    .eq('id', id)
+    .select('id, event_id, student_id, ratings, answers, postable_quote, consent, submitted_at, updated_at, student:students(id, first_name, last_name, preferred_name, personal_email, year_group, school_name_raw)')
+    .single()
+  if (error) throw error
+  return data as unknown as EventFeedbackRow
+}
+
+/** Hard-delete a live feedback row. Only used from the admin overview. */
+export async function deleteFeedback(id: string): Promise<void> {
+  const { error } = await supabase.from('event_feedback').delete().eq('id', id)
+  if (error) throw error
+}

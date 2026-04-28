@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { eventFeedbackByEventId } from '@/data/event-feedback'
-import { fetchFeedbackConfig, fetchFeedbackSubmissions, getFeedbackFields, type EventFeedbackConfig, type EventFeedbackRow } from '@/lib/events-api'
+import { fetchFeedbackConfig, fetchFeedbackSubmissions, getFeedbackFields, updateFeedback, deleteFeedback, type EventFeedbackConfig, type EventFeedbackRow, type FeedbackPatch, type FormFieldConfig } from '@/lib/events-api'
 import type {
   Consent,
   CuratedQuote,
@@ -517,21 +517,49 @@ export default function EventFeedbackPage() {
 // LiveFeedbackView — renders post-event feedback that comes from the live
 // event_feedback table (rather than the static curated TS files). Used when
 // no curated dataset exists for an event but the event has feedback_config.
+//
+// Admins can edit individual responses (typo-fix the postable quote, change
+// consent, tweak a misclick on a rating) and delete responses outright.
+// All mutations go through events-api helpers and refresh the local list
+// optimistically — no full page reload needed.
 // ---------------------------------------------------------------------------
 function LiveFeedbackView({ eventId }: { eventId: string }) {
   const [config, setConfig] = useState<EventFeedbackConfig | null>(null)
   const [rows, setRows] = useState<EventFeedbackRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastLoaded, setLastLoaded] = useState<Date | null>(null)
+  const [editing, setEditing] = useState<EventFeedbackRow | null>(null)
+  const [deleting, setDeleting] = useState<EventFeedbackRow | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!eventId) return
-    let cancelled = false
-    setLoading(true)
-    Promise.all([fetchFeedbackConfig(eventId), fetchFeedbackSubmissions(eventId)])
-      .then(([c, r]) => { if (!cancelled) { setConfig(c); setRows(r) } })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+    if (opts?.silent) setRefreshing(true)
+    else setLoading(true)
+    try {
+      const [c, r] = await Promise.all([fetchFeedbackConfig(eventId), fetchFeedbackSubmissions(eventId)])
+      setConfig(c)
+      setRows(r)
+      setLastLoaded(new Date())
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }, [eventId])
+
+  useEffect(() => { void load() }, [load])
+
+  const handleSaveEdit = async (id: string, patch: FeedbackPatch) => {
+    const updated = await updateFeedback(id, patch)
+    setRows(prev => prev.map(r => r.id === id ? { ...r, ...updated } : r))
+    setEditing(null)
+  }
+
+  const handleDelete = async (id: string) => {
+    await deleteFeedback(id)
+    setRows(prev => prev.filter(r => r.id !== id))
+    setDeleting(null)
+  }
 
   if (loading) {
     return (
@@ -546,7 +574,7 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
       <div className="max-w-3xl mx-auto px-4 py-12">
         <Link href={`/students/events/${eventId}`} className="text-sm text-steps-blue-600 hover:underline">← Back to event</Link>
         <h1 className="mt-4 text-2xl font-semibold text-gray-900 dark:text-gray-100">No feedback form for this event</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">This event doesn’t have a feedback form configured. Add one in Supabase by setting <code className="font-mono text-xs">events.feedback_config</code>.</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">This event doesn’t have a feedback form configured. Add one in the event editor.</p>
       </div>
     )
   }
@@ -556,14 +584,28 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <Link href={`/students/events/${eventId}`} className="text-sm text-steps-blue-600 hover:underline">← Back to event</Link>
-        <h1 className="mt-3 text-2xl font-semibold text-gray-900 dark:text-gray-100">Live feedback</h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          {responseCount === 0
-            ? 'No submissions yet — once attendees scan the QR and submit, their responses will appear here.'
-            : `${responseCount} response${responseCount === 1 ? '' : 's'} from the student hub.`}
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <Link href={`/students/events/${eventId}`} className="text-sm text-steps-blue-600 hover:underline">← Back to event</Link>
+          <h1 className="mt-3 text-2xl font-semibold text-gray-900 dark:text-gray-100">Live feedback</h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            {responseCount === 0
+              ? 'No submissions yet — once attendees scan the QR and submit, their responses will appear here.'
+              : `${responseCount} response${responseCount === 1 ? '' : 's'} from the student hub.`}
+            {lastLoaded && (
+              <span className="text-gray-400 dark:text-gray-500"> · updated {lastLoaded.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => load({ silent: true })}
+          disabled={refreshing}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+        >
+          <svg className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
       </div>
 
       {responseCount > 0 && (
@@ -599,7 +641,6 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
                 </div>
               )
             }
-            // Single-pick choices: radio, dropdown, yes_no
             if (q.type === 'radio' || q.type === 'dropdown' || q.type === 'yes_no') {
               const labelByVal = new Map<string, string>()
               if (q.options) for (const o of q.options) labelByVal.set(o.value, o.label)
@@ -625,7 +666,6 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
                 </div>
               )
             }
-            // Multi-pick choices: checkbox_list
             if (q.type === 'checkbox_list') {
               const labelByVal = new Map<string, string>()
               if (q.options) for (const o of q.options) labelByVal.set(o.value, o.label)
@@ -655,7 +695,6 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
                 </div>
               )
             }
-            // Free text: text, textarea, email, phone, url, number, date
             if (q.type === 'text' || q.type === 'textarea' || q.type === 'email' || q.type === 'phone' || q.type === 'url' || q.type === 'number' || q.type === 'date') {
               const responses = rows
                 .map(r => ({ r, v: r.answers?.[q.id] }))
@@ -677,9 +716,6 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
                 </div>
               )
             }
-            // Skip non-aggregable types: section_heading, media, matrix, ranked_dropdown,
-            // paired_dropdown, repeatable_group. (Their raw values still surface on the
-            // student profile via the per-submission view.)
             return null
           })}
 
@@ -706,9 +742,382 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
               </div>
             )
           })()}
+
+          {/* Per-response cards with edit/delete. Lives below the aggregations
+              so the admin can scroll to find a specific submission, fix typos,
+              correct a misclick or remove a duplicate without leaving the page. */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">
+              All responses ({rows.length})
+            </h3>
+            <div className="space-y-3">
+              {rows.map(r => (
+                <FeedbackResponseCard
+                  key={r.id}
+                  row={r}
+                  fields={fields}
+                  onEdit={() => setEditing(r)}
+                  onDelete={() => setDeleting(r)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
+      )}
+
+      {editing && (
+        <FeedbackEditModal
+          row={editing}
+          fields={fields}
+          onCancel={() => setEditing(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
+
+      {deleting && (
+        <FeedbackDeleteConfirm
+          row={deleting}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => handleDelete(deleting.id)}
+        />
       )}
     </div>
   )
 }
 
+// ---------------------------------------------------------------------------
+// One row of feedback rendered as a compact card. Shows the student name,
+// each question's answer, and admin-only edit / delete buttons.
+// ---------------------------------------------------------------------------
+function FeedbackResponseCard({
+  row, fields, onEdit, onDelete,
+}: {
+  row: EventFeedbackRow
+  fields: FormFieldConfig[]
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const studentName = `${row.student?.first_name ?? ''} ${row.student?.last_name ?? ''}`.trim() || 'Anonymous'
+  const submittedAt = new Date(row.submitted_at)
+  const submittedLabel = submittedAt.toLocaleString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{studentName}</p>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+            {submittedLabel}
+            {row.student?.year_group && <> · Year {row.student.year_group}</>}
+            {row.student?.school_name_raw && <> · {row.student.school_name_raw}</>}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="px-2 py-1 text-[11px] font-medium rounded-md text-steps-blue-700 border border-steps-blue-200 hover:bg-steps-blue-50 dark:text-steps-blue-400 dark:border-steps-blue-800 dark:hover:bg-steps-blue-900/30 transition-colors"
+            title="Edit this response"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="px-2 py-1 text-[11px] font-medium rounded-md text-red-700 border border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-900 dark:hover:bg-red-900/30 transition-colors"
+            title="Delete this response"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+      <dl className="space-y-1.5">
+        {fields.map(f => {
+          const value = f.type === 'scale' || f.type === 'number'
+            ? row.ratings?.[f.id]
+            : row.answers?.[f.id]
+          if (value == null || value === '') return null
+          let display: string
+          if (Array.isArray(value)) {
+            display = value.map(v => f.options?.find((o: { value: string; label: string }) => o.value === v)?.label ?? v).join(', ')
+          } else if (typeof value === 'string' && f.options) {
+            display = f.options.find((o: { value: string; label: string }) => o.value === value)?.label ?? value
+          } else {
+            display = String(value)
+          }
+          return (
+            <div key={f.id}>
+              <dt className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{f.label}</dt>
+              <dd className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-line">{display}</dd>
+            </div>
+          )
+        })}
+        {row.postable_quote && (
+          <div>
+            <dt className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Postable quote</dt>
+            <dd className="text-sm italic text-gray-800 dark:text-gray-200 whitespace-pre-line">“{row.postable_quote}”</dd>
+          </div>
+        )}
+        <div>
+          <dt className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Consent</dt>
+          <dd className="text-sm text-gray-800 dark:text-gray-200">{row.consent}</dd>
+        </div>
+      </dl>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Edit modal — supports the field types feedback forms actually use:
+// scale (radio chips), text, textarea, dropdown/radio/yes_no, checkbox_list,
+// plus the dedicated postable_quote and consent columns. Builds a partial
+// patch so untouched fields aren't accidentally overwritten.
+// ---------------------------------------------------------------------------
+function FeedbackEditModal({
+  row, fields, onCancel, onSave,
+}: {
+  row: EventFeedbackRow
+  fields: FormFieldConfig[]
+  onCancel: () => void
+  onSave: (id: string, patch: FeedbackPatch) => Promise<void>
+}) {
+  const [ratings, setRatings] = useState<Record<string, number>>(row.ratings ?? {})
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>(row.answers ?? {})
+  const [postableQuote, setPostableQuote] = useState<string>(row.postable_quote ?? '')
+  const [consent, setConsent] = useState<EventFeedbackRow['consent']>(row.consent)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    setSaving(true)
+    setErr(null)
+    try {
+      // Only include keys that actually changed, so other fields are preserved.
+      const patch: FeedbackPatch = {}
+      if (JSON.stringify(ratings) !== JSON.stringify(row.ratings ?? {})) patch.ratings = ratings
+      if (JSON.stringify(answers) !== JSON.stringify(row.answers ?? {})) patch.answers = answers
+      const trimmedQuote = postableQuote.trim() || null
+      if (trimmedQuote !== (row.postable_quote ?? null)) patch.postable_quote = trimmedQuote
+      if (consent !== row.consent) patch.consent = consent
+      if (Object.keys(patch).length === 0) {
+        onCancel()
+        return
+      }
+      await onSave(row.id, patch)
+    } catch (e) {
+      setErr((e as Error).message ?? 'Save failed')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="edit-feedback-title" className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl max-w-2xl w-full my-8">
+        <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-100 dark:border-gray-800">
+          <div>
+            <h3 id="edit-feedback-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit feedback response</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{row.student?.first_name} {row.student?.last_name}</p>
+          </div>
+          <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" aria-label="Close">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          {fields.map(f => {
+            const fieldId = f.id
+            if (f.type === 'scale' || f.type === 'number') {
+              const min = f.config?.scaleMin ?? 1
+              const max = f.config?.scaleMax ?? 5
+              const value = ratings[fieldId]
+              const options = Array.from({ length: max - min + 1 }, (_, i) => min + i)
+              return (
+                <div key={fieldId}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{f.label}</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {options.map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setRatings(r => ({ ...r, [fieldId]: n }))}
+                        className={`min-w-[2.25rem] px-2 py-1 text-sm rounded-md border ${
+                          value === n
+                            ? 'bg-steps-blue-600 text-white border-steps-blue-600'
+                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                    {value !== undefined && (
+                      <button
+                        type="button"
+                        onClick={() => setRatings(r => { const n = { ...r }; delete n[fieldId]; return n })}
+                        className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            }
+            if (f.type === 'textarea' || f.type === 'text' || f.type === 'email' || f.type === 'phone' || f.type === 'url' || f.type === 'date') {
+              const v = typeof answers[fieldId] === 'string' ? (answers[fieldId] as string) : ''
+              return (
+                <div key={fieldId}>
+                  <label htmlFor={`edit-${fieldId}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{f.label}</label>
+                  {f.type === 'textarea' ? (
+                    <textarea
+                      id={`edit-${fieldId}`}
+                      value={v}
+                      onChange={e => setAnswers(a => ({ ...a, [fieldId]: e.target.value }))}
+                      rows={3}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-steps-blue-500 outline-none resize-none"
+                    />
+                  ) : (
+                    <input
+                      id={`edit-${fieldId}`}
+                      type={f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : f.type === 'url' ? 'url' : f.type === 'date' ? 'date' : 'text'}
+                      value={v}
+                      onChange={e => setAnswers(a => ({ ...a, [fieldId]: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-steps-blue-500 outline-none"
+                    />
+                  )}
+                </div>
+              )
+            }
+            if (f.type === 'radio' || f.type === 'dropdown' || f.type === 'yes_no') {
+              const opts: { value: string; label: string }[] = f.type === 'yes_no'
+                ? [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]
+                : (f.options ?? [])
+              const v = typeof answers[fieldId] === 'string' ? (answers[fieldId] as string) : ''
+              return (
+                <div key={fieldId}>
+                  <label htmlFor={`edit-${fieldId}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{f.label}</label>
+                  <select
+                    id={`edit-${fieldId}`}
+                    value={v}
+                    onChange={e => setAnswers(a => ({ ...a, [fieldId]: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-steps-blue-500 outline-none"
+                  >
+                    <option value="">— not set —</option>
+                    {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              )
+            }
+            if (f.type === 'checkbox_list') {
+              const current = Array.isArray(answers[fieldId]) ? (answers[fieldId] as string[]) : []
+              const opts: { value: string; label: string }[] = f.options ?? []
+              return (
+                <div key={fieldId}>
+                  <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{f.label}</span>
+                  <div className="space-y-1">
+                    {opts.map(o => {
+                      const checked = current.includes(o.value)
+                      return (
+                        <label key={o.value} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const next = checked ? current.filter(v => v !== o.value) : [...current, o.value]
+                              setAnswers(a => ({ ...a, [fieldId]: next }))
+                            }}
+                          />
+                          {o.label}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })}
+
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+            <label htmlFor="edit-postable" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Postable quote</label>
+            <textarea
+              id="edit-postable"
+              value={postableQuote}
+              onChange={e => setPostableQuote(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-steps-blue-500 outline-none resize-none"
+              placeholder="Optional — short share-ready testimonial"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="edit-consent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Sharing consent</label>
+            <select
+              id="edit-consent"
+              value={consent}
+              onChange={e => setConsent(e.target.value as EventFeedbackRow['consent'])}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-steps-blue-500 outline-none"
+            >
+              <option value="name">Share with full name</option>
+              <option value="first_name">Share with first name only</option>
+              <option value="anon">Share anonymously</option>
+              <option value="no">Do not share — internal only</option>
+            </select>
+          </div>
+        </div>
+        {err && <p role="alert" className="px-5 py-2 text-sm text-red-700 dark:text-red-400">{err}</p>}
+        <div className="flex justify-end gap-2 p-5 border-t border-gray-100 dark:border-gray-800">
+          <button type="button" onClick={onCancel} disabled={saving} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50">Cancel</button>
+          <button type="button" onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-steps-blue-600 text-white rounded-lg hover:bg-steps-blue-700 transition-colors disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Delete confirmation — destructive, no undo. Show enough context that the
+// admin doesn't accidentally remove the wrong row (full name + timestamp).
+// ---------------------------------------------------------------------------
+function FeedbackDeleteConfirm({
+  row, onCancel, onConfirm,
+}: {
+  row: EventFeedbackRow
+  onCancel: () => void
+  onConfirm: () => Promise<void> | void
+}) {
+  const [deleting, setDeleting] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const studentName = `${row.student?.first_name ?? ''} ${row.student?.last_name ?? ''}`.trim() || 'Anonymous'
+  const submittedLabel = new Date(row.submitted_at).toLocaleString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+  const handle = async () => {
+    setDeleting(true)
+    setErr(null)
+    try {
+      await onConfirm()
+    } catch (e) {
+      setErr((e as Error).message ?? 'Delete failed')
+      setDeleting(false)
+    }
+  }
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="del-feedback-title" className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl max-w-md w-full p-6">
+        <h3 id="del-feedback-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete this response?</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          You&apos;re about to delete <span className="font-semibold text-gray-900 dark:text-gray-100">{studentName}</span>&apos;s feedback submitted on {submittedLabel}. This can&apos;t be undone.
+        </p>
+        {err && <p role="alert" className="text-sm text-red-700 dark:text-red-400 mt-3">{err}</p>}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+          <button type="button" onClick={onCancel} disabled={deleting} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50">Keep it</button>
+          <button type="button" onClick={handle} disabled={deleting} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50">
+            {deleting ? 'Deleting…' : 'Delete response'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
