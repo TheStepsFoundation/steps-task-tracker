@@ -227,7 +227,7 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
         {renderTopNav()}
-        <div role="status" aria-live="polite" aria-label="Loading event details" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center gap-3">
+        <div role="status" aria-live="polite" aria-label="Loading event details" className="max-w-7xl 2xl:max-w-[110rem] mx-auto px-4 sm:px-8 lg:px-10 py-16 flex flex-col items-center gap-3">
           <div aria-hidden="true" className="animate-spin w-7 h-7 border-2 border-steps-blue-600 border-t-transparent rounded-full" />
           <p className="text-sm text-slate-500">Loading event details…</p>
         </div>
@@ -239,7 +239,7 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
         {renderTopNav()}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center animate-tsf-fade-up">
+        <div className="max-w-7xl 2xl:max-w-[110rem] mx-auto px-4 sm:px-8 lg:px-10 py-16 text-center animate-tsf-fade-up">
           <div className="w-14 h-14 mx-auto rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mb-4" aria-hidden>
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </div>
@@ -277,41 +277,37 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-24 sm:pb-12">
       {renderTopNav()}
 
-      {/* === Banner band (full-bleed, no overlay) ===
-          Edge-to-edge across the viewport — no inner max-width — so the
-          banner fills wide monitors. Aspect ratio steps down on wider
-          screens so a 1920px-wide banner doesn't become 480px tall.
-          Skipped entirely for events with no banner — the dark strip
-          below carries the visual identity on its own. */}
-      {event.banner_image_url && (
-        <div className="w-full bg-steps-dark">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* === Page wrapper — single max-width for banner + content so they
+          line up. Padding stays generous so the page fills the screen
+          on big monitors without sprawling all the way to the edges. */}
+      <div className="max-w-7xl 2xl:max-w-[110rem] mx-auto px-4 sm:px-8 lg:px-10 pt-4 sm:pt-6">
+        <Link
+          href="/my"
+          className="inline-flex items-center gap-1 text-sm text-steps-blue-700 hover:text-steps-blue-900 mb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-steps-blue-500 focus-visible:ring-offset-2 rounded"
+        >
+          <svg aria-hidden className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+          Back to Student Hub
+        </Link>
+
+        {/* Banner image — constrained to the same width as the rest of the
+            content (no edge-to-edge bleed) so source resolution stays
+            meaningful. Aspect 4/1 across all desktop sizes. */}
+        {event.banner_image_url && (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={event.banner_image_url}
             alt={event.name}
-            className="w-full aspect-[4/1] sm:aspect-[5/1] lg:aspect-[6/1] xl:aspect-[7/1] object-cover"
+            className="w-full aspect-[4/1] object-cover rounded-2xl shadow-sm animate-tsf-fade-up"
             style={{ objectPosition: `${event.banner_focal_x ?? 50}% ${event.banner_focal_y ?? 50}%` }}
           />
-        </div>
-      )}
+        )}
 
-      {/* === Editorial dark strip — title, status, countdown === */}
-      <header className="relative bg-steps-dark text-white overflow-hidden">
-        <div aria-hidden className="absolute inset-0 bg-tsf-grain pointer-events-none" />
-        <div aria-hidden className="absolute -top-32 -right-24 w-96 h-96 rounded-full bg-steps-sunrise/20 blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:pt-8 sm:pb-12">
-          <Link
-            href="/my"
-            className="inline-flex items-center gap-1 text-sm text-steps-mist/90 hover:text-white mb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-steps-dark rounded"
-          >
-            <svg aria-hidden className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-            Back to Student Hub
-          </Link>
-
-          <div className="flex flex-wrap items-center gap-2 mb-3 animate-tsf-fade-up">
+        {/* Title / status / metadata — clean treatment, no dark strip.
+            Larger display typography on desktop, scales down for mobile. */}
+        <header className="mt-5 sm:mt-7 animate-tsf-fade-up-1">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             {journey && (
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ring-white/15 ${journey.badgeClasses}`}>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${journey.badgeClasses}`}>
                 {journey.prefix ? (
                   <>
                     <span className="opacity-70 mr-1">{journey.prefix}</span>
@@ -322,18 +318,18 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
               </span>
             )}
             {isPast && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-steps-mist border border-white/15">Past event</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Past event</span>
             )}
             {event.format && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-steps-mist border border-white/15">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
                 {event.format === 'in_person' ? 'In person' : event.format === 'online' ? 'Online' : event.format}
               </span>
             )}
           </div>
 
-          <h1 className="font-display-tight text-3xl sm:text-5xl font-black text-white max-w-3xl animate-tsf-fade-up-1">{event.name}</h1>
+          <h1 className="font-display-tight text-4xl sm:text-6xl xl:text-7xl font-black text-steps-dark">{event.name}</h1>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-steps-mist/90 mt-4 animate-tsf-fade-up-2">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-base sm:text-lg text-slate-600 mt-4">
             {event.event_date && <span className="inline-flex items-center gap-1.5"><CalIcon /> {formatDate(event.event_date)}</span>}
             {event.time_start && (
               <span className="inline-flex items-center gap-1.5"><ClockIcon /> {event.time_start}{event.time_end ? ` – ${event.time_end}` : ''}</span>
@@ -342,24 +338,24 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
               <span className="inline-flex items-center gap-1.5"><PinIcon /> {displayLocation}</span>
             )}
             {daysUntil !== null && daysUntil >= 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/15 text-xs font-semibold">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-steps-blue-50 text-steps-blue-700 border border-steps-blue-200 text-sm font-semibold">
                 {daysUntil === 0 ? 'Today!' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days to go`}
               </span>
             )}
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem] gap-6 lg:gap-8">
+      <div className="max-w-7xl 2xl:max-w-[110rem] mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_24rem] gap-6 lg:gap-10">
           {/* === Main column === */}
           <div className="space-y-6 min-w-0">
             {/* About */}
             {event.description && (
-              <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 animate-tsf-fade-up-2" aria-labelledby="about-heading">
-                <h2 id="about-heading" className="font-display text-lg font-bold text-steps-dark">About this event</h2>
+              <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 lg:p-10 animate-tsf-fade-up-2" aria-labelledby="about-heading">
+                <h2 id="about-heading" className="font-display text-xl sm:text-2xl font-bold text-steps-dark">About this event</h2>
                 <div
-                  className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed rich-html mt-3 max-w-[68ch]"
+                  className="text-base sm:text-lg text-slate-700 whitespace-pre-wrap leading-relaxed rich-html mt-3 max-w-[68ch]"
                   dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(event.description) }}
                 />
 
