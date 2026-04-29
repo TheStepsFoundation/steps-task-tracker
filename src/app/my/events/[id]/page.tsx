@@ -370,7 +370,7 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
                     {showActionsEdit && (
                       <Link
                         href={`/apply/${event.slug}?edit=1`}
-                        className="px-4 py-2 text-sm text-steps-blue-700 hover:text-steps-blue-900 font-semibold border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition"
+                        className="px-5 py-2.5 text-base text-steps-blue-700 hover:text-steps-blue-900 font-semibold border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition"
                       >
                         Edit application
                       </Link>
@@ -379,7 +379,7 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
                       <button
                         type="button"
                         onClick={() => { setShowWithdrawModal(true); setWithdrawErr(null) }}
-                        className="px-4 py-2 text-sm text-steps-berry hover:text-white font-semibold border border-steps-berry/40 rounded-xl hover:bg-steps-berry transition"
+                        className="px-5 py-2.5 text-base text-steps-berry hover:text-white font-semibold border border-steps-berry/40 rounded-xl hover:bg-steps-berry transition"
                       >
                         Withdraw
                       </button>
@@ -391,10 +391,10 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
                 {ineligibleOpenToLabel && (
                   <div className="mt-6 pt-6 border-t border-slate-100">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <div className="flex-shrink-0 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-200 text-slate-600 border border-slate-300">
+                      <div className="flex-shrink-0 inline-flex items-center px-3.5 py-1.5 rounded-full text-sm font-semibold bg-slate-200 text-slate-600 border border-slate-300">
                         Not available for your year group
                       </div>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-base text-slate-600">
                         This event is open to {ineligibleOpenToLabel.toLowerCase()}.
                       </p>
                     </div>
@@ -414,8 +414,8 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
             {application && (
               <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 animate-tsf-fade-up-3" aria-labelledby="answers-heading">
                 <div className="flex items-baseline justify-between flex-wrap gap-2">
-                  <h2 id="answers-heading" className="font-display text-lg font-bold text-steps-dark">Your application</h2>
-                  <p className="text-xs text-slate-500">
+                  <h2 id="answers-heading" className="font-display text-xl sm:text-2xl font-bold text-steps-dark">Your application</h2>
+                  <p className="text-sm text-slate-500">
                     Submitted {new Date(application.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                     {application.updated_at && application.updated_at !== application.created_at && (
                       <> · last updated {new Date(application.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</>
@@ -465,7 +465,7 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
           {/* === Side rail (desktop) — key info === */}
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start animate-tsf-fade-up-2">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h2 className="font-display text-sm font-bold text-steps-dark uppercase tracking-wider">Key info</h2>
+              <h2 className="font-display text-base sm:text-lg font-bold text-steps-dark uppercase tracking-wider">Key info</h2>
               <dl className="mt-3 divide-y divide-slate-100">
                 {event.event_date && (
                   <KeyInfo label="Date" value={formatDate(event.event_date)} />
@@ -548,10 +548,10 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
 
 function KeyInfo({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
   return (
-    <div className="py-2.5 first:pt-0 last:pb-0">
-      <dt className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</dt>
-      <dd className="text-sm text-slate-900 mt-0.5">{value}</dd>
-      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+    <div className="py-3 first:pt-0 last:pb-0">
+      <dt className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">{label}</dt>
+      <dd className="text-base sm:text-lg text-slate-900 mt-0.5">{value}</dd>
+      {hint && <p className="text-sm text-slate-400 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -559,8 +559,8 @@ function KeyInfo({ label, value, hint }: { label: string; value: string; hint?: 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</div>
-      <div className="text-sm text-slate-800 mt-1 whitespace-pre-wrap">{children}</div>
+      <div className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">{label}</div>
+      <div className="text-base sm:text-lg text-slate-800 mt-1 whitespace-pre-wrap">{children}</div>
     </div>
   )
 }
@@ -628,10 +628,10 @@ function CheckinQrCard({ eventId, eventDate }: { eventId: string; eventDate: str
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
-        <h2 className="font-display text-lg font-bold text-steps-dark">Your check-in code</h2>
-        <span className="text-xs uppercase tracking-wider font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Accepted</span>
+        <h2 className="font-display text-xl sm:text-2xl font-bold text-steps-dark">Your check-in code</h2>
+        <span className="text-sm uppercase tracking-wider font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">Accepted</span>
       </div>
-      <p className="text-sm text-slate-600 mt-1">{dateHint} A team member will scan it at the door — no need to print it.</p>
+      <p className="text-base text-slate-600 mt-1">{dateHint} A team member will scan it at the door — no need to print it.</p>
 
       <div className="mt-5 flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 w-44 h-44 flex items-center justify-center shadow-sm">
@@ -642,7 +642,7 @@ function CheckinQrCard({ eventId, eventDate }: { eventId: string; eventDate: str
           )}
         </div>
 
-        <div className="text-sm text-slate-600 max-w-md flex-1 self-center">
+        <div className="text-base text-slate-600 max-w-md flex-1 self-center">
           <ul className="list-disc pl-5 space-y-1.5">
             <li>Bring your phone fully charged — you won&apos;t be able to attend without showing your code.</li>
             <li>If your screen is hard to read, turn brightness up before queuing at the door.</li>
