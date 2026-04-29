@@ -975,32 +975,35 @@ export default function ApplyPage() {
           </div>
         </div>
       )}
-      {event.banner_image_url && (
-        <div className="w-full bg-white">
-          <div className="max-w-5xl mx-auto">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={event.banner_image_url}
-              alt={event.name}
-              className="w-full aspect-[4/1] object-cover"
-              style={{ objectPosition: `${event.banner_focal_x ?? 50}% ${event.banner_focal_y ?? 50}%` }}
-            />
-          </div>
+      {/* Editorial hero — banner image bleeds behind a dark gradient that
+          carries the event name, date, and a "Steps Foundation" eyebrow.
+          Wave 1 redesign: matches the visual language of /my/events/[id]
+          so the student transitions smoothly from event detail → apply. */}
+      <header className="relative bg-steps-dark text-white overflow-hidden">
+        {event.banner_image_url && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={event.banner_image_url}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+            style={{ objectPosition: `${event.banner_focal_x ?? 50}% ${event.banner_focal_y ?? 50}%` }}
+          />
+        )}
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-steps-dark/85 via-steps-dark/85 to-steps-dark pointer-events-none" />
+        <div aria-hidden className="absolute inset-0 bg-tsf-grain pointer-events-none" />
+        <div className="relative max-w-2xl mx-auto px-4 py-10 sm:py-14 text-center animate-tsf-fade-up">
+          <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-steps-mist/90 font-semibold mb-3">The Steps Foundation</p>
+          <h1 className="font-display-tight text-3xl sm:text-5xl font-black text-white">{event.name}</h1>
+          <p className="text-sm text-steps-mist/85 mt-3">
+            {event.event_date ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+            {event.time_start ? ` \u00b7 ${event.time_start}${event.time_end ? ' \u2013 ' + event.time_end : ''}` : ''}
+          </p>
+          {event.location && <p className="text-sm text-steps-mist/70 mt-1">{event.location}</p>}
         </div>
-      )}
+      </header>
+
       <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 bg-steps-blue-100 text-steps-blue-700 text-sm font-medium px-3 py-1 rounded-full mb-4">
-          The Steps Foundation
-        </div>
-        <h1 className="font-display text-3xl sm:text-4xl font-black text-steps-dark tracking-tight mb-2">{event.name}</h1>
-        <p className="text-gray-500 text-sm">
-          {event.event_date ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
-          {event.time_start ? ` \u00b7 ${event.time_start}${event.time_end ? ' \u2013 ' + event.time_end : ''}` : ''}
-        </p>
-        <p className="text-gray-500 text-sm">{event.location ?? ''}</p>
-      </div>
 
       {/* Progress — semantic step list. Bubbles get short labels on sm+ so
           students always know what step they're on. The active step has
@@ -1022,35 +1025,35 @@ export default function ApplyPage() {
         const total = progressSteps.length
         const currentLabel = STEP_LABELS[step] ?? step
         return (
-          <nav aria-label="Application progress" className="mb-8">
+          <nav aria-label="Application progress" className="mb-8 animate-tsf-fade-up-1">
             <p className="sr-only">Step {stepIdx + 1} of {total}: {currentLabel}</p>
-            <ol className="flex items-center gap-2 justify-center flex-wrap">
+            <ol className="flex items-center justify-center flex-wrap gap-1.5 sm:gap-2">
               {progressSteps.map((s, i) => {
                 const isActive = step === s
                 const isComplete = stepIdx > i
                 return (
-                  <li key={s} className="flex items-center gap-2">
+                  <li key={s} className="flex items-center gap-1.5 sm:gap-2">
                     <div
                       aria-current={isActive ? 'step' : undefined}
-                      className={`flex items-center gap-2 px-2 py-1 rounded-full transition-colors ${
-                        isActive ? 'bg-steps-blue-50' : ''
+                      className={`flex items-center gap-2 px-2.5 py-1 rounded-full transition-all duration-200 ${
+                        isActive ? 'bg-steps-blue-50 ring-1 ring-steps-blue-200' : ''
                       }`}
                     >
                       <span
                         aria-hidden="true"
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
-                          isActive ? 'bg-steps-blue-600 text-white' :
-                          isComplete ? 'bg-steps-blue-200 text-steps-blue-700' : 'bg-gray-200 text-gray-500'
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                          isActive ? 'bg-steps-blue-600 text-white shadow-sm' :
+                          isComplete ? 'bg-steps-blue-100 text-steps-blue-700 ring-1 ring-steps-blue-200' : 'bg-slate-100 text-slate-400 ring-1 ring-slate-200'
                         }`}
                       >
                         {isComplete ? '\u2713' : i + 1}
                       </span>
-                      <span className={`text-xs font-medium hidden sm:inline ${
-                        isActive ? 'text-steps-blue-700' : isComplete ? 'text-steps-blue-700/80' : 'text-gray-400'
+                      <span className={`text-xs font-semibold hidden sm:inline ${
+                        isActive ? 'text-steps-blue-700' : isComplete ? 'text-steps-blue-700/80' : 'text-slate-400'
                       }`}>{STEP_LABELS[s]}</span>
                     </div>
                     {i < progressSteps.length - 1 && (
-                      <span aria-hidden="true" className={`w-6 h-0.5 ${isComplete ? 'bg-steps-blue-300' : 'bg-gray-200'}`} />
+                      <span aria-hidden="true" className={`block w-5 sm:w-8 h-0.5 rounded-full transition-colors ${isComplete ? 'bg-steps-blue-300' : 'bg-slate-200'}`} />
                     )}
                   </li>
                 )

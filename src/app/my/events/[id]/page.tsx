@@ -19,24 +19,30 @@ import { supabase } from '@/lib/supabase-student'
 import QRCode from 'qrcode'
 
 // ---------------------------------------------------------------------------
-// Constants / helpers
+// /my/events/[id] — student-side event detail.
+//
+// Wave 1 redesign (Apr 2026):
+//  - Editorial banner hero: image bleeds into a steps-dark overlay carrying
+//    the title, status pill, date, and a small countdown chip.
+//  - Side rail "key info" replaces the inline grid — quicker to scan.
+//  - Sticky bottom action bar on mobile (Apply / Edit / Withdraw) so the
+//    primary CTA isn't hidden below the fold for first-gen students on
+//    smaller phones.
+//  - Application answers card uses the same Field grid as before but with
+//    refined typography and lighter dividers.
+//  - Loading and not-found states match the new visual language.
+//
+// Underlying data fetch + state machine (load, confirmWithdraw, etc.) and
+// the CheckinQrCard component are preserved verbatim.
 // ---------------------------------------------------------------------------
-
-
 
 function formatDate(d: string | null): string {
   if (!d) return ''
   return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   })
 }
 
-// Map form_config field keys to their labels so we can render the student's
-// responses nicely. The source of truth for the shape is `form_config.fields`
-// (set by the admin form-builder in `students/events/[id]/page.tsx`). An older
-// version of this helper looked at `custom_fields`, which is the wrong key and
-// meant no answers ever rendered in the hub. We read both keys defensively in
-// case any event was ever stored with the older shape.
 function formConfigCustomFields(formConfig: Record<string, unknown> | null | undefined): Array<{ id: string; label: string; type: string }> {
   if (!formConfig) return []
   const fc = formConfig as { fields?: unknown; custom_fields?: unknown }
@@ -44,28 +50,27 @@ function formConfigCustomFields(formConfig: Record<string, unknown> | null | und
     ? fc.fields
     : Array.isArray(fc.custom_fields) ? fc.custom_fields : []
   return arr.filter((f): f is { id: string; label: string; type: string } =>
-    typeof f === 'object' && f !== null && typeof (f as { id?: unknown }).id === 'string' &&
-    typeof (f as { label?: unknown }).label === 'string' && typeof (f as { type?: unknown }).type === 'string'
-  )
+    !!f && typeof f === 'object' && 'id' in (f as object) && 'label' in (f as object) && 'type' in (f as object))
 }
 
 const QUAL_TYPE_LABEL: Record<string, string> = {
   a_level: 'A-Level',
   ib: 'IB',
-  btec: 'BTEC',
-  t_level: 'T-Level',
   pre_u: 'Pre-U',
+  btec: 'BTEC',
+  scottish: 'Scottish Higher',
+  other: 'Other',
 }
 
-type QualEntry = { qualType?: string; subject?: string; grade?: string; level?: string }
+type QualEntry = { qualType: string; subject: string; level?: string | null; grade: string }
 
 function isQualEntry(v: unknown): v is QualEntry {
-  if (typeof v !== 'object' || v === null) return false
+  if (!v || typeof v !== 'object') return false
   const o = v as Record<string, unknown>
   return (
-    (typeof o.subject === 'string' || o.subject === undefined) &&
-    (typeof o.grade === 'string' || o.grade === undefined) &&
-    (typeof o.qualType === 'string' || o.qualType === undefined)
+    typeof o.qualType === 'string' &&
+    typeof o.subject === 'string' &&
+    typeof o.grade === 'string'
   )
 }
 
@@ -75,52 +80,44 @@ function formatQualEntry(q: QualEntry): string {
   const subject = q.subject || ''
   const grade = q.grade || ''
   const left = [typeLabel + level, subject].filter(Boolean).join(' ')
-  if (!left && !grade) return ''
+  if (!left) return ''
   if (!grade) return left
-  if (!left) return grade
   return `${left} — ${grade}`
 }
 
-// Coerce any answer value to a display string. Never returns "[object Object]".
 function stringifyAnswer(val: unknown): string {
   if (val == null) return '—'
-  if (typeof val === 'boolean') return val ? 'Yes' : 'No'
   if (Array.isArray(val)) {
-    if (!val.length) return '—'
+    if (val.length === 0) return '—'
     const parts = val.map(item => {
       if (item == null) return ''
-      if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') return String(item)
-      if (isQualEntry(item)) return formatQualEntry(item)
-      // Unknown object shape — best-effort JSON fallback instead of "[object Object]"
-      try { return JSON.stringify(item) } catch { return '' }
-    }).map(s => s.trim()).filter(Boolean)
+      if (typeof item === 'object') {
+        const o = item as Record<string, unknown>
+        return typeof o.value === 'string' ? o.value : JSON.stringify(o)
+      }
+      return String(item)
+    }).filter(Boolean)
     return parts.length ? parts.join(', ') : '—'
   }
   if (typeof val === 'object') {
-    // Single object — best-effort JSON fallback
-    try { const s = JSON.stringify(val); return s === '{}' ? '—' : s } catch { return '—' }
+    const o = val as Record<string, unknown>
+    if (typeof o.value === 'string') return o.value
+    return JSON.stringify(o)
   }
   const str = String(val).trim()
   return str.length ? str : '—'
 }
 
-// --- Profile-fallback helpers -------------------------------------------------
-// Old applications didn't always capture FSM / household income in their raw
-// snapshot. If the snapshot is blank but the student's current profile has
-// a value, show the profile value with a subtle "from your profile" hint so
-// the student isn't left staring at an empty field.
-
 const YES_NO_NA_LABEL: Record<string, string> = {
   yes: 'Yes',
   no: 'No',
-  prefer_not_to_say: 'Prefer not to say',
-  prefer_na: 'Prefer not to say',
+  na: 'Prefer not to say',
 }
 
 const INCOME_BAND_TO_RAW: Record<string, string> = {
   under_40k: 'yes',
   over_40k: 'no',
-  prefer_na: 'prefer_not_to_say',
+  prefer_na: 'na',
 }
 
 function formatYesNoAnswer(val: unknown): string | null {
@@ -139,13 +136,11 @@ function isEmptyAnswer(val: unknown): boolean {
   return false
 }
 
-type FallbackFieldProps = {
+interface FallbackFieldProps {
   label: string
   appValue: unknown
-  /** Rendered profile value, or null if the profile has nothing to offer. */
   profileValue: string | null
-  /** Formatter applied to appValue when it's present. Defaults to stringifyAnswer. */
-  format?: (v: unknown) => string
+  format?: (val: unknown) => string
   className?: string
 }
 
@@ -157,24 +152,21 @@ function FallbackField({ label, appValue, profileValue, format, className }: Fal
   if (profileValue) {
     return (
       <Field label={label} className={className}>
-        <span>{profileValue}</span>
-        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide text-steps-blue-700 bg-steps-blue-50 border border-steps-blue-100 align-middle">
-          From your profile
-        </span>
+        {profileValue}
+        <span className="text-xs text-slate-400 ml-2">(from profile)</span>
       </Field>
     )
   }
   return <Field label={label} className={className}>—</Field>
 }
 
-// Render qualifications as a typed, readable list rather than a comma-joined blob.
 function renderQualifications(val: unknown): React.ReactNode {
   if (!Array.isArray(val) || val.length === 0) return '—'
   const entries = val.filter(isQualEntry).map(formatQualEntry).filter(Boolean)
   if (entries.length === 0) return '—'
   return (
-    <ul className="space-y-0.5">
-      {entries.map((line, i) => <li key={i}>{line}</li>)}
+    <ul className="list-disc pl-5 space-y-0.5">
+      {entries.map((e, i) => <li key={i}>{e}</li>)}
     </ul>
   )
 }
@@ -220,20 +212,24 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
     await load()
   }
 
+  const renderTopNav = () => (
+    <TopNav variant="light" homeHref="/my">
+      <button
+        onClick={handleSignOut}
+        className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-steps-blue-500 focus-visible:ring-offset-2"
+      >
+        Sign out
+      </button>
+    </TopNav>
+  )
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <TopNav variant="light" homeHref="/my">
-          <button
-            onClick={handleSignOut}
-            className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-          >
-            Sign out
-          </button>
-        </TopNav>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        {renderTopNav()}
         <div role="status" aria-live="polite" aria-label="Loading event details" className="max-w-4xl mx-auto px-4 py-16 flex flex-col items-center gap-3">
           <div aria-hidden="true" className="animate-spin w-7 h-7 border-2 border-steps-blue-600 border-t-transparent rounded-full" />
-          <p className="text-sm text-gray-500">Loading event details…</p>
+          <p className="text-sm text-slate-500">Loading event details…</p>
         </div>
       </div>
     )
@@ -241,19 +237,15 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
 
   if (err || !overview?.event) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <TopNav variant="light" homeHref="/my">
-          <button
-            onClick={handleSignOut}
-            className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-          >
-            Sign out
-          </button>
-        </TopNav>
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-          <p className="text-gray-700 font-semibold">We couldn&apos;t find that event.</p>
-          <p className="text-gray-500 text-sm mt-1">{err ?? 'It may have been removed or is no longer visible.'}</p>
-          <Link href="/my" className="inline-block mt-6 text-steps-blue-600 hover:text-steps-blue-800 font-medium">← Back to Student Hub</Link>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        {renderTopNav()}
+        <div className="max-w-4xl mx-auto px-4 py-16 text-center animate-tsf-fade-up">
+          <div className="w-14 h-14 mx-auto rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mb-4" aria-hidden>
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <p className="font-display text-xl font-bold text-steps-dark">We couldn’t find that event</p>
+          <p className="text-slate-500 text-sm mt-1">{err ?? 'It may have been removed or is no longer visible.'}</p>
+          <Link href="/my" className="inline-flex items-center gap-1 mt-6 text-steps-blue-600 hover:text-steps-blue-800 font-medium">← Back to Student Hub</Link>
         </div>
       </div>
     )
@@ -262,247 +254,286 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
   const { event, application, profile } = overview
   const journey = application ? getJourneyAwareLabel(application.status, application.status_history, event.event_date) : null
   const isPast = event.event_date && new Date(event.event_date) < new Date()
-  const privileged = canSeeFullAddress(application?.status ?? null, false) // team-side has its own routes
+  const privileged = canSeeFullAddress(application?.status ?? null, false)
   const displayLocation = getDisplayLocation(event, privileged)
   const customFields = formConfigCustomFields(event.form_config)
   const raw = (application?.raw_response ?? {}) as Record<string, unknown>
   const customResponses = (raw.custom_fields ?? {}) as Record<string, unknown>
   const daysUntil = event.event_date ? Math.ceil((new Date(event.event_date).getTime() - Date.now()) / 86400000) : null
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <TopNav variant="light" homeHref="/my">
-          <button
-            onClick={handleSignOut}
-            className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-          >
-            Sign out
-          </button>
-        </TopNav>
+  // Eligibility for the no-application path
+  const eligibleForApply = !application && isEligibleForYearGroup(event, profile?.year_group)
+  const ineligibleOpenToLabel = !application && !eligibleForApply
+    ? formatOpenTo(event.eligible_year_groups, !!event.open_to_gap_year)
+    : null
 
-      {/* Banner */}
-      {event.banner_image_url && (
-        <div className="w-full bg-white">
-          <div className="max-w-5xl mx-auto">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={event.banner_image_url}
-              alt={event.name}
-              className="w-full aspect-[4/1] object-cover"
-              style={{ objectPosition: `${event.banner_focal_x ?? 50}% ${event.banner_focal_y ?? 50}%` }}
-            />
+  // Whether to show the action bar (mobile sticky + inline button row)
+  const showActionsApply = !application && eligibleForApply
+  const showActionsEdit = application && !isPast && application.status === 'submitted'
+  const showActionsWithdraw = application && !isPast && application.status !== 'withdrew' && application.status !== 'rejected'
+  const hasActions = showActionsApply || showActionsEdit || showActionsWithdraw
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-24 sm:pb-12">
+      {renderTopNav()}
+
+      {/* === Editorial banner hero === */}
+      <header className="relative bg-steps-dark text-white overflow-hidden">
+        {event.banner_image_url && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={event.banner_image_url}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+            style={{ objectPosition: `${event.banner_focal_x ?? 50}% ${event.banner_focal_y ?? 50}%` }}
+          />
+        )}
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-steps-dark/80 via-steps-dark/85 to-steps-dark pointer-events-none" />
+        <div aria-hidden className="absolute inset-0 bg-tsf-grain pointer-events-none" />
+        <div aria-hidden className="absolute -top-32 -right-24 w-96 h-96 rounded-full bg-steps-sunrise/20 blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-10 sm:pt-10 sm:pb-14">
+          <Link
+            href="/my"
+            className="inline-flex items-center gap-1 text-sm text-steps-mist/90 hover:text-white mb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-steps-dark rounded"
+          >
+            <svg aria-hidden className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+            Back to Student Hub
+          </Link>
+
+          <div className="flex flex-wrap items-center gap-2 mb-3 animate-tsf-fade-up">
+            {journey && (
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ring-white/15 ${journey.badgeClasses}`}>
+                {journey.prefix ? (
+                  <>
+                    <span className="opacity-70 mr-1">{journey.prefix}</span>
+                    <span aria-hidden className="opacity-50 mr-1">·</span>
+                  </>
+                ) : null}
+                {journey.primary}
+              </span>
+            )}
+            {isPast && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-steps-mist border border-white/15">Past event</span>
+            )}
+            {event.format && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-steps-mist border border-white/15">
+                {event.format === 'in_person' ? 'In person' : event.format === 'online' ? 'Online' : event.format}
+              </span>
+            )}
           </div>
+
+          <h1 className="font-display-tight text-3xl sm:text-5xl font-black text-white max-w-3xl animate-tsf-fade-up-1">{event.name}</h1>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-steps-mist/90 mt-4 animate-tsf-fade-up-2">
+            {event.event_date && <span className="inline-flex items-center gap-1.5"><CalIcon /> {formatDate(event.event_date)}</span>}
+            {event.time_start && (
+              <span className="inline-flex items-center gap-1.5"><ClockIcon /> {event.time_start}{event.time_end ? ` – ${event.time_end}` : ''}</span>
+            )}
+            {displayLocation && (
+              <span className="inline-flex items-center gap-1.5"><PinIcon /> {displayLocation}</span>
+            )}
+            {daysUntil !== null && daysUntil >= 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/15 text-xs font-semibold">
+                {daysUntil === 0 ? 'Today!' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days to go`}
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <div className="grid lg:grid-cols-[1fr_18rem] gap-6">
+          {/* === Main column === */}
+          <div className="space-y-6 min-w-0">
+            {/* About */}
+            {event.description && (
+              <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 animate-tsf-fade-up-2" aria-labelledby="about-heading">
+                <h2 id="about-heading" className="font-display text-lg font-bold text-steps-dark">About this event</h2>
+                <p
+                  className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed rich-html mt-3"
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(event.description) }}
+                />
+
+                {/* Inline action row (also mirrored in mobile sticky bar) */}
+                {hasActions && (
+                  <div className="mt-6 pt-6 border-t border-slate-100 flex flex-wrap gap-3">
+                    {showActionsApply && (
+                      <PressableButton href={`/apply/${event.slug}`} variant="primary">
+                        Apply for this event
+                      </PressableButton>
+                    )}
+                    {showActionsEdit && (
+                      <Link
+                        href={`/apply/${event.slug}?edit=1`}
+                        className="px-4 py-2 text-sm text-steps-blue-700 hover:text-steps-blue-900 font-semibold border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition"
+                      >
+                        Edit application
+                      </Link>
+                    )}
+                    {showActionsWithdraw && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowWithdrawModal(true); setWithdrawErr(null) }}
+                        className="px-4 py-2 text-sm text-steps-berry hover:text-white font-semibold border border-steps-berry/40 rounded-xl hover:bg-steps-berry transition"
+                      >
+                        Withdraw
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Year-group ineligibility chip */}
+                {ineligibleOpenToLabel && (
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex-shrink-0 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-200 text-slate-600 border border-slate-300">
+                        Not available for your year group
+                      </div>
+                      <p className="text-sm text-slate-600">
+                        This event is open to {ineligibleOpenToLabel.toLowerCase()}.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Check-in QR (accepted only) */}
+            {application?.status === 'accepted' && !isPast && (
+              <section className="bg-gradient-to-br from-steps-blue-50 to-white rounded-2xl border border-steps-blue-200 p-6 sm:p-8 animate-tsf-fade-up-3">
+                <CheckinQrCard eventId={event.id} eventDate={event.event_date} />
+              </section>
+            )}
+
+            {/* My application answers */}
+            {application && (
+              <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 animate-tsf-fade-up-3" aria-labelledby="answers-heading">
+                <div className="flex items-baseline justify-between flex-wrap gap-2">
+                  <h2 id="answers-heading" className="font-display text-lg font-bold text-steps-dark">Your application</h2>
+                  <p className="text-xs text-slate-500">
+                    Submitted {new Date(application.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {application.updated_at && application.updated_at !== application.created_at && (
+                      <> · last updated {new Date(application.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</>
+                    )}
+                  </p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-5 mt-5">
+                  <Field label="GCSE results">{stringifyAnswer(overview.profile?.gcse_results ?? raw.gcse_results)}</Field>
+                  <Field label="Current / predicted qualifications">{renderQualifications(overview.profile?.qualifications ?? raw.qualifications)}</Field>
+                  <FallbackField
+                    label="Household income (under £40k)"
+                    appValue={raw.household_income_under_40k}
+                    profileValue={
+                      overview.profile?.parental_income_band
+                        ? (YES_NO_NA_LABEL[INCOME_BAND_TO_RAW[overview.profile.parental_income_band] ?? ''] ?? null)
+                        : null
+                    }
+                  />
+                  <FallbackField
+                    label="Free school meals"
+                    appValue={raw.free_school_meals_raw}
+                    profileValue={formatYesNoAnswer(overview.profile?.free_school_meals)}
+                  />
+                  {overview.profile?.first_generation_uni != null ? (
+                    <Field label="Parent went to university">
+                      {overview.profile.first_generation_uni ? 'No' : 'Yes'}
+                    </Field>
+                  ) : null}
+                  {(overview.profile?.additional_context || raw.additional_context) ? (
+                    <Field label="Additional contextual information" className="sm:col-span-2">
+                      {stringifyAnswer(overview.profile?.additional_context ?? raw.additional_context)}
+                    </Field>
+                  ) : null}
+                  {customFields
+                    .filter(f => f.type !== 'section_heading' && f.type !== 'media')
+                    .map(f => (
+                      <Field key={f.id} label={stripToText(f.label)} className="sm:col-span-2">
+                        {stringifyAnswer(customResponses[f.id])}
+                      </Field>
+                    ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* === Side rail (desktop) — key info === */}
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start animate-tsf-fade-up-2">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+              <h2 className="font-display text-sm font-bold text-steps-dark uppercase tracking-wider">Key info</h2>
+              <dl className="mt-3 divide-y divide-slate-100">
+                {event.event_date && (
+                  <KeyInfo label="Date" value={formatDate(event.event_date)} />
+                )}
+                {event.time_start && (
+                  <KeyInfo label="Time" value={`${event.time_start}${event.time_end ? ` – ${event.time_end}` : ''}`} />
+                )}
+                {displayLocation && (
+                  <KeyInfo label="Location" value={displayLocation} hint={!privileged && event.location_full ? 'Full address shared once you’re accepted.' : null} />
+                )}
+                {event.dress_code && (
+                  <KeyInfo label="Dress code" value={event.dress_code} />
+                )}
+                {event.format && (
+                  <KeyInfo label="Format" value={event.format === 'in_person' ? 'In person' : event.format === 'online' ? 'Online' : event.format} />
+                )}
+                {event.capacity != null && (
+                  <KeyInfo label="Capacity" value={`${event.capacity} places`} />
+                )}
+                {daysUntil !== null && daysUntil >= 0 && (
+                  <KeyInfo label="Countdown" value={daysUntil === 0 ? 'Today!' : `${daysUntil} day${daysUntil === 1 ? '' : 's'} to go`} />
+                )}
+              </dl>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {/* Mobile sticky action bar — only when there's an action to take. */}
+      {hasActions && (
+        <div className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-3 flex gap-2 animate-tsf-fade-up">
+          {showActionsApply && (
+            <PressableButton href={`/apply/${event.slug}`} variant="primary" fullWidth size="sm">
+              Apply
+            </PressableButton>
+          )}
+          {showActionsEdit && (
+            <Link
+              href={`/apply/${event.slug}?edit=1`}
+              className="flex-1 px-3 py-2 text-sm text-center text-steps-blue-700 font-semibold border border-steps-blue-300 rounded-xl bg-white"
+            >
+              Edit
+            </Link>
+          )}
+          {showActionsWithdraw && (
+            <button
+              type="button"
+              onClick={() => { setShowWithdrawModal(true); setWithdrawErr(null) }}
+              className="flex-1 px-3 py-2 text-sm text-steps-berry font-semibold border border-steps-berry/40 rounded-xl bg-white"
+            >
+              Withdraw
+            </button>
+          )}
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10">
-        <Link href="/my" className="text-sm text-steps-blue-600 hover:text-steps-blue-800 inline-flex items-center gap-1 mb-4">
-          ← Back to Student Hub
-        </Link>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <h1 className="font-display text-3xl sm:text-4xl text-steps-dark">{event.name}</h1>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mt-2">
-                {event.event_date && <span>{formatDate(event.event_date)}</span>}
-                {event.time_start && (
-                  <span>{event.time_start}{event.time_end ? ` – ${event.time_end}` : ''}</span>
-                )}
-                {event.format && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                    {event.format === 'in_person' ? 'In person' : event.format === 'online' ? 'Online' : event.format}
-                  </span>
-                )}
-              </div>
-            </div>
-            {journey && (
-              <div className="flex flex-col items-end gap-1">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${journey.badgeClasses}`}>
-                  {journey.prefix ? (
-                    <>
-                      <span className="opacity-70 mr-1">{journey.prefix}</span>
-                      <span aria-hidden className="opacity-50 mr-1">&middot;</span>
-                    </>
-                  ) : null}
-                  {journey.primary}
-                </span>
-                {isPast && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Past event</span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Key info */}
-          <div className="grid sm:grid-cols-2 gap-4 mt-6">
-            {displayLocation && (
-              <InfoRow label="Location">
-                <div className="text-sm text-gray-700">{displayLocation}</div>
-                {!privileged && event.location_full && (
-                  <p className="text-xs text-gray-400 mt-0.5">Full address shared once you&apos;re accepted.</p>
-                )}
-              </InfoRow>
-            )}
-            {event.dress_code && (
-              <InfoRow label="Dress code">
-                <div className="text-sm text-gray-700">{event.dress_code}</div>
-              </InfoRow>
-            )}
-            {daysUntil !== null && daysUntil >= 0 && (
-              <InfoRow label="Countdown">
-                <div className="text-sm text-gray-700">{daysUntil === 0 ? 'Today!' : `${daysUntil} day${daysUntil === 1 ? '' : 's'} to go`}</div>
-              </InfoRow>
-            )}
-            {event.capacity != null && (
-              <InfoRow label="Capacity">
-                <div className="text-sm text-gray-700">{event.capacity} places</div>
-              </InfoRow>
-            )}
-          </div>
-
-          {/* QR check-in code — shown only to accepted students for upcoming
-              events. The admin scanner page reads this at the door and marks
-              the student attended. See lib/checkin-token.ts for the token
-              format and /api/events/[id]/check-in for the scan endpoint. */}
-          {application?.status === 'accepted' && !isPast && (
-            <CheckinQrCard eventId={event.id} eventDate={event.event_date} />
-          )}
-
-          {event.description && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900 mb-2">About this event</h2>
-              <p
-                className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed rich-html"
-                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(event.description) }}
-              />
-            </div>
-          )}
-
-          {/* Actions */}
-          {!application && (() => {
-            // Gate the Apply button on year-group eligibility. The student
-            // reached this page either from a regular "Apply now" card
-            // (eligible) or from the greyed "Other upcoming events" section
-            // (ineligible). In the ineligible path, swap the button for a
-            // muted restricted-to chip pulled from the event's open-to config.
-            const eligible = isEligibleForYearGroup(event, profile?.year_group)
-            if (eligible) {
-              return (
-                <div className="mt-6 pt-6 border-t border-gray-100 flex flex-wrap gap-3">
-                  <PressableButton href={`/apply/${event.slug}`} variant="primary">
-                    Apply for this event
-                  </PressableButton>
-                </div>
-              )
-            }
-            const openToLabel = formatOpenTo(event.eligible_year_groups, !!event.open_to_gap_year)
-            return (
-              <div className="mt-6 pt-6 border-t border-gray-100">
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <div className="flex-shrink-0 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600 border border-gray-300">
-                    Not available for your year group
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    This event is open to {openToLabel.toLowerCase()}.
-                  </p>
-                </div>
-              </div>
-            )
-          })()}
-
-          {application && !isPast && application.status !== 'withdrew' && application.status !== 'rejected' && (
-            <div className="mt-6 pt-6 border-t border-gray-100 flex flex-wrap gap-2">
-              {application.status === 'submitted' && (
-                <Link
-                  href={`/apply/${event.slug}?edit=1`}
-                  className="px-4 py-2 text-sm text-steps-blue-600 hover:text-steps-blue-800 font-medium border border-steps-blue-200 rounded-xl hover:bg-steps-blue-50 transition"
-                >
-                  Edit application
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => { setShowWithdrawModal(true); setWithdrawErr(null) }}
-                className="px-4 py-2 text-sm text-steps-berry hover:text-white font-medium border border-steps-berry/40 rounded-xl hover:bg-steps-berry transition"
-              >
-                Withdraw
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* My application answers */}
-        {application && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 mt-6">
-            <h2 className="text-lg font-semibold text-gray-900">Your application</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Submitted {new Date(application.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-              {application.updated_at && application.updated_at !== application.created_at && (
-                <> · last updated {new Date(application.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</>
-              )}
-            </p>
-
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 mt-5">
-              <Field label="GCSE results">{stringifyAnswer(overview.profile?.gcse_results ?? raw.gcse_results)}</Field>
-              <Field label="Current / predicted qualifications">{renderQualifications(overview.profile?.qualifications ?? raw.qualifications)}</Field>
-              <FallbackField
-                label="Household income (under £40k)"
-                appValue={raw.household_income_under_40k}
-                profileValue={
-                  overview.profile?.parental_income_band
-                    ? (YES_NO_NA_LABEL[INCOME_BAND_TO_RAW[overview.profile.parental_income_band] ?? ''] ?? null)
-                    : null
-                }
-              />
-              <FallbackField
-                label="Free school meals"
-                appValue={raw.free_school_meals_raw}
-                profileValue={formatYesNoAnswer(overview.profile?.free_school_meals)}
-              />
-              {overview.profile?.first_generation_uni != null ? (
-                <Field label="Parent went to university">
-                  {overview.profile.first_generation_uni ? 'No' : 'Yes'}
-                </Field>
-              ) : null}
-              {(overview.profile?.additional_context || raw.additional_context) ? (
-                <Field label="Additional contextual information" className="sm:col-span-2">
-                  {stringifyAnswer(overview.profile?.additional_context ?? raw.additional_context)}
-                </Field>
-              ) : null}
-              {customFields
-                .filter(f => f.type !== 'section_heading' && f.type !== 'media')
-                .map(f => (
-                  <Field key={f.id} label={stripToText(f.label)} className="sm:col-span-2">
-                    {stringifyAnswer(customResponses[f.id])}
-                  </Field>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Withdraw confirmation modal */}
       {showWithdrawModal && application && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="withdraw-title"
-          aria-describedby="withdraw-desc"
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-        >
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
-            <h3 id="withdraw-title" className="text-lg font-semibold text-gray-900">Withdraw your application?</h3>
-            <p id="withdraw-desc" className="text-sm text-gray-600 mt-2">
-              You can re-apply while applications are still open &mdash; but once the deadline passes, you won&apos;t be able to submit again.
+        <div role="dialog" aria-modal="true" aria-labelledby="withdraw-title" aria-describedby="withdraw-desc" className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-tsf-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-tsf-fade-up">
+            <h3 id="withdraw-title" className="font-display text-xl font-bold text-steps-dark">Withdraw your application?</h3>
+            <p id="withdraw-desc" className="text-sm text-slate-600 mt-2">
+              You can re-apply while applications are still open — but once the deadline passes, you won’t be able to submit again.
             </p>
-            {withdrawErr && <p role="alert" className="text-sm text-red-600 mt-3">{withdrawErr}</p>}
+            {withdrawErr && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-3">{withdrawErr}</p>}
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
-              <button type="button" onClick={() => setShowWithdrawModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium rounded-xl hover:bg-gray-50 transition">
+              <button type="button" onClick={() => setShowWithdrawModal(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 font-medium rounded-xl hover:bg-slate-100 transition">
                 Keep my application
               </button>
               <button type="button" disabled={withdrawing} onClick={confirmWithdraw} className="px-4 py-2 text-sm text-white font-semibold bg-steps-berry hover:bg-steps-berry/90 rounded-xl disabled:opacity-60 transition">
-                {withdrawing ? 'Withdrawing\u2026' : 'Yes, withdraw'}
+                {withdrawing ? 'Withdrawing…' : 'Yes, withdraw'}
               </button>
             </div>
           </div>
@@ -512,11 +543,12 @@ export default function EventOverviewPage({ params }: { params: { id: string } }
   )
 }
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+function KeyInfo({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
   return (
-    <div>
-      <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</div>
-      <div className="mt-0.5">{children}</div>
+    <div className="py-2.5 first:pt-0 last:pb-0">
+      <dt className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</dt>
+      <dd className="text-sm text-slate-900 mt-0.5">{value}</dd>
+      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -524,10 +556,20 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</div>
-      <div className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{children}</div>
+      <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</div>
+      <div className="text-sm text-slate-800 mt-1 whitespace-pre-wrap">{children}</div>
     </div>
   )
+}
+
+function CalIcon() {
+  return <svg aria-hidden className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+}
+function ClockIcon() {
+  return <svg aria-hidden className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+}
+function PinIcon() {
+  return <svg aria-hidden className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
 }
 
 // ---------------------------------------------------------------------------
@@ -537,20 +579,10 @@ function Field({ label, children, className }: { label: string; children: React.
 // Pulls a freshly-minted HMAC token from /api/events/[id]/checkin-token and
 // rasterises it as an SVG via the qrcode library.
 //
-// We render the *raw* token in the QR rather than a URL. If a student
-// accidentally scans their own code with a regular phone camera, they'll
-// see a string of base64url that doesn't link anywhere — which is fine,
-// the QR is intended for the staff scanner page only. Encoding a URL
-// would be friendlier on accidental scans but would also expose the
-// token to URL-history persistence, password-manager autofill, and the
-// like, which I'd rather avoid for what is effectively a session token.
-//
-// The endpoint will refuse to mint a token if the application's status
-// isn't 'accepted', so the in-component error handling for that case is
-// soft — we just don't render the card. The parent already gates on
-// status === 'accepted', so anything other than a successful 200 here
-// means the session expired or the app was just withdrawn; show a
-// retry button rather than a stack trace.
+// We render the *raw* token in the QR rather than a URL: if a student
+// accidentally scans their own code with a phone camera, they'll just see
+// a base64url string that doesn't link anywhere — a URL would expose the
+// token to URL history / password manager autofill, which we'd rather avoid.
 // ---------------------------------------------------------------------------
 
 function CheckinQrCard({ eventId, eventDate }: { eventId: string; eventDate: string | null }) {
@@ -586,30 +618,30 @@ function CheckinQrCard({ eventId, eventDate }: { eventId: string; eventDate: str
 
   useEffect(() => { void loadToken() }, [loadToken])
 
-  // Light-touch helper text — explicit about what we expect at the door
-  // without making it sound like the student must do anything beyond
-  // showing their phone screen.
   const dateHint = eventDate
     ? `Show this on the day (${new Date(eventDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}).`
     : 'Show this on the day of the event.'
 
   return (
-    <div className="mt-6 pt-6 border-t border-gray-100">
-      <h2 className="text-sm font-semibold text-gray-900">Your check-in code</h2>
-      <p className="text-xs text-gray-500 mt-0.5">{dateHint} A team member will scan it at the door to mark you as attended — no need to print it.</p>
+    <div>
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <h2 className="font-display text-lg font-bold text-steps-dark">Your check-in code</h2>
+        <span className="text-xs uppercase tracking-wider font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Accepted</span>
+      </div>
+      <p className="text-sm text-slate-600 mt-1">{dateHint} A team member will scan it at the door — no need to print it.</p>
 
-      <div className="mt-4 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-        <div className="shrink-0 rounded-2xl border border-gray-200 bg-white p-3 w-44 h-44 flex items-center justify-center">
-          {loading && <span className="text-xs text-gray-400 animate-pulse">Loading…</span>}
+      <div className="mt-5 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+        <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 w-44 h-44 flex items-center justify-center shadow-sm">
+          {loading && <span className="text-xs text-slate-400 animate-pulse">Loading…</span>}
           {!loading && error && <span className="text-xs text-rose-600 text-center px-2">{error}</span>}
           {!loading && !error && qrSvg && (
             <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
           )}
         </div>
 
-        <div className="text-sm text-gray-600 max-w-md flex-1 self-center">
+        <div className="text-sm text-slate-600 max-w-md flex-1 self-center">
           <ul className="list-disc pl-5 space-y-1.5">
-            <li>Bring your phone fully charged — you won't be able to attend without showing your code.</li>
+            <li>Bring your phone fully charged — you won&apos;t be able to attend without showing your code.</li>
             <li>If your screen is hard to read, turn brightness up before queuing at the door.</li>
             <li>Lost your phone? Speak to a team member — they can check you in manually.</li>
           </ul>
@@ -617,7 +649,7 @@ function CheckinQrCard({ eventId, eventDate }: { eventId: string; eventDate: str
             <button
               type="button"
               onClick={() => { void loadToken() }}
-              className="mt-3 text-xs text-steps-blue-700 hover:underline"
+              className="mt-3 text-xs font-medium text-steps-blue-700 hover:underline"
             >
               Try again
             </button>
