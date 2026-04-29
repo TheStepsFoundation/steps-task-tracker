@@ -652,9 +652,16 @@ export default function StudentHub() {
                 </>
               )}
             </div>
-          ) : (
-            <div className="space-y-4">
-              {applications.map(app => {
+          ) : (() => {
+            const todayMs = Date.now()
+            const eventTime = (a: HubApplication) => a.event.event_date
+              ? new Date(a.event.event_date + 'T00:00:00').getTime()
+              : Number.POSITIVE_INFINITY
+            const sortedDesc = [...applications].sort((a, b) => eventTime(b) - eventTime(a))
+            const active = sortedDesc.filter(a => !a.event.event_date || new Date(a.event.event_date).getTime() >= todayMs)
+            const past = sortedDesc.filter(a =>  a.event.event_date && new Date(a.event.event_date).getTime() <  todayMs)
+
+            const renderCard = (app: HubApplication) => {
                 const journey = getJourneyAwareLabel(app.status, app.status_history, app.event.event_date)
                 const isPast = app.event.event_date && new Date(app.event.event_date) < new Date()
                 const canSeeFull = app.status === 'accepted'
@@ -691,7 +698,7 @@ export default function StudentHub() {
                         </div>
 
                         {/* Journey timeline — visualises where the application is */}
-                        <JourneyTimeline status={app.status} eventDate={app.event.event_date} />
+                        <JourneyTimeline status={app.status} history={app.status_history} eventDate={app.event.event_date} />
 
                         <p className="text-xs text-slate-400 mt-3">
                           Applied {new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -732,9 +739,37 @@ export default function StudentHub() {
                     </div>
                   </Link>
                 )
-              })}
-            </div>
-          )}
+            }
+
+            return (
+              <div className="space-y-8">
+                {active.length > 0 && (
+                  <div>
+                    {past.length > 0 && (
+                      <div className="flex items-baseline justify-between mb-3">
+                        <h3 className="font-display text-sm font-bold text-steps-dark uppercase tracking-wider">Current &amp; upcoming</h3>
+                        <span className="text-xs text-slate-400">{active.length}</span>
+                      </div>
+                    )}
+                    <div className="space-y-4">
+                      {active.map(renderCard)}
+                    </div>
+                  </div>
+                )}
+                {past.length > 0 && (
+                  <div>
+                    <div className="flex items-baseline justify-between mb-3">
+                      <h3 className="font-display text-sm font-bold text-steps-dark uppercase tracking-wider">Past events</h3>
+                      <span className="text-xs text-slate-400">{past.length}</span>
+                    </div>
+                    <div className="space-y-4">
+                      {past.map(renderCard)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </section>
 
         {/* === Section: My details === */}
@@ -977,55 +1012,138 @@ function CalendarIcon() {
 }
 
 // ---------------------------------------------------------------------------
-// Journey timeline — compact 4-step horizontal indicator visualising
-// where the application is in its lifecycle. Steps and active index are
-// derived from the application status; "Decision" splits into accepted /
-// rejected / waitlisted shading. Withdrew/rejected paths get a single
-// muted treatment instead of the timeline.
+// Journey timeline — adaptive horizontal indicator. The number of steps
+// matches the actual path through the application lifecycle:
+//
+//   Accepted (event upcoming) : Applied -> Decision: Accepted -> RSVP -> Attended
+//   Accepted (event past)     : Applied -> Decision: Accepted    (terminal)
+//   Rejected / withdrew /
+//     ineligible / waitlist
+//     after event              : Applied -> Decision: <outcome>  (terminal)
+//   Submitted / shortlisted /
+//     waitlist (upcoming)      : Applied -> Decision: <pending>
+//
+// Status codes are normalised through application-status.ts so the labels
+// stay in lock-step with the journey-aware pill rendered above the bar.
 // ---------------------------------------------------------------------------
 
-function JourneyTimeline({ status, eventDate }: { status: string; eventDate: string | null }) {
-  if (status === 'withdrew' || status === 'rejected') return null
-  const isPast = eventDate && new Date(eventDate) < new Date()
+import type { ApplicationStatusCode, StatusHistoryRow } from '@/lib/application-status'
+import { normalizeStatus } from '@/lib/application-status'
 
-  const steps = [
-    { key: 'submitted', label: 'Applied' },
-    { key: 'decision', label: 'Decision' },
-    { key: 'rsvp', label: 'RSVP' },
-    { key: 'attended', label: 'Attended' },
-  ]
+type Tone = 'accepted' | 'waitlist' | 'unsuccessful' | 'pending' | 'shortlisted' | 'withdrew'
 
-  let activeIndex = 0
-  let tone: 'progress' | 'accepted' | 'waitlist' | 'rejected' = 'progress'
-  if (status === 'submitted' || status === 'reviewing') activeIndex = 0
-  else if (status === 'accepted') { activeIndex = 1; tone = 'accepted' }
-  else if (status === 'waitlisted') { activeIndex = 1; tone = 'waitlist' }
-  else if (status === 'confirmed' || status === 'rsvp_yes') activeIndex = 2
-  else if (status === 'attended') activeIndex = 3
-  else if (isPast && status === 'accepted') activeIndex = 3
+const TONE_BAR: Record<Tone, string> = {
+  accepted:     'bg-emerald-500',
+  waitlist:     'bg-steps-sunrise',
+  unsuccessful: 'bg-red-500',
+  pending:      'bg-steps-blue-600',
+  shortlisted:  'bg-violet-500',
+  withdrew:     'bg-slate-400',
+}
+const TONE_LABEL: Record<Tone, string> = {
+  accepted:     'text-emerald-700',
+  waitlist:     'text-steps-sunrise',
+  unsuccessful: 'text-red-700',
+  pending:      'text-steps-blue-700',
+  shortlisted:  'text-violet-700',
+  withdrew:     'text-slate-600',
+}
 
-  const activeColor = tone === 'accepted' ? 'bg-emerald-500'
-    : tone === 'waitlist' ? 'bg-steps-sunrise'
-    : 'bg-steps-blue-600'
+function JourneyTimeline({ status, history, eventDate }: { status: string; history: StatusHistoryRow[]; eventDate: string | null }) {
+  const code: ApplicationStatusCode | null = normalizeStatus(status)
+  if (!code) return null
+
+  const isPast = !!(eventDate && new Date(eventDate) < new Date())
+  const everShortlisted = history?.some(h => normalizeStatus(h.status) === 'shortlisted')
+  const everWaitlisted = history?.some(h => normalizeStatus(h.status) === 'waitlist')
+
+  // Build the steps array adaptively — last index = current location.
+  type Step = { key: string; label: string; tone: Tone; done: boolean; active: boolean }
+  let steps: Step[] = []
+
+  if (code === 'accepted') {
+    if (isPast) {
+      // Event has passed — the journey terminates at the decision (we don't
+      // have RSVP/attendance data from the hub API).
+      steps = [
+        { key: 'applied',  label: 'Applied',            tone: 'accepted', done: true, active: false },
+        { key: 'decision', label: 'Decision · Accepted', tone: 'accepted', done: true, active: true  },
+      ]
+    } else {
+      steps = [
+        { key: 'applied',  label: 'Applied',             tone: 'accepted', done: true,  active: false },
+        { key: 'decision', label: 'Decision · Accepted', tone: 'accepted', done: true,  active: false },
+        { key: 'rsvp',     label: 'RSVP',                tone: 'accepted', done: false, active: true  },
+        { key: 'attended', label: 'Attended',            tone: 'accepted', done: false, active: false },
+      ]
+    }
+  } else if (code === 'rejected') {
+    const prefix = everShortlisted ? 'Shortlisted, then ' : everWaitlisted ? 'Waitlisted, then ' : ''
+    steps = [
+      { key: 'applied',  label: 'Applied',                                  tone: 'unsuccessful', done: true, active: false },
+      { key: 'decision', label: `Decision · ${prefix}Unsuccessful`,         tone: 'unsuccessful', done: true, active: true  },
+    ]
+  } else if (code === 'waitlist') {
+    if (isPast) {
+      // Never came off the waitlist before the event ran — treat as unsuccessful.
+      steps = [
+        { key: 'applied',  label: 'Applied',                            tone: 'unsuccessful', done: true, active: false },
+        { key: 'decision', label: 'Decision · Waitlisted, unsuccessful', tone: 'unsuccessful', done: true, active: true  },
+      ]
+    } else {
+      steps = [
+        { key: 'applied',  label: 'Applied',                tone: 'waitlist', done: true, active: false },
+        { key: 'decision', label: 'Decision · Waitlisted',  tone: 'waitlist', done: true, active: true  },
+      ]
+    }
+  } else if (code === 'shortlisted') {
+    steps = [
+      { key: 'applied',  label: 'Applied',                  tone: 'shortlisted', done: true, active: false },
+      { key: 'decision', label: 'Decision · Shortlisted',   tone: 'shortlisted', done: true, active: true  },
+    ]
+  } else if (code === 'withdrew') {
+    steps = [
+      { key: 'applied',  label: 'Applied',           tone: 'withdrew', done: true, active: false },
+      { key: 'decision', label: 'Decision · Withdrew', tone: 'withdrew', done: true, active: true  },
+    ]
+  } else if (code === 'ineligible') {
+    steps = [
+      { key: 'applied',  label: 'Applied',                tone: 'withdrew', done: true, active: false },
+      { key: 'decision', label: 'Decision · Not eligible', tone: 'withdrew', done: true, active: true  },
+    ]
+  } else {
+    // submitted (or anything else that normalises to a known code) — decision pending.
+    steps = [
+      { key: 'applied',  label: 'Applied',           tone: 'pending', done: true,  active: false },
+      { key: 'decision', label: 'Decision · Pending', tone: 'pending', done: false, active: true  },
+    ]
+  }
 
   return (
-    <div className="mt-3" aria-hidden>
-      <div className="flex items-center gap-1">
+    <div className="mt-3">
+      <div className="flex items-center gap-1" aria-hidden>
+        {steps.map((s, i) => (
+          <div key={s.key} className="flex-1 flex items-center gap-1">
+            <span className={`block h-1.5 flex-1 rounded-full ${s.done || s.active ? TONE_BAR[s.tone] : 'bg-slate-200'}`} />
+            {i < steps.length - 1 && <span className="block w-1" />}
+          </div>
+        ))}
+      </div>
+      <div
+        className={`grid mt-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-semibold gap-1`}
+        style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+      >
         {steps.map((s, i) => {
-          const done = i < activeIndex
-          const active = i === activeIndex
+          const align = steps.length === 1 ? 'text-center'
+            : i === 0 ? 'text-left'
+            : i === steps.length - 1 ? 'text-right'
+            : 'text-center'
           return (
-            <div key={s.key} className="flex-1 flex items-center gap-1">
-              <span className={`block h-1.5 flex-1 rounded-full ${done || active ? activeColor : 'bg-slate-200'}`} />
-              {i < steps.length - 1 && <span className="block w-1" />}
-            </div>
+            <span key={s.key} className={`${align} ${s.active ? TONE_LABEL[s.tone] : ''}`}>
+              {s.label}
+            </span>
           )
         })}
-      </div>
-      <div className="grid grid-cols-4 gap-1 mt-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
-        {steps.map((s, i) => (
-          <span key={s.key} className={`${i === activeIndex ? 'text-steps-dark' : ''} ${i % 4 === 3 ? 'text-right' : i % 4 === 0 ? 'text-left' : 'text-center'}`}>{s.label}</span>
-        ))}
       </div>
     </div>
   )
