@@ -247,7 +247,23 @@ export default function StudentsDashboard() {
     })
   }
 
-  const visibleIds = useMemo(() => filtered.slice(0, 500).map(s => s.id), [filtered])
+  // Auto-paginate the directory at 100 rows. The previous behaviour was
+  // a silent slice(0,500) cap which dropped anything past the cut-off; this
+  // keeps the rest of the dataset reachable while bounding initial render.
+  const STUDENTS_PAGE_SIZE = 100
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / STUDENTS_PAGE_SIZE))
+  // Reset to first page whenever filters / sort change the underlying list
+  // so the user isn't stranded on page 7 of a 2-page result set.
+  useEffect(() => { setPage(0) }, [filters, sortBy, sortDir])
+  // Clamp if the list shrinks under us (deletes, narrowed filter).
+  useEffect(() => { if (page >= totalPages) setPage(totalPages - 1) }, [page, totalPages])
+  const pageStart = page * STUDENTS_PAGE_SIZE
+  const pageEnd = Math.min(pageStart + STUDENTS_PAGE_SIZE, filtered.length)
+  const pagedStudents = useMemo(() => filtered.slice(pageStart, pageEnd), [filtered, pageStart, pageEnd])
+  // "Visible" now means the current page only — the select-all banner
+  // still has its own "select all filtered" affordance for cross-page selection.
+  const visibleIds = useMemo(() => pagedStudents.map(s => s.id), [pagedStudents])
   const filteredIds = useMemo(() => filtered.map(s => s.id), [filtered])
 
   const toggleSelectAll = () => {
@@ -629,7 +645,7 @@ export default function StudentsDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filtered.slice(0, 500).map(s => (
+                {pagedStudents.map(s => (
                   <tr key={s.id} className={`${selected.has(s.id) ? 'bg-steps-blue-50/50 dark:bg-steps-blue-900/10' : s.eligibility === 'ineligible' ? 'bg-red-50/70 dark:bg-red-900/10 hover:bg-red-100/70 dark:hover:bg-red-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'}`}>
                     <td className="px-2 py-2">
                       <input
@@ -655,10 +671,27 @@ export default function StudentsDashboard() {
                 ))}
               </tbody>
             </table>
-            {filtered.length > 500 && (
-              <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-800">
-                Showing first 500 of {filtered.length} — refine filters to narrow.
-              </div>
+            {filtered.length > STUDENTS_PAGE_SIZE && (
+              <nav aria-label="Pagination" className="flex items-center justify-between gap-3 px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-800">
+                <span className="text-gray-500 dark:text-gray-400">
+                  Showing <strong className="text-gray-700 dark:text-gray-200">{pageStart + 1}</strong>–<strong className="text-gray-700 dark:text-gray-200">{pageEnd}</strong> of {filtered.length.toLocaleString()}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setPage(0)} disabled={page === 0}
+                    className="px-2 py-1 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="First page">«</button>
+                  <button type="button" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                    className="px-2 py-1 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Previous page">Prev</button>
+                  <span className="px-2 tabular-nums text-gray-500 dark:text-gray-400">{page + 1} / {totalPages}</span>
+                  <button type="button" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+                    className="px-2 py-1 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Next page">Next</button>
+                  <button type="button" onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1}
+                    className="px-2 py-1 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Last page">»</button>
+                </div>
+              </nav>
             )}
           </div>
           </>

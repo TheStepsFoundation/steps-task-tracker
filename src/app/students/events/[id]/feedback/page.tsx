@@ -743,25 +743,15 @@ function LiveFeedbackView({ eventId }: { eventId: string }) {
             )
           })()}
 
-          {/* Per-response cards with edit/delete. Lives below the aggregations
-              so the admin can scroll to find a specific submission, fix typos,
-              correct a misclick or remove a duplicate without leaving the page. */}
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">
-              All responses ({rows.length})
-            </h3>
-            <div className="space-y-3">
-              {rows.map(r => (
-                <FeedbackResponseCard
-                  key={r.id}
-                  row={r}
-                  fields={fields}
-                  onEdit={() => setEditing(r)}
-                  onDelete={() => setDeleting(r)}
-                />
-              ))}
-            </div>
-          </div>
+          {/* Per-response cards with edit/delete. Auto-paginates at 50
+              rows so a 5,000-response event doesn't try to render every
+              card on mount and freeze the page. */}
+          <PaginatedResponses
+            rows={rows}
+            fields={fields}
+            onEdit={r => setEditing(r)}
+            onDelete={r => setDeleting(r)}
+          />
         </div>
       )}
 
@@ -1119,5 +1109,119 @@ function FeedbackDeleteConfirm({
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// PaginatedResponses — wraps the per-row card list with auto-pagination at 50
+// per page once the list crosses the threshold. Below 50 the controls hide
+// and it renders exactly as before.
+// ---------------------------------------------------------------------------
+const RESPONSES_PAGE_SIZE = 50
+
+function PaginatedResponses({
+  rows, fields, onEdit, onDelete,
+}: {
+  rows: EventFeedbackRow[]
+  fields: FormFieldConfig[]
+  onEdit: (row: EventFeedbackRow) => void
+  onDelete: (row: EventFeedbackRow) => void
+}) {
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(rows.length / RESPONSES_PAGE_SIZE))
+  // Clamp page if rows shrink under us (e.g. after a delete on the last page).
+  useEffect(() => {
+    if (page >= totalPages) setPage(totalPages - 1)
+  }, [page, totalPages])
+  const start = page * RESPONSES_PAGE_SIZE
+  const visible = rows.slice(start, start + RESPONSES_PAGE_SIZE)
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">
+        All responses ({rows.length})
+      </h3>
+      <div className="space-y-3">
+        {visible.map(r => (
+          <FeedbackResponseCard
+            key={r.id}
+            row={r}
+            fields={fields}
+            onEdit={() => onEdit(r)}
+            onDelete={() => onDelete(r)}
+          />
+        ))}
+      </div>
+      {rows.length > RESPONSES_PAGE_SIZE && (
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          total={rows.length}
+          pageSize={RESPONSES_PAGE_SIZE}
+          onChange={setPage}
+        />
+      )}
+    </div>
+  )
+}
+
+// Minimal page-number bar — Prev / page indicator / Next + jump-to-end.
+function PaginationControls({
+  page, totalPages, total, pageSize, onChange,
+}: {
+  page: number
+  totalPages: number
+  total: number
+  pageSize: number
+  onChange: (next: number) => void
+}) {
+  const start = page * pageSize + 1
+  const end = Math.min((page + 1) * pageSize, total)
+  return (
+    <nav aria-label="Pagination" className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Showing <strong className="text-gray-700 dark:text-gray-200 font-semibold">{start}</strong>–<strong className="text-gray-700 dark:text-gray-200 font-semibold">{end}</strong> of {total}
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(0)}
+          disabled={page === 0}
+          className="px-2 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="First page"
+        >
+          «
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(0, page - 1))}
+          disabled={page === 0}
+          className="px-2 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Previous page"
+        >
+          Prev
+        </button>
+        <span className="px-2 text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+          {page + 1} / {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
+          disabled={page >= totalPages - 1}
+          className="px-2 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Next page"
+        >
+          Next
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(totalPages - 1)}
+          disabled={page >= totalPages - 1}
+          className="px-2 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Last page"
+        >
+          »
+        </button>
+      </div>
+    </nav>
   )
 }

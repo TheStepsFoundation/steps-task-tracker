@@ -138,9 +138,27 @@ function csvCell(v: unknown): string {
   return s
 }
 
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows.map(r => r.map(csvCell).join(',')).join('\n')
-  // Prepend BOM so Excel opens UTF-8 correctly
+// Build + download a CSV without blocking the main thread. We chunk the
+// stringification at 500 rows and `await` between chunks, which yields back
+// to the event loop so the browser can repaint (and our progress indicator
+// can tick). At 99 rows it's effectively instant; at 50,000 it stays
+// responsive instead of freezing the tab.
+async function downloadCsvAsync(
+  filename: string,
+  rows: string[][],
+  onProgress?: (done: number, total: number) => void,
+) {
+  const CHUNK_SIZE = 500
+  const parts: string[] = []
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    const slice = rows.slice(i, i + CHUNK_SIZE)
+    parts.push(slice.map(r => r.map(csvCell).join(',')).join('\n'))
+    onProgress?.(Math.min(i + CHUNK_SIZE, rows.length), rows.length)
+    // Yield to the event loop. setTimeout(0) is the lowest-friction option
+    // and works across every browser we care about.
+    await new Promise<void>(r => setTimeout(r, 0))
+  }
+  const csv = parts.join('\n')
   const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -268,7 +286,14 @@ export default function ApplicationOverviewPage() {
 
   // CSV export — one row per applicant, columns = standard demographics + every
   // form_config field. Useful for partner orgs who want raw data in Sheets.
-  const handleExport = () => {
+  // Async so the row stringification doesn't block the main thread on big
+  // exports; progress feeds the button label so the admin knows it's alive.
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null)
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportProgress({ done: 0, total: filtered.length })
     const header = [
       'application_id', 'submitted_at', 'status',
       'first_name', 'last_name', 'email', 'year_group', 'school_type',
@@ -304,7 +329,16 @@ export default function ApplicationOverviewPage() {
       rows.push(row)
     }
     const slug = (event?.slug ?? eventId).replace(/[^a-z0-9-]/gi, '-')
-    downloadCsv(`${slug}-applications-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+    try {
+      await downloadCsvAsync(
+        `${slug}-applications-${new Date().toISOString().slice(0, 10)}.csv`,
+        rows,
+        (done, total) => setExportProgress({ done, total }),
+      )
+    } finally {
+      setExporting(false)
+      setExportProgress(null)
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -364,11 +398,16 @@ export default function ApplicationOverviewPage() {
             <button
               type="button"
               onClick={handleExport}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-steps-blue-50 text-steps-blue-700 border border-steps-blue-200 hover:bg-steps-blue-100 dark:bg-steps-blue-900/20 dark:text-steps-blue-300 dark:border-steps-blue-800 dark:hover:bg-steps-blue-900/30 transition-colors"
+              disabled={exporting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-steps-blue-50 text-steps-blue-700 border border-steps-blue-200 hover:bg-steps-blue-100 dark:bg-steps-blue-900/20 dark:text-steps-blue-300 dark:border-steps-blue-800 dark:hover:bg-steps-blue-900/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               title="Download a CSV of every application matching the current filter"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
-              Export CSV
+              {exporting && exportProgress
+                ? exportProgress.total > 0
+                  ? `Exporting ${exportProgress.done}/${exportProgress.total}\u2026`
+                  : 'Exporting\u2026'
+                : 'Export CSV'}
             </button>
           </div>
         </div>
