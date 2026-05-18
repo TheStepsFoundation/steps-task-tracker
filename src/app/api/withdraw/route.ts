@@ -127,7 +127,7 @@ function renderConfirmPage(token: string, lookup: AppLookup): string {
   const body = `
     <h1 style="margin:0 0 12px 0;font-size:24px;color:#111">Withdraw your application?</h1>
     <p style="margin:0 0 8px 0;color:#555">${greeting}</p>
-    <p style="margin:0 0 16px 0;color:#555">You're about to withdraw your application to <strong>${eventName}</strong>. This frees up your spot for someone on the waitlist.</p>
+    <p style="margin:0 0 16px 0;color:#555">You're about to withdraw your application to <strong>${eventName}</strong>.</p>
     ${dateLine}
     <form method="POST" action="/api/withdraw?token=${encodeURIComponent(token)}" style="margin:24px 0 0 0">
       <button type="submit" style="background:#111;color:#fff;border:0;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer">Yes, withdraw my application</button>
@@ -141,7 +141,7 @@ function renderConfirmedPage(lookup: AppLookup): string {
   const reapplyUrl = lookup.eventSlug ? `https://the-steps-foundation-intranet.vercel.app/apply/${encodeURIComponent(lookup.eventSlug)}` : 'https://the-steps-foundation-intranet.vercel.app/my'
   const body = `
     <h1 style="margin:0 0 12px 0;font-size:24px;color:#111">You're withdrawn</h1>
-    <p style="margin:0 0 16px 0;color:#555">Your application to <strong>${eventName}</strong> has been withdrawn. Thanks for letting us know — it means we can offer your spot to someone else.</p>
+    <p style="margin:0 0 16px 0;color:#555">Your application to <strong>${eventName}</strong> has been withdrawn. Thanks for letting us know.</p>
     <p style="margin:0 0 24px 0;color:#555">Changed your mind, or did you click this by mistake? You can re-apply and we'll bring back the answers you gave the first time so you don't have to start over.</p>
     <a href="${reapplyUrl}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600">Re-apply to ${eventName}</a>
     <p style="margin:24px 0 0 0;color:#777;font-size:13px">— <i>Virtus, non Origo.</i></p>`
