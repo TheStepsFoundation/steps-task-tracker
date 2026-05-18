@@ -10,7 +10,7 @@ import { sanitizeRichHtml, stripToText } from '@/lib/sanitize-html'
 import type { FormFieldConfig, FormPage, EventRow, StandardOverrides } from '@/lib/events-api'
 import { fetchEventBySlug } from '@/lib/events-api'
 import {
-  sendOtp, verifyOtp, signInWithPassword, lookupSelf, hasExistingApplication, fetchExistingApplication, getExistingSession,
+  sendOtp, verifyOtp, signInWithPassword, lookupSelf, hasExistingApplication, fetchExistingApplication, fetchPriorWithdrawnApplication, getExistingSession,
   submitProfile, submitEventApplication, upgradeToPassword, signOutStudent, userHasPassword,
   fetchEventFormConfig,
   type StudentSelf, type ProfileSubmission, type Stage2Submission,
@@ -331,6 +331,43 @@ export default function ApplyPage() {
     else if (app.attribution_source) setAttribution(app.attribution_source)
   }, [])
 
+  // ISO timestamp of the prior withdrawal we restored answers from, or null
+  // if we didn't pre-fill. Surfaces a small banner so the student knows why
+  // their fields are pre-populated when re-applying.
+  const [restoredFromWithdrawn, setRestoredFromWithdrawn] = useState<string | null>(null)
+
+  const restorePriorWithdrawn = useCallback(async (eventId: string) => {
+    const prior = await fetchPriorWithdrawnApplication(eventId)
+    if (!prior?.raw_response) return false
+    const raw = prior.raw_response
+    if (raw.gcse_results) setGcseResults(raw.gcse_results)
+    if (raw.qualifications?.length) {
+      setQualifications(raw.qualifications.map(q => ({
+        qualType: q.qualType || 'a_level',
+        subject: q.subject || '',
+        grade: q.grade || '',
+        level: q.level,
+      })))
+    }
+    if (raw.additional_context) setAdditionalContext(raw.additional_context)
+    if (raw.anything_else) setAnythingElse(raw.anything_else)
+    if (raw.custom_fields) setCustomFieldValues(raw.custom_fields as Record<string, FieldValue>)
+    if (prior.channel) setAttribution(prior.channel)
+    else if (prior.attribution_source) setAttribution(prior.attribution_source)
+    setRestoredFromWithdrawn(prior.withdrawn_at ?? new Date().toISOString())
+    return true
+  }, [])
+
+  const clearRestoredFromWithdrawn = useCallback(() => {
+    setGcseResults('')
+    setQualifications(defaultQualifications())
+    setAdditionalContext('')
+    setAnythingElse('')
+    setCustomFieldValues({})
+    setAttribution('')
+    setRestoredFromWithdrawn(null)
+  }, [])
+
   // Check for existing Supabase session on mount (e.g. page refresh after OTP)
   useEffect(() => {
     if (!event?.id) return
@@ -364,6 +401,11 @@ export default function ApplyPage() {
           draftRestoredRef.current = true
           if (!cancelled) setStep(editMode ? 'details' : 'applied')
           return
+        }
+        // No live application — see if they previously withdrew so we can
+        // hand them back their answers and save them retyping everything.
+        if (!cancelled) {
+          await restorePriorWithdrawn(event!.id)
         }
       }
       if (student) draftRestoredRef.current = true
@@ -530,6 +572,8 @@ export default function ApplyPage() {
           setAlreadyApplied(true); await restoreApplication(event!.id); draftRestoredRef.current = true
           setLoading(false); setStep(editMode ? 'details' : 'applied'); return
         }
+      // No live application — restore previously-withdrawn answers if any.
+      await restorePriorWithdrawn(event!.id)
     }
     if (student) draftRestoredRef.current = true
     setLoading(false)
@@ -559,6 +603,8 @@ export default function ApplyPage() {
           setAlreadyApplied(true); await restoreApplication(event!.id); draftRestoredRef.current = true
           setLoading(false); setStep(editMode ? 'details' : 'applied'); return
         }
+      // No live application — restore previously-withdrawn answers if any.
+      await restorePriorWithdrawn(event!.id)
     }
     if (student) draftRestoredRef.current = true
     setLoading(false)
@@ -1344,6 +1390,19 @@ export default function ApplyPage() {
             <div className="mb-6 p-4 bg-steps-blue-50 border border-steps-blue-100 rounded-xl text-steps-blue-700 text-sm">
               Welcome back! We&apos;ve pre-filled your details from your last application.
               Please review and update anything that&apos;s changed.
+            </div>
+          )}
+          {restoredFromWithdrawn && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-start gap-3">
+              <span aria-hidden="true">↩️</span>
+              <div className="flex-1">
+                <strong>We’ve restored your answers from your previous application.</strong>{' '}
+                You withdrew this one earlier, so we’ve brought everything back so you don’t have to retype it. Review, edit if anything’s changed, then submit to re-apply.
+                <button type="button" onClick={clearRestoredFromWithdrawn}
+                  className="ml-2 underline text-amber-900 hover:text-amber-950">
+                  Start fresh instead
+                </button>
+              </div>
             </div>
           )}
 

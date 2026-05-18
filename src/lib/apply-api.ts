@@ -375,6 +375,46 @@ export async function fetchExistingApplication(eventId: string): Promise<Existin
 }
 
 // ---------------------------------------------------------------------------
+// Fetch the most recent withdrawn application for this student + event.
+//
+// Used by the apply form when there is NO live application but the student
+// previously withdrew one — we rehydrate their raw_response so they don't
+// have to retype every answer. RLS hides soft-deleted rows, so this goes
+// via a SECURITY DEFINER RPC that restricts on the JWT email.
+// ---------------------------------------------------------------------------
+
+export type PriorWithdrawnApplication = {
+  id: string
+  raw_response: ExistingApplicationData['raw_response']
+  attribution_source: string | null
+  channel: string | null
+  withdrawn_at: string | null
+}
+
+export async function fetchPriorWithdrawnApplication(eventId: string): Promise<PriorWithdrawnApplication | null> {
+  const email = await currentUserEmail()
+  if (!email) return null
+  const { data, error } = await supabase
+    .rpc('get_latest_withdrawn_application', { p_event_id: eventId })
+  if (error) {
+    // RPC might not exist on a stale environment — fail soft so re-apply
+    // still works (just without prefill) rather than blocking the form.
+    console.warn('fetchPriorWithdrawnApplication:', error.message)
+    return null
+  }
+  if (!data || (Array.isArray(data) && data.length === 0)) return null
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) return null
+  return {
+    id: row.id as string,
+    raw_response: (row.raw_response ?? null) as ExistingApplicationData['raw_response'],
+    attribution_source: (row.attribution_source as string | null) ?? null,
+    channel: (row.channel as string | null) ?? null,
+    withdrawn_at: (row.withdrawn_at as string | null) ?? null,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fetch Event Form Config (public — for application form)
 // ---------------------------------------------------------------------------
 

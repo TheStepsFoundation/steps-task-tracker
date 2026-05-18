@@ -3,6 +3,7 @@ import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 import { buildRawEmail, sanitiseAttachments } from '@/lib/email-mime'
 import { buildUnsubscribeUrl } from '@/lib/unsubscribe-token'
+import { buildWithdrawUrl, WITHDRAW_LINK_TAG_REGEX } from '@/lib/withdraw-token'
 import { getMarketing24hCount, MARKETING_CAP_24H } from '@/lib/send-cap'
 
 export const runtime = 'nodejs'
@@ -191,10 +192,25 @@ export async function POST(req: NextRequest) {
     }
     // ----------------------------------------------------------------------
     try {
+      // Resolve {{withdraw_link}} per-recipient at send time. Kept out of
+      // the client-side merge pass so the WITHDRAW_SECRET never ships to the
+      // browser; the outbox row stores the literal tag, we swap it here.
+      const withdrawUrl = row.application_id ? buildWithdrawUrl(row.application_id) : null
+      const resolveWithdraw = (s: string): string => {
+        if (!s) return s
+        if (!withdrawUrl) {
+          // No application_id on this row (transactional one-off etc.).
+          // Strip the tag rather than ship a broken link.
+          return s.replace(WITHDRAW_LINK_TAG_REGEX, '#')
+        }
+        return s.replace(WITHDRAW_LINK_TAG_REGEX, withdrawUrl)
+      }
+      const resolvedSubject = resolveWithdraw(row.subject)
+      const resolvedBodyHtml = resolveWithdraw(row.body_html)
       const raw = await buildRawEmail({
         to: row.to_email,
-        subject: row.subject,
-        htmlBody: row.body_html,
+        subject: resolvedSubject,
+        htmlBody: resolvedBodyHtml,
         attachments: sanitiseAttachments(row.attachments),
         unsubscribeUrl: row.student_id ? buildUnsubscribeUrl(row.student_id) : undefined,
       })
@@ -212,8 +228,8 @@ export async function POST(req: NextRequest) {
           template_id: row.template_id,
           to_email: row.to_email,
           from_email: FROM_EMAIL,
-          subject: row.subject,
-          body_html: row.body_html,
+          subject: resolvedSubject,
+          body_html: resolvedBodyHtml,
           status: 'sent',
           gmail_message_id: result.data.id ?? null,
           sent_at: now,
