@@ -4195,7 +4195,16 @@ export default function EventDetailPage() {
               {emailStep === 'preview' && (
                 <>
                   <button
-                    onClick={() => setEmailStep('pick')}
+                    onClick={() => {
+                      // Bump the editor seed so when the EmailComposePanel
+                      // remounts it pulls in the *current* emailBody — the
+                      // memo otherwise stays pinned to its first value
+                      // (empty if the user opened the modal blank) and the
+                      // contenteditable comes back wiped. Pre-existing bug
+                      // — see commit message.
+                      setBodySeedCounter(c => c + 1)
+                      setEmailStep('pick')
+                    }}
                     className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     Back
