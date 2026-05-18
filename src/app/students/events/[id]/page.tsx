@@ -4100,7 +4100,7 @@ export default function EventDetailPage() {
                   ...(event?.applications_close_at ? [{ tag: 'application_deadline', label: 'Application Deadline' }] : []),
                   { tag: 'rsvp_link', label: 'RSVP Link' },
                   { tag: 'portal_link', label: 'Portal Link' },
-                  { tag: 'withdraw_link', label: 'One-click Withdraw Link' },
+                  { tag: 'withdraw_link', label: 'Withdraw link' },
                 ]
                 const subjectMergeTags: MergeTag[] = [
                   { tag: 'first_name', label: 'First Name' },
@@ -4143,11 +4143,11 @@ export default function EventDetailPage() {
                 <EmailPreviewPanel
                   recipientName={`${getRecipients()[0]?.first_name ?? ''} ${getRecipients()[0]?.last_name ?? ''}`.trim()}
                   recipientEmail={getRecipients()[0]?.personal_email ?? null}
-                  filledSubject={(getRecipients()[0] ? fillMergeFields(emailSubject, getRecipients()[0]) : emailSubject).replace(/\{\{withdraw_link\}\}/g, '[withdraw link inserted at send]')}
+                  filledSubject={(getRecipients()[0] ? fillMergeFields(emailSubject, getRecipients()[0]) : emailSubject).replace(/\{\{withdraw_link\}\}/g, '[Withdraw link]')}
                   filledBodyHtml={(() => {
                     const raw = getRecipients()[0] ? fillMergeFields(emailBody, getRecipients()[0]) : emailBody
                     const html = looksLikeHtml(raw) ? raw : plainTextToHtml(raw)
-                    return html.replace(/\{\{withdraw_link\}\}/g, '<a href="#withdraw-link-preview" style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;text-decoration:underline;font-weight:500" title="Real signed link inserted per recipient at send time">[one-click withdraw link]</a>')
+                    return html.replace(/\{\{withdraw_link\}\}/g, '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:500" title="Real signed Withdraw link inserted per recipient at send time">[Withdraw link]</span>')
                   })()}
                   footerBanner={notifyAction ? (
                     <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-800 dark:text-amber-300">

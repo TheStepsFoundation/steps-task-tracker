@@ -195,15 +195,32 @@ export async function POST(req: NextRequest) {
       // Resolve {{withdraw_link}} per-recipient at send time. Kept out of
       // the client-side merge pass so the WITHDRAW_SECRET never ships to the
       // browser; the outbox row stores the literal tag, we swap it here.
+      //
+      // Three substitution rules, applied in order:
+      //   1. href="{{withdraw_link}}"  → href="<real URL>"
+      //      (also handles &quot;-escaped variant from contenteditable.)
+      //   2. Standalone {{withdraw_link}}  → full <a>Withdraw link</a> anchor.
+      //   3. Belt-and-braces: any leftover '#withdraw-link-preview' href
+      //      (from an earlier preview-placeholder paste) → real URL.
       const withdrawUrl = row.application_id ? buildWithdrawUrl(row.application_id) : null
+      const ANCHOR_STYLE = 'color:#1d4ed8;text-decoration:underline;font-weight:600'
       const resolveWithdraw = (s: string): string => {
         if (!s) return s
         if (!withdrawUrl) {
           // No application_id on this row (transactional one-off etc.).
           // Strip the tag rather than ship a broken link.
-          return s.replace(WITHDRAW_LINK_TAG_REGEX, '#')
+          return s
+            .replace(/href=("|&quot;|')\{\{withdraw_link\}\}\1/g, 'href=$1#$1')
+            .replace(WITHDRAW_LINK_TAG_REGEX, '#')
         }
-        return s.replace(WITHDRAW_LINK_TAG_REGEX, withdrawUrl)
+        // 1) Already-wrapped href attribute — swap the value only.
+        let out = s.replace(/href=("|&quot;|')\{\{withdraw_link\}\}\1/g, (_m, q) => `href=${q}${withdrawUrl}${q}`)
+        // 2) Standalone merge tag — render a full anchor with friendly text.
+        out = out.replace(WITHDRAW_LINK_TAG_REGEX, `<a href="${withdrawUrl}" style="${ANCHOR_STYLE}">Withdraw link</a>`)
+        // 3) Backwards-compat: rewrite the old preview placeholder href in
+        // case an admin pasted it into a saved template before this fix.
+        out = out.replace(/href=("|&quot;|')[^"'&]*#withdraw-link-preview\1/g, (_m, q) => `href=${q}${withdrawUrl}${q}`)
+        return out
       }
       const resolvedSubject = resolveWithdraw(row.subject)
       const resolvedBodyHtml = resolveWithdraw(row.body_html)
